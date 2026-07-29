@@ -12,7 +12,9 @@ class SubjectController extends Controller
      */
     public function index()
     {
-        //
+        $subjects = Subject::latest()->paginate(10);
+
+        return view('subjects.index', compact('subjects'));
     }
 
     /**
@@ -28,7 +30,15 @@ class SubjectController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'subject_code' => 'required|string|max:20|unique:subjects,subject_code',
+            'subject_name' => 'required|string|max:255',
+            'units' => 'required|numeric|min:0|max:10',
+        ]);
+
+        Subject::create($validated);
+
+        return redirect()->route('subjects.index')->with('success', 'Subject creted successfully.');
     }
 
     /**
@@ -52,7 +62,15 @@ class SubjectController extends Controller
      */
     public function update(Request $request, Subject $subject)
     {
-        //
+        $validated = $request->validate([
+            'subject_code' => 'required|string|max:20|unique:subjects,subject_code,' . $subject->id,
+            'subject_name' => 'required|string|max:255',
+            'units' => 'required|numirec|min:0|max:10',
+        ]);
+
+        $subject->update($validated);
+
+        return redirect()->route('subjects.index')->with('success', 'Subject updated successfully.');
     }
 
     /**
@@ -60,6 +78,8 @@ class SubjectController extends Controller
      */
     public function destroy(Subject $subject)
     {
-        //
+        $subject->delete();
+
+        return redirect()->route('subjects.index')->with('success', 'Subject deleted successfully.');
     }
 }

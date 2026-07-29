@@ -62,6 +62,30 @@
 
     @if (Auth::user()->role?->role_name === 'admin')
         <x-sidebar-link
+            :href="route('instructors.index')"
+            :active="request()->routeIs('instructors.*')"
+            :collapsible="$collapsible"
+            label="Manage Instructor"
+        >
+            <x-slot name="icon">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+            </x-slot>
+        </x-sidebar-link>
+        <x-sidebar-link
+            :href="route('non-teaching-staff.index')"
+            :active="request()->routeIs('non-teaching-staff.*')"
+            :collapsible="$collapsible"
+            label="Manage Staff"
+        >
+            <x-slot name="icon">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-8.13a4 4 0 110 8 4 4 0 010-8zM17 8a3 3 0 110 6" />
+                </svg>
+            </x-slot>
+        </x-sidebar-link>
+        <x-sidebar-link
             :href="route('departments.index')"
             :active="request()->routeIs('departments.*')"
             :collapsible="$collapsible"
@@ -82,6 +106,30 @@
             <x-slot name="icon">
                 <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s4.332.477 5.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+            </x-slot>
+        </x-sidebar-link>
+        <x-sidebar-link
+            :href="route('subjects.index')"
+            :active="request()->routeIs('subjects.*')"
+            :collapsible="$collapsible"
+            label="Manage Subject"
+        >
+            <x-slot name="icon">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s4.332.477 5.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+            </x-slot>
+        </x-sidebar-link>
+        <x-sidebar-link
+            :href="route('roles.index')"
+            :active="request()->routeIs('roles.*')"
+            :collapsible="$collapsible"
+            label="Roles"
+        >
+            <x-slot name="icon">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
             </x-slot>
         </x-sidebar-link>

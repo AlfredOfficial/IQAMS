@@ -12,7 +12,9 @@ class RoleController extends Controller
      */
     public function index()
     {
-        //
+        $roles = Role::withCount('users')->orderBy('role_name')->get();
+
+        return view('roles.index', compact('roles'));
     }
 
     /**

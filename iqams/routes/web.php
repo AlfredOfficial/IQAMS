@@ -7,6 +7,10 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StaffDashboardController;
 use App\Http\Controllers\StudentDashboardController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\InstructorController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\NonTeachingStaffController;
+use App\Http\Controllers\SubjectController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -31,6 +35,10 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::resource('departments', DepartmentController::class);
     Route::resource('courses', CourseController::class);
+    Route::resource('instructors', InstructorController::class)->except(['create', 'edit', 'show']);
+    Route::resource('roles', RoleController::class);
+    Route::resource('non-teaching-staff', NonTeachingStaffController::class)->except(['create', 'edit', 'show']);
+    Route::resource('subjects', SubjectController::class)->except('create', 'edit', 'show');
 });
 
 Route::middleware(['auth', 'role:instructor'])->prefix('instructor')->name('instructor.')->group(function () {
