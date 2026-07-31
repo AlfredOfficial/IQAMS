@@ -11,6 +11,9 @@ use App\Http\Controllers\InstructorController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\NonTeachingStaffController;
 use App\Http\Controllers\SubjectController;
+use App\Http\Controllers\SectionController;
+use App\Http\Controllers\StudentController;
+use App\Http\Controllers\ScheduleController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -39,6 +42,9 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::resource('roles', RoleController::class);
     Route::resource('non-teaching-staff', NonTeachingStaffController::class)->except(['create', 'edit', 'show']);
     Route::resource('subjects', SubjectController::class)->except('create', 'edit', 'show');
+    Route::resource('sections', SectionController::class)->except(['create', 'edit', 'show']);
+    Route::resource('students', StudentController::class)->except(['create', 'edit', 'show']);
+    Route::resource('schedules', ScheduleController::class)->except(['create', 'edit', 'show']);
 });
 
 Route::middleware(['auth', 'role:instructor'])->prefix('instructor')->name('instructor.')->group(function () {
