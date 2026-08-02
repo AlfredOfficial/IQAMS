@@ -8,7 +8,8 @@
     <div class="py-8" x-data="{
             showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
             editModal: { show: false, id: null, course_id: '', section_id: '', first_name: '', last_name: '', middle_name: '', status: '' },
-            deleteModal: { show: false, id: null, name: '' }
+            deleteModal: { show: false, id: null, name: '' },
+            qrModal: { show: false, value: '', label: '' }
         }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
@@ -81,6 +82,9 @@
                                     <button type="button"
                                         @click="deleteModal = { show: true, id: {{ $student->id }}, name: '{{ addslashes($student->first_name . ' ' . $student->last_name) }}' }"
                                         class="text-red-600 hover:text-red-800">Delete</button>
+                                    <button type="button"
+                                        @click="qrModal = { show: true, value: '{{ $student->student_no }}', label: '{{ addslashes($student->first_name . ' ' . $student->last_name) }}' }"
+                                        class="text-gray-600 hover:text-gray-800">View QR</button>    
                                 </td>
                             </tr>
                         @empty
@@ -323,5 +327,6 @@
                 </form>
             </div>
         </div>
+        <x-qr-modal />
     </div>
 </x-app-layout>

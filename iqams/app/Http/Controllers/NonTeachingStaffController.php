@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Department;
+// use App\Models\Department;
 use App\Models\NonTeachingStaff;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class NonTeachingStaffController extends Controller
 {
@@ -17,11 +18,11 @@ class NonTeachingStaffController extends Controller
      */
     public function index()
     {
-        $staffMembers = NonTeachingStaff::with(['user', 'department'])->latest()->paginate(10);
+        $staffMembers = NonTeachingStaff::with(['user',])->latest()->paginate(10);
 
-        $departments = Department::orderBy('department_name')->get(); 
+        // $departments = Department::orderBy('department_name')->get(); 
 
-        return view('non-teaching-staff.index', compact('staffMembers', 'departments'));
+        return view('non-teaching-staff.index', compact('staffMembers'));
     }
 
     /**
@@ -38,7 +39,7 @@ class NonTeachingStaffController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'department_id' => 'required|exists:departments,id',
+            // 'department_id' => 'required|exists:departments,id',
             'employee_no' => 'required|string|max:50|unique:non_teaching_staff,employee_no|unique:users,username',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
@@ -62,10 +63,11 @@ class NonTeachingStaffController extends Controller
 
             NonTeachingStaff::create([
                 'user_id' => $user->id,
-                'department_id' => $validated['department_id'],
+                // 'department_id' => $validated['department_id'],
                 'employee_no' => $validated['employee_no'],
                 'first_name' => $validated['first_name'],
                 'last_name' => $validated['last_name'],
+                'qr_code' => $validated['employee_no'],
             ]);
         });
 
@@ -95,7 +97,7 @@ class NonTeachingStaffController extends Controller
     public function update(Request $request, NonTeachingStaff $nonTeachingStaff)
     {
         $validated = $request->validate([
-            'department_id' => 'required|exists:departments,id',
+            // 'department_id' => 'required|exists:departments,id',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
         ]);

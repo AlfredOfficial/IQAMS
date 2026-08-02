@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::create('non_teaching_staff', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->unique()->constrained('users')->cascadeOnDelete();
-            $table->foreignId('department_id')->constrained('departments')->cascadeOnDelete();
             $table->string('employee_no')->unique();
             $table->string('first_name');
             $table->string('last_name');

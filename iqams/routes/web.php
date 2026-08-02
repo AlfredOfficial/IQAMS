@@ -14,6 +14,7 @@ use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\AttendanceLogController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -45,6 +46,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::resource('sections', SectionController::class)->except(['create', 'edit', 'show']);
     Route::resource('students', StudentController::class)->except(['create', 'edit', 'show']);
     Route::resource('schedules', ScheduleController::class)->except(['create', 'edit', 'show']);
+    Route::resource('attendance-logs', AttendanceLogController::class)->except(['create', 'edit', 'show']);
 });
 
 Route::middleware(['auth', 'role:instructor'])->prefix('instructor')->name('instructor.')->group(function () {

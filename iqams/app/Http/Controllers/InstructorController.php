@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class InstructorController extends Controller
 {
@@ -66,6 +67,7 @@ class InstructorController extends Controller
                 'employee_no' => $validated['employee_no'],
                 'first_name' => $validated['first_name'],
                 'last_name' => $validated['last_name'],
+                'qr_code' =>  $validated['employee_no'],
             ]);
 
         });

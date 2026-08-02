@@ -14,7 +14,7 @@ class NonTeachingStaff extends Model
 
     protected $fillable = [
         'user_id',
-        'department_id',
+        // 'department_id',
         'employee_no',
         'first_name',
         'last_name',
@@ -26,10 +26,10 @@ class NonTeachingStaff extends Model
         return $this->belongsTo(User::class);
     }
  
-    public function department(): BelongsTo
-    {
-        return $this->belongsTo(Department::class);
-    }
+    // public function department(): BelongsTo
+    // {
+    //     return $this->belongsTo(Department::class);
+    // }
  
     public function fullName(): string
     {

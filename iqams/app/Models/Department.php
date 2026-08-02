@@ -25,8 +25,8 @@ class Department extends Model
         return $this->hasMany(Instructor::class);
     }
 
-    public function nonTeachingStaff(): HasMany
-    {
-        return $this->hasMany(NonTeachingStaff::class);
-    }
+    // public function nonTeachingStaff(): HasMany
+    // {
+    //     return $this->hasMany(NonTeachingStaff::class);
+    // }
 }

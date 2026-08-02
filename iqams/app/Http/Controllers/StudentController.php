@@ -9,6 +9,7 @@ use App\Models\Student;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 use Illuminate\Http\Request;
 
@@ -77,6 +78,7 @@ class StudentController extends Controller
                 'section_id' => $validated['section_id'] ?? null,
                 'course_id' => $validated['course_id'],
                 'status' => 'active',
+                'qr_code' => $validated['student_no'],
             ]);
         });
 

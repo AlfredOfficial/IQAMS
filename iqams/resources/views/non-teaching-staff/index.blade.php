@@ -7,8 +7,9 @@
 
     <div class="py-8" x-data="{
             showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
-            editModal: { show: false, id: null, department_id: '', first_name: '', last_name: '' },
-            deleteModal: { show: false, id: null, name: '' }
+            editModal: { show: false, id: null, first_name: '', last_name: '' },
+            deleteModal: { show: false, id: null, name: '' },
+            qrModal: { show: false, value: '', label: '' }
         }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
@@ -40,7 +41,6 @@
                         <tr>
                             <th class="px-6 py-3">Employee No.</th>
                             <th class="px-6 py-3">Name</th>
-                            <th class="px-6 py-3">Department</th>
                             <th class="px-6 py-3">Email</th>
                             <th class="px-6 py-3 text-right">Actions</th>
                         </tr>
@@ -50,14 +50,12 @@
                             <tr>
                                 <td class="px-6 py-3 text-gray-800 font-medium">{{ $staff->employee_no }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $staff->first_name }} {{ $staff->last_name }}</td>
-                                <td class="px-6 py-3 text-gray-600">{{ $staff->department->department_name ?? '—' }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $staff->user->email ?? '—' }}</td>
                                 <td class="px-6 py-3 text-right space-x-3">
                                     <button type="button"
                                         @click="editModal = {
                                             show: true,
                                             id: {{ $staff->id }},
-                                            department_id: '{{ $staff->department_id }}',
                                             first_name: '{{ addslashes($staff->first_name) }}',
                                             last_name: '{{ addslashes($staff->last_name) }}'
                                         }"
@@ -66,6 +64,10 @@
                                     <button type="button"
                                         @click="deleteModal = { show: true, id: {{ $staff->id }}, name: '{{ addslashes($staff->first_name . ' ' . $staff->last_name) }}' }"
                                         class="text-red-600 hover:text-red-800">Delete</button>
+                                    <button type="button"
+                                        @click="qrModal = { show: true, value: '{{ $staff->qr_code}}', label: '{{ addslashes($staff->first_name . ' ' . $staff->last_name) }}' }"
+                                        class="text-gray-600 hover:text-gray-800">View QR
+                                    </button>    
                                 </td>
                             </tr>
                         @empty
@@ -103,7 +105,7 @@
                 <form method="POST" action="{{ route('non-teaching-staff.store') }}">
                     @csrf
 
-                    <div class="mb-4">
+                    {{-- <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
                         <select name="department_id" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">-- Select Department --</option>
@@ -116,7 +118,7 @@
                         @error('department_id')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
-                    </div>
+                    </div> --}}
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Employee No.</label>
@@ -192,13 +194,13 @@
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                        <select name="department_id" x-model="editModal.department_id"
+                        {{-- <select name="department_id" x-model="editModal.department_id"
                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">-- Select Department --</option>
                             @foreach ($departments as $department)
                                 <option value="{{ $department->id }}">{{ $department->department_name }}</option>
                             @endforeach
-                        </select>
+                        </select> --}}
                     </div>
 
                     <div class="mb-6 grid grid-cols-2 gap-3">
@@ -256,5 +258,7 @@
                 </form>
             </div>
         </div>
+
+        <x-qr-modal />
     </div>
 </x-app-layout>
