@@ -13,7 +13,7 @@ class SectionController extends Controller
      */
     public function index()
     {
-        $sections = Section::with('course')->latest()->paginate(10);
+        $sections = Section::with(['course', 'schedules.subject', 'schedules.instructor'])->latest()->paginate(10);
         
         $courses = Course::orderBy('course_name')->get();
 
@@ -50,7 +50,8 @@ class SectionController extends Controller
      */
     public function show(Section $section)
     {
-        //
+        $section->load(['course', 'schedules.subject', 'schedules.instructor']);
+        return view('sections.show', compact('section'));
     }
 
     /**

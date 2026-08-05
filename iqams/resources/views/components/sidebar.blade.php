@@ -1,6 +1,6 @@
 {{-- Desktop sidebar --}}
 <aside
-    class="hidden lg:flex lg:flex-col fixed inset-y-0 left-0 z-40 bg-white border-r border-gray-200 transition-[width] duration-200 ease-in-out"
+    class="hidden lg:flex lg:flex-col fixed inset-y-0 left-0 z-[60] bg-white border-r border-gray-200 transition-[width] duration-200 ease-in-out"
     :class="sidebarCollapsed ? 'w-[80px]' : 'w-[260px]'"
     aria-label="Main navigation"
 >

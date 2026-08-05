@@ -1,8 +1,9 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Instructors
-        </h2>
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-gray-900">Manage Instructors</h1>
+            <p class="mt-1 text-sm text-gray-500">Add, update, and manage instructor accounts.</p>
+        </div>
     </x-slot>
 
     <div class="py-8" x-data="{

@@ -8,7 +8,8 @@
     <div class="py-8" x-data="{
             showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
             editModal: { show: false, id: null, course_id: '', section_name: '', school_year: '', semester: '' },
-            deleteModal: { show: false, id: null, name: '' }
+            deleteModal: { show: false, id: null, name: '' },
+            subjectsModal: { show: false, sectionName: '', subjects: [] }
         }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
@@ -45,6 +46,24 @@
                                 <td class="px-6 py-3 text-gray-600">{{ $section->school_year }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ ucfirst($section->semester) }}</td>
                                 <td class="px-6 py-3 text-right space-x-3">
+                                    <button type="button"
+                                        @click="subjectsModal = {
+                                            show: true,
+                                            sectionName: '{{ addslashes($section->section_name) }}',
+                                            subjects: [
+                                                @foreach ($section->schedules as $schedule)
+                                                {
+                                                    subject: '{{ addslashes($schedule->subject->subject_code ?? '—') }} - {{ addslashes($schedule->subject->subject_name ?? '') }}',
+                                                    instructor: '{{ addslashes(($schedule->instructor->first_name ?? '') . ' ' . ($schedule->instructor->last_name ?? '—')) }}',
+                                                    day: '{{ ucfirst($schedule->day) }}',
+                                                    time: '{{ \Illuminate\Support\Carbon::parse($schedule->start_time)->format('g:i A') }} - {{ \Illuminate\Support\Carbon::parse($schedule->end_time)->format('g:i A') }}',
+                                                    room: '{{ addslashes($schedule->room) }}'
+                                                },
+                                                @endforeach
+                                            ]
+                                        }"
+                                        class="text-gray-600 hover:text-gray-800">Subjects</button>
+
                                     <button type="button"
                                         @click="editModal = {
                                             show: true,
@@ -247,6 +266,46 @@
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        {{-- Subjects Modal (via this section's schedules) --}}
+        <div x-show="subjectsModal.show" x-cloak
+             class="fixed inset-0 z-50 flex items-center justify-center px-4"
+             style="background: rgba(0,0,0,0.4);">
+            <div @click.outside="subjectsModal.show = false"
+                 class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 max-h-[85vh] overflow-y-auto scrollbar-autohide"
+                 x-data="{ scrollTimer: null }"
+                 @scroll="$el.classList.add('is-scrolling'); clearTimeout(scrollTimer); scrollTimer = setTimeout(() => $el.classList.remove('is-scrolling'), 800)">
+
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">
+                        Subjects — <span x-text="subjectsModal.sectionName"></span>
+                    </h3>
+                    <button type="button" @click="subjectsModal.show = false" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <template x-if="subjectsModal.subjects.length === 0">
+                    <p class="text-sm text-gray-400 py-6 text-center">No subjects scheduled for this section yet.</p>
+                </template>
+
+                <div class="space-y-3">
+                    <template x-for="(item, index) in subjectsModal.subjects" :key="index">
+                        <div class="border border-gray-100 rounded-lg p-3">
+                            <p class="text-sm font-medium text-gray-800" x-text="item.subject"></p>
+                            <p class="text-xs text-gray-500 mt-1">
+                                <span x-text="item.instructor"></span> ·
+                                <span x-text="item.day"></span> ·
+                                <span x-text="item.time"></span> ·
+                                <span x-text="item.room"></span>
+                            </p>
+                        </div>
+                    </template>
+                </div>
             </div>
         </div>
     </div>

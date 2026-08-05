@@ -9,7 +9,8 @@
             showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
             editModal: { show: false, id: null, code: '', name: '' },
             deleteModal: { show: false, id: null, name: '' }
-        }">
+        }"
+        @keydown.escape.window="showCreateModal = false; editModal.show = false; deleteModal.show = false">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
             @if (session('success'))

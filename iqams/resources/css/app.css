@@ -1,3 +1,8 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Keep Alpine-controlled elements hidden until Alpine is ready. */
+[x-cloak] {
+    display: none !important;
+}

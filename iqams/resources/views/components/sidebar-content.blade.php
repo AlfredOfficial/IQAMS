@@ -73,6 +73,10 @@
                 </svg>
             </x-slot>
         </x-sidebar-link>
+
+        <div class="px-3 pt-5 pb-2" @if($collapsible) x-show="!sidebarCollapsed" x-cloak @endif>
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">User Management</p>
+        </div>
         <x-sidebar-link
             :href="route('instructors.index')"
             :active="request()->routeIs('instructors.*')"
@@ -109,6 +113,10 @@
                 </svg>
             </x-slot>
         </x-sidebar-link>
+
+        <div class="px-3 pt-5 pb-2" @if($collapsible) x-show="!sidebarCollapsed" x-cloak @endif>
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Academic Management</p>
+        </div>
         <x-sidebar-link
             :href="route('schedules.index')"
             :active="request()->routeIs('schedules.*')"
@@ -185,68 +193,91 @@
 </nav>
 
 {{-- User info + logout footer --}}
-<div class="border-t border-gray-200 p-3 shrink-0">
-    <div class="flex items-center gap-3 px-1 py-2"
-         @if($collapsible) :class="sidebarCollapsed ? 'justify-center' : ''" @endif
+{{-- User menu: click avatar/name to reveal Profile + Logout --}}
+<div class="border-t border-gray-200 p-3 shrink-0" x-data="{ userMenuOpen: false }">
+    <button
+        type="button"
+        @click="userMenuOpen = !userMenuOpen"
+        class="w-full flex items-center gap-3 px-1 py-2 rounded-md hover:bg-gray-50 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        @if($collapsible) :class="sidebarCollapsed ? 'justify-center' : ''" @endif
+        aria-label="Open user menu"
+        :aria-expanded="userMenuOpen"
     >
         <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-medium shrink-0">
             {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
         </div>
+
         @if (! $collapsible)
-            <div class="min-w-0">
+            <div class="min-w-0 text-left flex-1">
                 <div class="text-sm font-medium text-gray-800 truncate">{{ Auth::user()->name }}</div>
                 <div class="text-xs text-gray-400 truncate">{{ ucfirst(Auth::user()->role?->role_name ?? 'No role') }}</div>
             </div>
-        @else
-            <div x-show="!sidebarCollapsed" x-cloak class="min-w-0">
-                <div class="text-sm font-medium text-gray-800 truncate">{{ Auth::user()->name }}</div>
-                <div class="text-xs text-gray-400 truncate">{{ ucfirst(Auth::user()->role?->role_name ?? 'No role') }}</div>
-            </div>
-        @endif
-    </div>
-
-    <x-sidebar-link
-        :href="route('profile.edit')"
-        :active="request()->routeIs('profile.edit')"
-        :collapsible="$collapsible"
-        label="Profile"
-    >
-        <x-slot name="icon">
-            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            <svg class="w-4 h-4 text-gray-400 shrink-0 transition-transform" :class="userMenuOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
-        </x-slot>
-    </x-sidebar-link>
+        @else
+            <div x-show="!sidebarCollapsed" x-cloak class="min-w-0 text-left flex-1">
+                <div class="text-sm font-medium text-gray-800 truncate">{{ Auth::user()->name }}</div>
+                <div class="text-xs text-gray-400 truncate">{{ ucfirst(Auth::user()->role?->role_name ?? 'No role') }}</div>
+            </div>
+            <svg x-show="!sidebarCollapsed" x-cloak class="w-4 h-4 text-gray-400 shrink-0 transition-transform" :class="userMenuOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+        @endif
+    </button>
 
-    <form method="POST" action="{{ route('logout') }}">
-        @csrf
-        <div class="relative group">
-            <button
-                type="submit"
-                class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                @if($collapsible) :class="sidebarCollapsed ? 'justify-center' : ''" @endif
-                aria-label="Log out"
-            >
+    <div x-show="userMenuOpen"
+         x-cloak
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0 -translate-y-1"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-100"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="mt-1 space-y-1">
+        <x-sidebar-link
+            :href="route('profile.edit')"
+            :active="request()->routeIs('profile.edit')"
+            :collapsible="$collapsible"
+            label="Profile"
+        >
+            <x-slot name="icon">
                 <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                @if (! $collapsible)
-                    <span>Log Out</span>
-                @else
-                    <span x-show="!sidebarCollapsed" x-cloak>Log Out</span>
-                @endif
-            </button>
+            </x-slot>
+        </x-sidebar-link>
 
-            @if ($collapsible)
-                <span
-                    x-show="sidebarCollapsed"
-                    x-cloak
-                    class="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                    role="tooltip"
+        <form method="POST" action="{{ route('logout') }}">
+            @csrf
+            <div class="relative group">
+                <button
+                    type="submit"
+                    class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    @if($collapsible) :class="sidebarCollapsed ? 'justify-center' : ''" @endif
+                    aria-label="Log out"
                 >
-                    Log Out
-                </span>
-            @endif
-        </div>
-    </form>
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    @if (! $collapsible)
+                        <span>Log Out</span>
+                    @else
+                        <span x-show="!sidebarCollapsed" x-cloak>Log Out</span>
+                    @endif
+                </button>
+
+                @if ($collapsible)
+                    <span
+                        x-show="sidebarCollapsed"
+                        x-cloak
+                        class="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        role="tooltip"
+                    >
+                        Log Out
+                    </span>
+                @endif
+            </div>
+        </form>
+    </div>
 </div>
