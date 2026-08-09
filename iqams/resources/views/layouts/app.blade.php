@@ -21,6 +21,7 @@
       }"
       x-init="$watch('sidebarCollapsed', value => localStorage.setItem('sidebarCollapsed', value))"
       @keydown.escape.window="mobileOpen = false"
+      @spa-navigated.window="mobileOpen = false"
 >
     <div class="min-h-screen">
 
@@ -43,6 +44,7 @@
 
         {{-- Main content: left margin reacts to sidebar width on desktop, no margin on mobile --}}
         <div
+            id="app-content"
             class="transition-[margin-left] duration-200 ease-in-out"
             :class="sidebarCollapsed ? 'lg:ml-[80px]' : 'lg:ml-[260px]'"
         >

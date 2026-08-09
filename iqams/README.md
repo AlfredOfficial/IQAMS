@@ -9,6 +9,16 @@
 
 ## About Laravel
 
+## IQAMS profile photos
+
+Non-admin profile photos are stored on Laravel's `public` filesystem disk. After setting up the project, create the public storage symlink once:
+
+```bash
+php artisan storage:link
+```
+
+Without this link, uploads are stored successfully but cannot be served from `/storage` in the browser.
+
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
 
 - [Simple, fast routing engine](https://laravel.com/docs/routing).

@@ -65,7 +65,7 @@ class SubjectController extends Controller
         $validated = $request->validate([
             'subject_code' => 'required|string|max:20|unique:subjects,subject_code,' . $subject->id,
             'subject_name' => 'required|string|max:255',
-            'units' => 'required|numirec|min:0|max:10',
+            'units' => 'required|numeric|min:0|max:10',
         ]);
 
         $subject->update($validated);

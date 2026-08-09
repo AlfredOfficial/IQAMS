@@ -1,21 +1,23 @@
 <?php
 
 use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\AttendanceLogController;
 use App\Http\Controllers\CourseController;
-use App\Http\Controllers\InstructorDashboardController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\StaffDashboardController;
-use App\Http\Controllers\StudentDashboardController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\InstructorController;
-use App\Http\Controllers\RoleController;
+use App\Http\Controllers\MyProfileController;
 use App\Http\Controllers\NonTeachingStaffController;
-use App\Http\Controllers\SubjectController;
-use App\Http\Controllers\SectionController;
-use App\Http\Controllers\StudentController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RoleController;
 use App\Http\Controllers\ScheduleController;
-use App\Http\Controllers\AttendanceLogController;
-
+use App\Http\Controllers\SectionController;
+use App\Http\Controllers\StaffDashboardController;
+use App\Http\Controllers\StudentController;
+use App\Http\Controllers\StudentDashboardController;
+use App\Http\Controllers\StudentProfileController;
+use App\Http\Controllers\StudentRecordsController;
+use App\Http\Controllers\SubjectController;
+use App\Http\Controllers\InstructorDashboardController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -23,24 +25,36 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+    return match (request()->user()->role?->role_name) {
+        'admin' => redirect()->route('admin.dashboard'),
+        'instructor' => redirect()->route('instructor.dashboard'),
+        'student' => redirect()->route('student.dashboard'),
+        'staff' => redirect()->route('staff.dashboard'),
+        default => abort(403, 'No valid role assigned to this account.'),
+    };
+})->middleware('auth')->name('dashboard');
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'redirect.non-admin.profile', 'role:admin'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+Route::middleware(['auth', 'role:instructor,staff,student'])->group(function () {
+    Route::get('/my-profile', [MyProfileController::class, 'edit'])->name('my-profile.edit');
+    Route::patch('/my-profile', [MyProfileController::class, 'update'])->name('my-profile.update');
+});
+
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+    Route::get('dashboard/realtime', [AdminDashboardController::class, 'realtime'])->name('dashboard.realtime');
 });
 
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::resource('departments', DepartmentController::class);
     Route::resource('courses', CourseController::class);
     Route::resource('instructors', InstructorController::class)->except(['create', 'edit', 'show']);
-    Route::resource('roles', RoleController::class);
+    Route::get('roles', [RoleController::class, 'index'])->name('roles.index');
     Route::resource('non-teaching-staff', NonTeachingStaffController::class)->except(['create', 'edit', 'show']);
     Route::resource('subjects', SubjectController::class)->except('create', 'edit', 'show');
     Route::resource('sections', SectionController::class)->except(['create', 'edit', 'show']);
@@ -49,17 +63,24 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::resource('attendance-logs', AttendanceLogController::class)->except(['create', 'edit', 'show']);
 });
 
-Route::middleware(['auth', 'role:instructor'])->prefix('instructor')->name('instructor.')->group(function () {
-    Route::get('dashboard', [InstructorDashboardController::class, 'index'])->name('dashboard');
-});
-
 Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')->group(function () {
     Route::get('dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
+    Route::get('profile', [StudentProfileController::class, 'show'])->name('profile');
+    Route::patch('profile/contact', [StudentProfileController::class, 'updateContact'])->name('profile.contact');
+    Route::put('profile/photo', [StudentProfileController::class, 'updatePhoto'])->name('profile.photo');
+    Route::delete('profile/photo', [StudentProfileController::class, 'removePhoto'])->name('profile.photo.destroy');
+    Route::get('attendance', [StudentRecordsController::class, 'attendance'])->name('attendance');
+    Route::get('qr-code', [StudentRecordsController::class, 'qr'])->name('qr');
+    Route::get('settings', [StudentProfileController::class, 'settings'])->name('settings');
+    Route::put('settings/password', [StudentProfileController::class, 'updatePassword'])->name('password');
 });
 
 Route::middleware(['auth', 'role:staff'])->prefix('staff')->name('staff.')->group(function () {
     Route::get('dashboard', [StaffDashboardController::class, 'index'])->name('dashboard');
 });
 
+Route::middleware(['auth', 'role:instructor'])->prefix('instructor')->name('instructor.')->group(function () {
+    Route::get('dashboard', [InstructorDashboardController::class, 'index'])->name('dashboard');
+});
 
 require __DIR__.'/auth.php';

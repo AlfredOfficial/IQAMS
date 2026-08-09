@@ -46,7 +46,7 @@
 @endif
 
 {{-- Navigation links --}}
-<nav class="flex-1 overflow-y-auto px-2 py-4 space-y-1" aria-label="Sidebar">
+<nav data-sidebar-nav class="flex-1 overflow-y-auto px-2 py-4 space-y-1" aria-label="Sidebar">
     <x-sidebar-link
         :href="route('dashboard')"
         :active="request()->routeIs('dashboard')"
@@ -203,9 +203,13 @@
         aria-label="Open user menu"
         :aria-expanded="userMenuOpen"
     >
-        <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-medium shrink-0">
-            {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
-        </div>
+        @if (Auth::user()->avatar_url)
+            <img src="{{ Auth::user()->avatar_url }}" alt="" class="w-8 h-8 rounded-full object-cover shrink-0">
+        @else
+            <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-medium shrink-0">
+                {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
+            </div>
+        @endif
 
         @if (! $collapsible)
             <div class="min-w-0 text-left flex-1">
@@ -236,8 +240,8 @@
          x-transition:leave-end="opacity-0"
          class="mt-1 space-y-1">
         <x-sidebar-link
-            :href="route('profile.edit')"
-            :active="request()->routeIs('profile.edit')"
+            :href="route(Auth::user()->role?->role_name === 'admin' ? 'profile.edit' : 'my-profile.edit')"
+            :active="request()->routeIs(Auth::user()->role?->role_name === 'admin' ? 'profile.edit' : 'my-profile.edit')"
             :collapsible="$collapsible"
             label="Profile"
         >

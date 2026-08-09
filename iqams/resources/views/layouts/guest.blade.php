@@ -35,7 +35,7 @@
 
                 <div class="relative z-10 grid grid-cols-3 gap-3 text-sm">
                     <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
-                        <p class="text-2xl font-bold text-white">Fast</p>
+                        <p class="text-2xl font-bold text-white">Fast?</p>
                         <p class="mt-1 text-xs text-slate-300">Daily check-ins</p>
                     </div>
                     <div class="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">

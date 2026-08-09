@@ -10,6 +10,7 @@ $state = $active
 <div class="relative group">
     <a
         {{ $attributes->merge(['class' => "$base $state"]) }}
+        data-sidebar-link
         @if($collapsible) :class="sidebarCollapsed ? 'justify-center' : ''" @endif
         @if($active) aria-current="page" @endif
     >
