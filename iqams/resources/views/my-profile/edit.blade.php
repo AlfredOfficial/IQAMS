@@ -54,18 +54,6 @@
             <h2 class="text-xl font-semibold leading-tight text-gray-800 mb-1">My Profile</h2>
             <p class="mt-1 text-sm text-gray-500 mb-6">Manage your personal information and account security.</p>
 
-            @if (session('status') === 'profile-updated')
-                <div class="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700" role="status">
-                    Your profile was updated successfully.
-                </div>
-            @endif
-
-            @if (session('success'))
-                <div class="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700" role="status">
-                    {{ session('success') }}
-                </div>
-            @endif
-
             <form method="POST" action="{{ route('my-profile.update') }}" enctype="multipart/form-data" class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-200">
                 @csrf
                 @method('PATCH')

@@ -22,6 +22,7 @@
     ];
 @endphp
 <body class="font-sans antialiased bg-slate-50 text-slate-800" x-data="{ sidebarOpen: false, userMenuOpen: false }">
+    <x-toast-notifications />
     <div class="min-h-screen lg:flex">
         <div x-show="sidebarOpen" x-cloak @click="sidebarOpen=false" class="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm lg:hidden"></div>
         <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'" class="fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-[#073c3b] text-white transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0">
@@ -64,7 +65,6 @@
                 </div>
             </header>
             <main id="app-content" class="mx-auto max-w-7xl p-4 sm:p-8">
-                @if(session('success'))<div class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">{{ session('success') }}</div>@endif
                 {{ $slot }}
             </main>
         </div>

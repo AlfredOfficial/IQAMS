@@ -8,8 +8,10 @@ use App\Models\NonTeachingStaff;
 use App\Models\Schedule;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\AttendanceScheduleValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 class AttendanceLogController extends Controller
 {
@@ -22,15 +24,15 @@ class AttendanceLogController extends Controller
     {
         $query = AttendanceLog::with(['user', 'schedule.subject', 'schedule.section']);
 
-        if($request->filled('date')) {
+        if ($request->filled('date')) {
             $query->whereDate('scan_time', $request->date('date'));
         }
 
-        if($request->filled('status')) {
+        if ($request->filled('status')) {
             $query->where('status', $request->string('status'));
         }
 
-        if($request->filled('user_id')) {
+        if ($request->filled('user_id')) {
             $query->where('user_id', $request->integer('user_id'));
         }
 
@@ -38,8 +40,8 @@ class AttendanceLogController extends Controller
 
         $schedules = Schedule::with(['subject', 'section'])->orderBy('day')->get();
 
-        //build a combined list of loggable people
-        //for the person dropdown each carrying their linked user_id
+        // build a combined list of loggable people
+        // for the person dropdown each carrying their linked user_id
 
         $people = collect()
             ->concat(Student::with('user')->get()->map(fn ($s) => [
@@ -51,14 +53,15 @@ class AttendanceLogController extends Controller
                 'user_id' => $i->user_id,
                 'label' => "{$i->first_name} {$i->last_name} (Instructor)",
             ]))
-            
+
             ->concat(NonTeachingStaff::with('user')->get()->map(fn ($s) => [
                 'user_id' => $s->user_id,
                 'label' => "{$s->first_name} {$s->last_name} (Staff)",
             ]))
             ->sortBy('label')
             ->values();
-        return view('attendance-logs.index', compact(['logs', 'schedules', 'people']));    
+
+        return view('attendance-logs.index', compact(['logs', 'schedules', 'people']));
     }
 
     /**
@@ -72,11 +75,14 @@ class AttendanceLogController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request, AttendanceScheduleValidator $scheduleValidator)
     {
+        $identity = $request->validate(['user_id' => 'required|exists:users,id']);
+        $user = User::with('student')->findOrFail($identity['user_id']);
+
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
-            'schedule_id' => 'required|exists:schedules,id',
+            'schedule_id' => [Rule::requiredIf((bool) $user->student), 'nullable', 'exists:schedules,id'],
             'attendance_type' => 'required|in:time_in,time_out',
             'scan_time' => 'required|date',
             'status_override' => 'nullable|in:present,late,absent,excused',
@@ -84,12 +90,19 @@ class AttendanceLogController extends Controller
             'remarks' => 'nullable|string|max:255',
         ]);
 
-        $validated['status'] = $this->resolveStatus($validated);
+        $schedule = isset($validated['schedule_id']) ? Schedule::findOrFail($validated['schedule_id']) : null;
+        $scanTime = Carbon::parse($validated['scan_time'], config('app.timezone'));
+
+        if ($schedule) {
+            $scheduleValidator->validate($user, $schedule, $scanTime);
+        }
+
+        $validated['status'] = $this->resolveStatus($validated, $schedule, $scanTime);
         unset($validated['status_override']);
 
         AttendanceLog::create($validated);
 
-        return redirect()->route(['attendance-logs.index'])->with('success', 'Attendace log created successfully.');
+        return redirect()->route('attendance-logs.index')->with('success', 'Attendace log created successfully.');
     }
 
     /**
@@ -111,11 +124,17 @@ class AttendanceLogController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, AttendanceLog $attendanceLog)
-    {
+    public function update(
+        Request $request,
+        AttendanceLog $attendanceLog,
+        AttendanceScheduleValidator $scheduleValidator
+    ) {
+        $identity = $request->validate(['user_id' => 'required|exists:users,id']);
+        $user = User::with('student')->findOrFail($identity['user_id']);
+
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
-            'schedule_id' => 'required|exists:schedules,id',
+            'schedule_id' => [Rule::requiredIf((bool) $user->student), 'nullable', 'exists:schedules,id'],
             'attendance_type' => 'required|in:time_in,time_out',
             'scan_time' => 'required|date',
             'status_override' => 'nullable|in:present,late,absent,excused',
@@ -123,7 +142,14 @@ class AttendanceLogController extends Controller
             'remarks' => 'nullable|string|max:255',
         ]);
 
-        $validated['status'] = $this->resolveStatus($validated);
+        $schedule = isset($validated['schedule_id']) ? Schedule::findOrFail($validated['schedule_id']) : null;
+        $scanTime = Carbon::parse($validated['scan_time'], config('app.timezone'));
+
+        if ($schedule) {
+            $scheduleValidator->validate($user, $schedule, $scanTime);
+        }
+
+        $validated['status'] = $this->resolveStatus($validated, $schedule, $scanTime);
         unset($validated['status_override']);
 
         $attendanceLog->update($validated);
@@ -143,21 +169,19 @@ class AttendanceLogController extends Controller
 
     // if admin picked an explicit override (excused, late, absent, etc..)
 
-    private function resolveStatus(array $data): string
+    private function resolveStatus(array $data, ?Schedule $schedule, Carbon $scanTime): string
     {
-        if(! empty($data['status_override'])) {
+        if (! empty($data['status_override'])) {
             return $data['status_override'];
         }
 
-        if($data['attendance_type'] !== 'time_in') {
+        if ($data['attendance_type'] !== 'time_in' || ! $schedule) {
             return 'present';
         }
 
-        $schedule = Schedule::findOrFail($data['schedule_id']);
-        $scanTime = Carbon::parse($data['scan_time']);
-
         $scheduleStart = Carbon::parse(
-            $scanTime->format('Y-m-d') . ' ' . $schedule->start_time
+            $scanTime->format('Y-m-d').' '.$schedule->start_time,
+            config('app.timezone')
         )->addMinutes(self::GRACE_MINUTES);
 
         return $scanTime->greaterThan($scheduleStart) ? 'late' : 'present';

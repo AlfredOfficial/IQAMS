@@ -6,17 +6,32 @@
     </x-slot>
 
     <div class="py-8" x-data="{
-            showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
-            editModal: { show: false, id: null, subject_id: '', instructor_id: '', section_id: '', day: '', start_time: '', end_time: '', room: '' },
-            deleteModal: { show: false, id: null, name: '' }
+            dayNames: { monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday', thursday: 'Thursday', friday: 'Friday', saturday: 'Saturday', sunday: 'Sunday' },
+            showCreateModal: {{ $errors->any() && old('_form') !== 'edit' ? 'true' : 'false' }},
+            createDays: @js(old('_form') === 'create' ? old('days', []) : []),
+            editModal: {
+                show: {{ $errors->any() && old('_form') === 'edit' ? 'true' : 'false' }},
+                id: @js(old('_form') === 'edit' ? old('_schedule_id') : null),
+                subject_id: @js(old('_form') === 'edit' ? old('subject_id', '') : ''),
+                instructor_id: @js(old('_form') === 'edit' ? old('instructor_id', '') : ''),
+                section_id: @js(old('_form') === 'edit' ? old('section_id', '') : ''),
+                days: @js(old('_form') === 'edit' ? old('days', []) : []),
+                start_time: @js(old('_form') === 'edit' ? old('start_time', '') : ''),
+                end_time: @js(old('_form') === 'edit' ? old('end_time', '') : ''),
+                room: @js(old('_form') === 'edit' ? old('room', '') : '')
+            },
+            deleteModal: { show: false, id: null, name: '' },
+            applyPreset(days, preset) {
+                const presets = {
+                    mwf: ['monday', 'wednesday', 'friday'],
+                    tth: ['tuesday', 'thursday'],
+                    weekdays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
+                };
+                if (presets[preset]) days.splice(0, days.length, ...presets[preset]);
+            },
+            selectedDayNames(days) { return days.map(day => this.dayNames[day]).join(', '); }
         }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-
-            @if (session('success'))
-                <div class="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-                    {{ session('success') }}
-                </div>
-            @endif
 
             <div class="bg-white shadow-sm rounded-lg">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
@@ -60,7 +75,7 @@
                                             subject_id: '{{ $schedule->subject_id }}',
                                             instructor_id: '{{ $schedule->instructor_id }}',
                                             section_id: '{{ $schedule->section_id }}',
-                                            day: '{{ $schedule->day }}',
+                                            days: ['{{ $schedule->day }}'],
                                             start_time: '{{ \Illuminate\Support\Carbon::parse($schedule->start_time)->format('H:i') }}',
                                             end_time: '{{ \Illuminate\Support\Carbon::parse($schedule->end_time)->format('H:i') }}',
                                             room: '{{ addslashes($schedule->room) }}'
@@ -106,6 +121,7 @@
 
                 <form method="POST" action="{{ route('schedules.store') }}">
                     @csrf
+                    <input type="hidden" name="_form" value="create">
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Subject</label>
@@ -153,14 +169,27 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Day</label>
-                        <select name="day" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">-- Select Day --</option>
-                            @foreach (['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as $day)
-                                <option value="{{ $day }}" @selected(old('day') == $day)>{{ ucfirst($day) }}</option>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Days</label>
+                        <div class="mb-2 flex flex-wrap gap-2">
+                            <button type="button" @click="applyPreset(createDays, 'mwf')" class="rounded-md border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">MWF</button>
+                            <button type="button" @click="applyPreset(createDays, 'tth')" class="rounded-md border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">TTH</button>
+                            <button type="button" @click="applyPreset(createDays, 'weekdays')" class="rounded-md border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">MON-FRI</button>
+                            <button type="button" @click="createDays.splice(0)" class="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50">CUSTOM</button>
+                        </div>
+                        <div class="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                            @foreach (['monday' => 'MON','tuesday' => 'TUE','wednesday' => 'WED','thursday' => 'THU','friday' => 'FRI','saturday' => 'SAT','sunday' => 'SUN'] as $day => $short)
+                                <label class="cursor-pointer rounded-md border px-2 py-2 text-center text-xs font-semibold transition"
+                                       :class="createDays.includes('{{ $day }}') ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-gray-600 hover:border-indigo-300'">
+                                    <input type="checkbox" name="days[]" value="{{ $day }}" x-model="createDays" class="sr-only">
+                                    {{ $short }}
+                                </label>
                             @endforeach
-                        </select>
-                        @error('day')
+                        </div>
+                        <p class="mt-2 text-xs text-gray-500">Selected days: <span x-text="selectedDayNames(createDays) || 'None'"></span></p>
+                        @error('days')
+                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                        @enderror
+                        @error('days.*')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
                     </div>
@@ -225,6 +254,14 @@
                 <form method="POST" :action="'{{ url('schedules') }}/' + editModal.id">
                     @csrf
                     @method('PUT')
+                    <input type="hidden" name="_form" value="edit">
+                    <input type="hidden" name="_schedule_id" :value="editModal.id">
+
+                    @if ($errors->any() && old('_form') === 'edit')
+                        <div class="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                            Please correct the highlighted schedule information.
+                        </div>
+                    @endif
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Subject</label>
@@ -235,6 +272,7 @@
                                 <option value="{{ $subject->id }}">{{ $subject->subject_code }} - {{ $subject->subject_name }}</option>
                             @endforeach
                         </select>
+                        @if (old('_form') === 'edit') @error('subject_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror @endif
                     </div>
 
                     <div class="mb-4">
@@ -246,6 +284,7 @@
                                 <option value="{{ $instructor->id }}">{{ $instructor->first_name }} {{ $instructor->last_name }}</option>
                             @endforeach
                         </select>
+                        @if (old('_form') === 'edit') @error('instructor_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror @endif
                     </div>
 
                     <div class="mb-4">
@@ -257,16 +296,31 @@
                                 <option value="{{ $section->id }}">{{ $section->section_name }} ({{ $section->course->course_code ?? '—' }})</option>
                             @endforeach
                         </select>
+                        @if (old('_form') === 'edit') @error('section_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror @endif
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Day</label>
-                        <select name="day" x-model="editModal.day"
-                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            @foreach (['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as $day)
-                                <option value="{{ $day }}">{{ ucfirst($day) }}</option>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Days</label>
+                        <div class="mb-2 flex flex-wrap gap-2">
+                            <button type="button" @click="applyPreset(editModal.days, 'mwf')" class="rounded-md border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">MWF</button>
+                            <button type="button" @click="applyPreset(editModal.days, 'tth')" class="rounded-md border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">TTH</button>
+                            <button type="button" @click="applyPreset(editModal.days, 'weekdays')" class="rounded-md border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">MON-FRI</button>
+                            <button type="button" @click="editModal.days.splice(0)" class="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50">CUSTOM</button>
+                        </div>
+                        <div class="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                            @foreach (['monday' => 'MON','tuesday' => 'TUE','wednesday' => 'WED','thursday' => 'THU','friday' => 'FRI','saturday' => 'SAT','sunday' => 'SUN'] as $day => $short)
+                                <label class="cursor-pointer rounded-md border px-2 py-2 text-center text-xs font-semibold transition"
+                                       :class="editModal.days.includes('{{ $day }}') ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-gray-600 hover:border-indigo-300'">
+                                    <input type="checkbox" name="days[]" value="{{ $day }}" x-model="editModal.days" class="sr-only">
+                                    {{ $short }}
+                                </label>
                             @endforeach
-                        </select>
+                        </div>
+                        <p class="mt-2 text-xs text-gray-500">Selected days: <span x-text="selectedDayNames(editModal.days) || 'None'"></span></p>
+                        @if (old('_form') === 'edit')
+                            @error('days')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                            @error('days.*')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                        @endif
                     </div>
 
                     <div class="mb-4 grid grid-cols-2 gap-3">
@@ -274,11 +328,13 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
                             <input type="time" name="start_time" x-model="editModal.start_time"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            @if (old('_form') === 'edit') @error('start_time')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror @endif
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">End Time</label>
                             <input type="time" name="end_time" x-model="editModal.end_time"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            @if (old('_form') === 'edit') @error('end_time')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror @endif
                         </div>
                     </div>
 
@@ -286,6 +342,7 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1">Room</label>
                         <input type="text" name="room" x-model="editModal.room"
                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        @if (old('_form') === 'edit') @error('room')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror @endif
                     </div>
 
                     <div class="flex items-center gap-3">

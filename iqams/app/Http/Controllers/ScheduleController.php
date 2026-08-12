@@ -7,6 +7,8 @@ use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Subject;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ScheduleController extends Controller
 {
@@ -39,19 +41,20 @@ class ScheduleController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'subject_id' => 'required|exists:subjects,id',
-            'instructor_id' => 'required|exists:instructors,id',
-            'section_id' => 'required|exists:sections,id',
-            'day' => 'required|in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
-            'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i|after:start_time',
-            'room' => 'required|string|max:50',
-        ]);
- 
-        Schedule::create($validated);
- 
-        return redirect()->route('schedules.index')->with('success', 'Schedule created successfully.');
+        $validated = $this->validateSchedule($request);
+
+        DB::transaction(function () use ($validated) {
+            $this->ensureNoDuplicates($validated);
+
+            foreach ($validated['days'] as $day) {
+                Schedule::create($this->attributesForDay($validated, $day));
+            }
+        });
+
+        return redirect()->route('schedules.index')->with(
+            'success',
+            count($validated['days']).' schedule '.(count($validated['days']) === 1 ? 'record' : 'records').' created successfully.'
+        );
     }
 
     /**
@@ -75,19 +78,20 @@ class ScheduleController extends Controller
      */
     public function update(Request $request, Schedule $schedule)
     {
-        $validated = $request->validate([
-            'subject_id' => 'required|exists:subjects,id',
-            'instructor_id' => 'required|exists:instructors,id',
-            'section_id' => 'required|exists:sections,id',
-            'day' => 'required|in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
-            'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i|after:start_time',
-            'room' => 'required|string|max:50',
-        ]);
+        $validated = $this->validateSchedule($request);
 
-        $schedule->update($validated);
+        DB::transaction(function () use ($validated, $schedule) {
+            $this->ensureNoDuplicates($validated, $schedule);
 
-        return redirect()->route('schedules.index')->with('success', 'Schedule updated successfully.');
+            $days = $validated['days'];
+            $schedule->update($this->attributesForDay($validated, array_shift($days)));
+
+            foreach ($days as $day) {
+                Schedule::create($this->attributesForDay($validated, $day));
+            }
+        });
+
+        return redirect()->route('schedules.index')->with('success', 'Schedule days updated successfully.');
     }
 
     /**
@@ -98,5 +102,57 @@ class ScheduleController extends Controller
         $schedule->delete();
 
         return redirect()->route('schedules.index')->with('success', 'Schedule deleted successfully.');
+    }
+
+    private function validateSchedule(Request $request): array
+    {
+        return $request->validate([
+            'subject_id' => ['required', 'exists:subjects,id'],
+            'instructor_id' => ['required', 'exists:instructors,id'],
+            'section_id' => ['required', 'exists:sections,id'],
+            'days' => ['required', 'array', 'min:1'],
+            'days.*' => ['required', 'distinct', 'in:monday,tuesday,wednesday,thursday,friday,saturday,sunday'],
+            'start_time' => ['required', 'date_format:H:i'],
+            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
+            'room' => ['required', 'string', 'max:50'],
+        ], [
+            'days.required' => 'Select at least one day.',
+            'days.min' => 'Select at least one day.',
+            'days.*.in' => 'One or more selected days are invalid.',
+        ]);
+    }
+
+    private function ensureNoDuplicates(array $data, ?Schedule $except = null): void
+    {
+        $duplicates = Schedule::query()
+            ->where('subject_id', $data['subject_id'])
+            ->where('section_id', $data['section_id'])
+            ->where('instructor_id', $data['instructor_id'])
+            ->whereIn('day', $data['days'])
+            ->whereTime('start_time', $data['start_time'])
+            ->whereTime('end_time', $data['end_time'])
+            ->when($except, fn ($query) => $query->whereKeyNot($except->getKey()))
+            ->pluck('day')
+            ->map(fn ($day) => ucfirst($day))
+            ->all();
+
+        if ($duplicates !== []) {
+            throw ValidationException::withMessages([
+                'days' => 'An equivalent schedule already exists for: '.implode(', ', $duplicates).'.',
+            ]);
+        }
+    }
+
+    private function attributesForDay(array $data, string $day): array
+    {
+        return [
+            'subject_id' => $data['subject_id'],
+            'instructor_id' => $data['instructor_id'],
+            'section_id' => $data['section_id'],
+            'day' => $day,
+            'start_time' => $data['start_time'],
+            'end_time' => $data['end_time'],
+            'room' => $data['room'],
+        ];
     }
 }

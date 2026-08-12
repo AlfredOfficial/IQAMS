@@ -15,12 +15,6 @@
          }"
          @keydown.escape.window="showCreateModal = false; editModal.show = false; deleteModal.show = false; qrModal.show = false">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            @if (session('success'))
-                <div class="mb-4 rounded border border-green-200 bg-green-50 px-4 py-3 text-green-700">
-                    {{ session('success') }}
-                </div>
-            @endif
-
             @if (session('generated_username'))
                 <div class="mb-4 rounded border border-indigo-200 bg-indigo-50 px-4 py-3 text-indigo-800">
                     <p class="font-medium">Login credentials for this instructor (shown once — share them now):</p>

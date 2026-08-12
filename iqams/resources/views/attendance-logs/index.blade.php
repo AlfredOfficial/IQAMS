@@ -12,12 +12,6 @@
         }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
-            @if (session('success'))
-                <div class="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-                    {{ session('success') }}
-                </div>
-            @endif
-
             {{-- Filters --}}
             <form method="GET" action="{{ route('attendance-logs.index') }}"
                   class="mb-4 bg-white shadow-sm rounded-lg p-4 flex flex-wrap items-end gap-3">

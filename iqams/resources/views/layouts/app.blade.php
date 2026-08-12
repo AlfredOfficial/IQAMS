@@ -23,6 +23,7 @@
       @keydown.escape.window="mobileOpen = false"
       @spa-navigated.window="mobileOpen = false"
 >
+    <x-toast-notifications />
     <div class="min-h-screen">
 
         <x-sidebar />

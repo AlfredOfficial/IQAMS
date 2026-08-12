@@ -2,9 +2,12 @@
 
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AttendanceLogController;
+use App\Http\Controllers\AttendanceScannerController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\InstructorController;
+use App\Http\Controllers\InstructorDashboardController;
+use App\Http\Controllers\InstructorAttendanceController;
 use App\Http\Controllers\MyProfileController;
 use App\Http\Controllers\NonTeachingStaffController;
 use App\Http\Controllers\ProfileController;
@@ -17,7 +20,6 @@ use App\Http\Controllers\StudentDashboardController;
 use App\Http\Controllers\StudentProfileController;
 use App\Http\Controllers\StudentRecordsController;
 use App\Http\Controllers\SubjectController;
-use App\Http\Controllers\InstructorDashboardController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -51,6 +53,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 });
 
 Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::get('attendance-scanner', [AttendanceScannerController::class, 'index'])->name('attendance-scanner.index');
+    Route::post('attendance-scanner/scan', [AttendanceScannerController::class, 'store'])->name('attendance-scanner.store');
     Route::resource('departments', DepartmentController::class);
     Route::resource('courses', CourseController::class);
     Route::resource('instructors', InstructorController::class)->except(['create', 'edit', 'show']);
@@ -81,6 +85,12 @@ Route::middleware(['auth', 'role:staff'])->prefix('staff')->name('staff.')->grou
 
 Route::middleware(['auth', 'role:instructor'])->prefix('instructor')->name('instructor.')->group(function () {
     Route::get('dashboard', [InstructorDashboardController::class, 'index'])->name('dashboard');
+    Route::get('dashboard/realtime', [InstructorDashboardController::class, 'realtime'])->name('dashboard.realtime');
+    Route::get('attendance', [InstructorAttendanceController::class, 'history'])->name('attendance');
+    Route::get('history', [InstructorAttendanceController::class, 'history'])->name('history');
+    Route::get('summary', [InstructorAttendanceController::class, 'summary'])->name('summary');
+    Route::get('issues', [InstructorAttendanceController::class, 'issues'])->name('issues');
+    Route::get('schedule', [InstructorAttendanceController::class, 'schedule'])->name('schedule');
 });
 
 require __DIR__.'/auth.php';

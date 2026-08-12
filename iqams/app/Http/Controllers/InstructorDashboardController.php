@@ -3,37 +3,65 @@
 namespace App\Http\Controllers;
 
 use App\Models\AttendanceLog;
+use App\Services\PersonnelAttendanceSummary;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class InstructorDashboardController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, PersonnelAttendanceSummary $summary)
     {
-        $instructor = $request->user()->instructor;
+        $instructor = $request->user()->instructor?->load('department');
+        abort_unless($instructor, 403, 'No instructor profile linked to this account.');
+        $today = $summary->day(today(), $this->todayLogs($request));
+        $monthDays = $summary->days($request->user(), now()->startOfMonth(), today(), true);
+        $totals = $summary->totals($monthDays);
+        $todaySchedules = $instructor->schedules()->with(['subject', 'section'])
+            ->where('day', strtolower(now()->format('l')))->orderBy('start_time')->get();
+        $nextSchedule = $todaySchedules->first(fn ($schedule) => Carbon::parse($schedule->end_time)->isFuture());
+        $issues = $monthDays->filter(fn ($day) => $day['status'] === 'Absent' || $day['isIncomplete'] || $day['late'] || $day['early'])
+            ->reverse()->take(3)->values();
+        return view('instructor.dashboard', compact('instructor', 'today', 'totals', 'monthDays', 'todaySchedules', 'nextSchedule', 'issues'));
+    }
 
-        if (! $instructor) {
-            abort(403, 'No instructor profile linked to this account.');
-        }
+    public function realtime(Request $request, PersonnelAttendanceSummary $summary)
+    {
+        $today = $summary->day(today(), $this->todayLogs($request));
+        $totals = $summary->totals($summary->days($request->user(), now()->startOfMonth(), today(), true));
+        return response()->json(['today' => $this->serializeDay($today), 'totals' => $totals, 'updated_at' => now()->format('g:i:s A')]);
+    }
 
-        $schedules = $instructor->schedules()->with(['subject', 'section'])->orderBy('start_time')->get();
-        $scheduleByDay = $schedules->groupBy('day');
-        $dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    private function todayLogs(Request $request)
+    {
+        return AttendanceLog::where('user_id', $request->user()->id)->whereNull('schedule_id')
+            ->whereDate('scan_time', today())->orderBy('scan_time')->get();
+    }
 
-        $todayAttendance = AttendanceLog::whereHas('schedule', function ($query) use ($instructor) {
-                $query->where('instructor_id', $instructor->id);
-            })
-            ->whereDate('scan_time', today())
-            ->with(['user', 'schedule.subject'])
-            ->latest('scan_time')
-            ->get();
-
-        $stats = [
-            'todayPresent' => $todayAttendance->where('status', 'present')->count(),
-            'todayLate' => $todayAttendance->where('status', 'late')->count(),
-            'todayAbsent' => $todayAttendance->where('status', 'absent')->count(),
-            'totalSubjects' => $schedules->pluck('subject_id')->unique()->count(),
+    private function serializeDay(array $day): array
+    {
+        return [
+            'status' => $day['status'], 'punctuality' => $day['punctuality'], 'minutes' => $day['minutes'], 'next_period' => $day['nextPeriod'],
+            'events' => $day['events']->map(fn ($log) => $log ? [
+                'time' => $log->scan_time->format('g:i A'),
+                'punctuality' => str($log->punctuality_status ?? 'on_time')->replace('_', ' ')->title()->toString(),
+                'detail' => $this->punctualityDetail($log),
+            ] : null),
         ];
+    }
 
-        return view('instructor.dashboard', compact('instructor', 'schedules', 'scheduleByDay', 'dayOrder', 'todayAttendance', 'stats'));
+    private function punctualityDetail(AttendanceLog $log): string
+    {
+        $role = 'instructor';
+        $stage = config("attendance.personnel_windows.{$role}.{$log->attendance_period}", []);
+        $value = $log->punctuality_status ?? 'on_time';
+        if ($value === 'late' && isset($stage['on_time_until'])) {
+            $deadline = $log->scan_time->copy()->startOfDay()->setTimeFromTimeString($stage['on_time_until']);
+            return 'Late by '.ceil($deadline->diffInSeconds($log->scan_time) / 60).' minutes';
+        }
+        if ($value === 'early_out' && isset($stage['not_early_before'])) {
+            $minimum = $log->scan_time->copy()->startOfDay()->setTimeFromTimeString($stage['not_early_before']);
+            return 'Early by '.ceil($log->scan_time->diffInSeconds($minimum) / 60).' minutes';
+        }
+        return 'On Time';
     }
 }

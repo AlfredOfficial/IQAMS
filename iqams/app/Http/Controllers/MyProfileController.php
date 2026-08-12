@@ -28,7 +28,9 @@ class MyProfileController extends Controller
             default => ['role'],
         });
 
-        return view('my-profile.edit', compact('user'));
+        return $user->isInstructor()
+            ? view('instructor.profile', compact('user'))
+            : view('my-profile.edit', compact('user'));
     }
 
     public function update(Request $request): RedirectResponse

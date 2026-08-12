@@ -4,6 +4,119 @@ import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;
 
+Alpine.data('toastNotifications', (initialNotifications = []) => ({
+    toasts: [],
+    nextId: 1,
+
+    init() {
+        initialNotifications.forEach((notification) => this.add(notification));
+    },
+
+    add(notification) {
+        const message = typeof notification === 'string' ? notification : notification?.message;
+
+        if (!message) return;
+
+        const toast = {
+            id: this.nextId++,
+            title: notification?.title || 'Success',
+            message,
+            visible: true,
+        };
+
+        this.toasts.push(toast);
+        window.setTimeout(() => this.dismiss(toast.id), 2500);
+    },
+
+    dismiss(id) {
+        const toast = this.toasts.find((item) => item.id === id);
+        if (!toast) return;
+
+        toast.visible = false;
+        window.setTimeout(() => {
+            this.toasts = this.toasts.filter((item) => item.id !== id);
+        }, 300);
+    },
+}));
+
+Alpine.data('instructorWorkspace', () => ({
+    clockTimer: null,
+    refreshTimer: null,
+
+    init() {
+        this.updateClock();
+        this.clockTimer = window.setInterval(() => this.updateClock(), 1000);
+        this.refreshTimer = window.setInterval(() => this.refresh(), 3000);
+
+        const qr = this.$root.querySelector('#instructor-qr');
+        const value = this.$root.dataset.qrValue;
+
+        if (qr && value && window.QRCode) {
+            qr.replaceChildren();
+            new window.QRCode(qr, {
+                text: value,
+                width: 104,
+                height: 104,
+                colorDark: '#0f172a',
+                colorLight: '#ffffff',
+            });
+        }
+    },
+
+    destroy() {
+        window.clearInterval(this.clockTimer);
+        window.clearInterval(this.refreshTimer);
+    },
+
+    updateClock() {
+        const clock = document.getElementById('live-clock');
+        if (clock) {
+            clock.textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        }
+    },
+
+    async refresh() {
+        const endpoint = this.$root.dataset.realtimeUrl;
+        if (!endpoint) return;
+
+        try {
+            const response = await fetch(endpoint, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+            if (!response.ok) return;
+
+            const data = await response.json();
+            const day = data.today;
+            const hero = this.$root.querySelector('#hero-status');
+            if (hero) hero.textContent = `✓ ${day.status}`;
+
+            Object.entries(day.events).forEach(([key, event]) => {
+                const time = this.$root.querySelector(`#event-${key}`);
+                const status = this.$root.querySelector(`#event-${key}-status`);
+                const detail = this.$root.querySelector(`#detail-${key}`);
+                if (time) time.textContent = event?.time ?? 'Not Recorded';
+                if (status) status.textContent = event?.punctuality ?? 'Not Recorded';
+                if (detail) detail.textContent = event?.detail ?? 'Not Yet Recorded';
+            });
+
+            const stats = {
+                attendance: `${data.totals.percentage}%`,
+                present: `${data.totals.presentDays} days`,
+                absent: `${data.totals.absentDays} days`,
+                hours: `${Math.floor(data.totals.totalMinutes / 60)}h ${data.totals.totalMinutes % 60}m`,
+                late: `${data.totals.lateCount} days`,
+                early: `${data.totals.earlyOutCount} days`,
+                incomplete: `${data.totals.incompleteCount} days`,
+            };
+
+            Object.entries(stats).forEach(([key, value]) => {
+                const element = this.$root.querySelector(`[data-stat="${key}"]`);
+                if (element) element.textContent = value;
+            });
+        } catch {
+            // Keep the last rendered server state when polling is unavailable.
+        }
+    },
+}));
+
 Alpine.start();
 
 /**

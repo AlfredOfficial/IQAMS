@@ -14,8 +14,11 @@ class AttendanceLog extends Model
         'user_id',
         'schedule_id',
         'attendance_type',
+        'attendance_period',
         'scan_time',
+        'scan_key',
         'status',
+        'punctuality_status',
         'scanner_location',
         'remarks',
     ];
@@ -26,12 +29,12 @@ class AttendanceLog extends Model
             'scan_time' => 'datetime',
         ];
     }
- 
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
- 
+
     public function schedule(): BelongsTo
     {
         return $this->belongsTo(Schedule::class);

@@ -49,7 +49,7 @@
 <nav data-sidebar-nav class="flex-1 overflow-y-auto px-2 py-4 space-y-1" aria-label="Sidebar">
     <x-sidebar-link
         :href="route('dashboard')"
-        :active="request()->routeIs('dashboard')"
+        :active="request()->routeIs('dashboard', 'admin.dashboard', 'instructor.dashboard', 'student.dashboard', 'staff.dashboard')"
         :collapsible="$collapsible"
         label="Dashboard"
     >
@@ -60,7 +60,36 @@
         </x-slot>
     </x-sidebar-link>
 
+    @if (Auth::user()->role?->role_name === 'instructor')
+        @foreach([
+            'instructor.attendance' => 'My Attendance',
+            'instructor.schedule' => 'My Teaching Schedule',
+            'instructor.history' => 'Attendance History',
+            'instructor.summary' => 'Monthly Summary',
+            'instructor.issues' => 'Attendance Issues',
+            'my-profile.edit' => 'Profile',
+        ] as $routeName => $label)
+            <x-sidebar-link :href="route($routeName)" :active="request()->routeIs($routeName)" :collapsible="$collapsible" :label="$label">
+                <x-slot name="icon"><svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M5 5h14v14H5z"/></svg></x-slot>
+            </x-sidebar-link>
+        @endforeach
+    @endif
+
     @if (Auth::user()->role?->role_name === 'admin')
+        <x-sidebar-link
+            :href="route('attendance-scanner.index')"
+            :active="request()->routeIs('attendance-scanner.*')"
+            :collapsible="$collapsible"
+            target="_self"
+            label="QR Scanner"
+        >
+            <x-slot name="icon">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7V5a2 2 0 012-2h2m10 0h2a2 2 0 012 2v2M3 17v2a2 2 0 002 2h2m10 0h2a2 2 0 002-2v-2M7 7h3v3H7V7zm7 0h3v3h-3V7zM7 14h3v3H7v-3zm7 0h3v3h-3v-3z" />
+                </svg>
+            </x-slot>
+        </x-sidebar-link>
+
         <x-sidebar-link
             :href="route('attendance-logs.index')"
             :active="request()->routeIs('attendance-logs.*')"

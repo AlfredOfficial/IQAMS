@@ -1,28 +1,4 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">IQAMS Control Center</p>
-                <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900">Attendance Dashboard</h1>
-                <p class="mt-1 text-sm text-slate-500">Live college-wide attendance monitoring and analytics</p>
-            </div>
-            <div class="flex items-center gap-3">
-                <div class="relative hidden md:block">
-                    <svg class="pointer-events-none absolute left-3 top-2.5 h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35m2.1-5.4a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z"/></svg>
-                    <input form="attendance-filters" name="search" x-model="filters.search" type="search" placeholder="Search attendance..." class="w-64 rounded-xl border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm focus:border-blue-500 focus:ring-blue-500">
-                </div>
-                <button type="button" class="relative rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 hover:bg-slate-50" aria-label="Notifications">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0v1a3 3 0 0 1-6 0v-1"/></svg>
-                    <span x-show="data.stats.incomplete" class="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
-                </button>
-                <div class="min-w-44 rounded-xl border border-slate-200 bg-white px-4 py-2 text-right shadow-sm">
-                    <p class="text-sm font-semibold text-slate-800" x-text="clockDate"></p>
-                    <p class="text-xs text-slate-500" x-text="clockTime"></p>
-                </div>
-            </div>
-        </div>
-    </x-slot>
-
     <div class="min-h-screen bg-slate-50 py-6"
          x-data="{
             data: {{ Illuminate\Support\Js::from($dashboardData) }},
@@ -85,6 +61,32 @@
             points(items) { const max = this.max(items); const width = 560; const height = 120; return items.map((item, index) => `${items.length === 1 ? 0 : index * width / (items.length - 1)},${height - (item.value / max * 105)}`).join(' '); }
          }"
          @keydown.escape.window="confirmation = null">
+        <header class="-mt-6 mb-6 bg-white shadow-sm">
+            <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">IQAMS Control Center</p>
+                        <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900">Attendance Dashboard</h1>
+                        <p class="mt-1 text-sm text-slate-500">Live college-wide attendance monitoring and analytics</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="relative hidden md:block">
+                            <svg class="pointer-events-none absolute left-3 top-2.5 h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35m2.1-5.4a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z"/></svg>
+                            <input form="attendance-filters" name="search" x-model="filters.search" type="search" placeholder="Search attendance..." class="w-64 rounded-xl border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                        <button type="button" class="relative rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 hover:bg-slate-50" aria-label="Notifications">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0v1a3 3 0 0 1-6 0v-1"/></svg>
+                            <span x-show="data.stats.incomplete" class="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
+                        </button>
+                        <div class="min-w-44 rounded-xl border border-slate-200 bg-white px-4 py-2 text-right shadow-sm">
+                            <p class="text-sm font-semibold text-slate-800" x-text="clockDate"></p>
+                            <p class="text-xs text-slate-500" x-text="clockTime"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
         <div class="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
             <div class="mb-4 flex items-center justify-between">
                 <div class="flex items-center gap-2 text-xs font-medium" :class="online ? 'text-emerald-700' : 'text-red-600'">
