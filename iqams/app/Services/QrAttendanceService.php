@@ -12,7 +12,11 @@ use Illuminate\Validation\ValidationException;
 
 class QrAttendanceService
 {
-    public function __construct(private QrIdentityResolver $identityResolver) {}
+    public function __construct(
+        private QrIdentityResolver $identityResolver,
+        private StudentAttendanceWindow $studentWindow,
+        private AccountStatusService $accountStatus,
+    ) {}
 
     public function record(string $qrCode, ?string $location = null, ?Carbon $scannedAt = null): AttendanceLog
     {
@@ -22,6 +26,8 @@ class QrAttendanceService
 
         return DB::transaction(function () use ($user, $location, $scannedAt) {
             $lockedUser = User::with(['role', 'student'])->lockForUpdate()->findOrFail($user->id);
+
+            $this->accountStatus->ensureAccountIsActive($lockedUser, 'qr_code');
 
             return $lockedUser->student
                 ? $this->recordStudent($lockedUser, $scannedAt, $location)
@@ -42,37 +48,60 @@ class QrAttendanceService
         }
 
         $day = strtolower($scannedAt->format('l'));
-        $matches = Schedule::with(['subject', 'section'])
+        $schedules = Schedule::with(['subject', 'section'])
             ->where('section_id', $student->section_id)
             ->where('day', $day)
-            ->get()
-            ->filter(fn (Schedule $schedule) => $this->isWithinStudentWindow($schedule, $scannedAt))
+            ->get();
+
+        $matches = $schedules
+            ->filter(fn (Schedule $schedule) => $this->studentWindow->isOpen($schedule, $scannedAt))
+            ->sortByDesc(fn (Schedule $schedule) => [
+                $this->studentWindow->isPresent($schedule, $scannedAt) ? 1 : 0,
+                $this->studentWindow->start($schedule, $scannedAt)->getTimestamp(),
+            ])
             ->values();
 
         if ($matches->isEmpty()) {
-            $this->deny('Attendance denied. You do not have a scheduled class session at this time.');
-        }
+            $nextSchedule = $schedules
+                ->filter(fn (Schedule $schedule) => $scannedAt->lessThan($this->studentWindow->opensAt($schedule, $scannedAt)))
+                ->sortBy(fn (Schedule $schedule) => $this->studentWindow->opensAt($schedule, $scannedAt)->getTimestamp())
+                ->first();
 
-        if ($matches->count() > 1) {
-            $this->deny('Attendance cannot be recorded because multiple class schedules match this time. Ask an administrator to correct the schedule conflict.');
+            if ($nextSchedule) {
+                $opensAt = $this->studentWindow->opensAt($nextSchedule, $scannedAt)->format('g:i A');
+                $this->deny("Attendance scanning opens at {$opensAt}.");
+            }
+
+            $this->deny('You do not have a scheduled class at this time.');
         }
 
         $schedule = $matches->first();
         $scanKey = implode(':', ['student', $user->id, $schedule->id, $scannedAt->toDateString()]);
 
-        if (AttendanceLog::where('scan_key', $scanKey)->exists()
-            || AttendanceLog::where('user_id', $user->id)
+        $existing = AttendanceLog::where('scan_key', $scanKey)
+            ->orWhere(fn ($query) => $query->where('user_id', $user->id)
                 ->where('schedule_id', $schedule->id)
                 ->whereDate('scan_time', $scannedAt->toDateString())
-                ->where('attendance_type', 'time_in')
-                ->exists()) {
-            $this->deny('Attendance has already been recorded for this class session.');
+                ->where('attendance_type', 'time_in'))
+            ->lockForUpdate()
+            ->first();
+
+        if ($existing) {
+            if ($existing->status === 'absent' && $this->studentWindow->status($schedule, $scannedAt) === 'late') {
+                $existing->update([
+                    'scan_time' => $scannedAt,
+                    'status' => 'late',
+                    'scanner_location' => $location,
+                    'remarks' => null,
+                ]);
+
+                return $existing->load(['user.role', 'schedule.subject', 'schedule.section']);
+            }
+
+            $this->deny('Attendance already recorded for this subject.');
         }
 
-        $start = $scannedAt->copy()->startOfDay()->setTimeFromTimeString($schedule->start_time);
-        $status = $scannedAt->greaterThan($start->copy()->addMinutes(config('attendance.student_grace_minutes')))
-            ? 'late'
-            : 'present';
+        $status = $this->studentWindow->status($schedule, $scannedAt);
 
         try {
             return AttendanceLog::create([
@@ -86,7 +115,7 @@ class QrAttendanceService
             ])->load(['user.role', 'schedule.subject', 'schedule.section']);
         } catch (QueryException $exception) {
             if ($this->isUniqueConstraintViolation($exception)) {
-                $this->deny('Attendance has already been recorded for this class session.');
+                $this->deny('Attendance already recorded for this subject.');
             }
 
             throw $exception;
@@ -156,24 +185,17 @@ class QrAttendanceService
     {
         if (($stage['type'] ?? null) === 'time_in' && isset($stage['on_time_until'])) {
             $deadline = $scannedAt->copy()->startOfDay()->setTimeFromTimeString($stage['on_time_until']);
+
             return $scannedAt->greaterThan($deadline) ? 'late' : 'on_time';
         }
 
         if (($stage['type'] ?? null) === 'time_out' && isset($stage['not_early_before'])) {
             $minimum = $scannedAt->copy()->startOfDay()->setTimeFromTimeString($stage['not_early_before']);
+
             return $scannedAt->lessThan($minimum) ? 'early_out' : 'on_time';
         }
 
         return 'on_time';
-    }
-
-    private function isWithinStudentWindow(Schedule $schedule, Carbon $scannedAt): bool
-    {
-        $start = $scannedAt->copy()->startOfDay()->setTimeFromTimeString($schedule->start_time)
-            ->subMinutes(config('attendance.student_early_minutes'));
-        $end = $scannedAt->copy()->startOfDay()->setTimeFromTimeString($schedule->end_time);
-
-        return $scannedAt->betweenIncluded($start, $end);
     }
 
     private function isWithinPersonnelWindow(array $stage, Carbon $scannedAt): bool

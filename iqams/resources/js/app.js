@@ -119,6 +119,20 @@ Alpine.data('instructorWorkspace', () => ({
 
 Alpine.start();
 
+const updateLiveClock = () => {
+    const clock = document.getElementById('live-clock');
+    if (clock) {
+        clock.textContent = new Date().toLocaleTimeString([], {
+            hour: 'numeric',
+            minute: '2-digit',
+            second: '2-digit',
+        });
+    }
+};
+
+updateLiveClock();
+window.setInterval(updateLiveClock, 1000);
+
 /**
  * Keep the navigation shell in place when a sidebar link is selected.
  * Laravel still renders the destination server-side; only the content area and

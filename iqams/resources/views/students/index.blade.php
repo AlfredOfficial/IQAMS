@@ -8,8 +8,9 @@
 
     <div class="py-8" x-data="{
             showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
-            editModal: { show: false, id: null, course_id: '', section_id: '', first_name: '', last_name: '', middle_name: '', status: '' },
+            editModal: { show: false, id: null, course_id: '', section_id: '', first_name: '', last_name: '', middle_name: '', status: '', avatar_url: '' },
             deleteModal: { show: false, id: null, name: '' },
+            statusModal: { show: false, userId: null, name: '', status: '' },
             qrModal: { show: false, value: '', label: '' }
         }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
@@ -31,66 +32,59 @@
                     </button>
                 </div>
 
-                <table class="w-full text-sm text-left">
+                <div class="overflow-x-auto">
+                <table class="min-w-[920px] w-full table-fixed text-left text-sm [&_th]:px-5 [&_th]:py-4 [&_th]:align-middle [&_th]:font-medium [&_th]:tracking-wide [&_td]:h-20 [&_td]:px-5 [&_td]:py-4 [&_td]:align-middle">
+                    <colgroup><col class="w-40"><col class="w-20"><col class="w-48"><col class="w-28"><col class="w-32"><col class="w-36"><col class="w-20"></colgroup>
                     <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
                         <tr>
                             <th class="px-6 py-3">Student No.</th>
+                            <th class="px-6 py-3">Profile</th>
                             <th class="px-6 py-3">Name</th>
                             <th class="px-6 py-3">Course</th>
                             <th class="px-6 py-3">Section</th>
-                            <th class="px-6 py-3">Status</th>
+                            <th class="px-6 py-3">Account Status</th>
                             <th class="px-6 py-3 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         @forelse ($students as $student)
-                            <tr>
-                                <td class="px-6 py-3 text-gray-800 font-medium">{{ $student->student_no }}</td>
-                                <td class="px-6 py-3 text-gray-600">{{ $student->first_name }} {{ $student->last_name }}</td>
+                            <tr class="transition-colors hover:bg-gray-50/80">
+                                <td class="whitespace-nowrap px-6 py-3 font-medium text-gray-800">{{ $student->student_no }}</td>
+                                <td class="px-6 py-3"><img src="{{ $student->user->avatar_url ?? asset('images/default-avatar.svg') }}" alt="Profile photo" class="h-10 w-10 rounded-full object-cover"></td>
+                                <td class="whitespace-nowrap px-6 py-3 text-gray-600">{{ $student->first_name }} {{ $student->last_name }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $student->course->course_code ?? '—' }}</td>
-                                <td class="px-6 py-3 text-gray-600">{{ $student->section->section_name ?? '—' }}</td>
+                                <td class="whitespace-nowrap px-6 py-3 text-gray-600">{{ $student->section->section_name ?? '—' }}</td>
                                 <td class="px-6 py-3">
                                     <span @class([
                                         'px-2 py-1 rounded text-xs font-medium',
-                                        'bg-green-50 text-green-700' => $student->status === 'active',
-                                        'bg-gray-100 text-gray-600' => $student->status === 'inactive',
-                                        'bg-blue-50 text-blue-700' => $student->status === 'graduated',
-                                        'bg-red-50 text-red-700' => $student->status === 'dropped',
+                                        'bg-green-50 text-green-700' => $student->user->status === 'active',
+                                        'bg-red-50 text-red-700' => $student->user->status === 'inactive',
                                     ])>
-                                        {{ ucfirst($student->status) }}
+                                        {{ ucfirst($student->user->status) }}
                                     </span>
                                 </td>
-                                <td class="px-6 py-3 text-right space-x-3">
-                                    <button type="button"
-                                        @click="editModal = {
-                                            show: true,
-                                            id: {{ $student->id }},
-                                            course_id: '{{ $student->course_id }}',
-                                            section_id: '{{ $student->section_id }}',
-                                            first_name: '{{ addslashes($student->first_name) }}',
-                                            last_name: '{{ addslashes($student->last_name) }}',
-                                            middle_name: '{{ addslashes($student->middle_name) }}',
-                                            status: '{{ $student->status }}'
-                                        }"
-                                        class="text-indigo-600 hover:text-indigo-800">Edit</button>
-
-                                    <button type="button"
-                                        @click="deleteModal = { show: true, id: {{ $student->id }}, name: '{{ addslashes($student->first_name . ' ' . $student->last_name) }}' }"
-                                        class="text-red-600 hover:text-red-800">Delete</button>
-                                    <button type="button"
-                                        @click="qrModal = { show: true, value: '{{ $student->student_no }}', label: '{{ addslashes($student->first_name . ' ' . $student->last_name) }}' }"
-                                        class="text-gray-600 hover:text-gray-800">View QR</button>    
+                                <td class="px-6 py-3 text-right">
+                                    <x-action-menu
+                                        :delete-action="route('students.destroy', $student)"
+                                        :toggle-action="route('users.status.update', $student->user)"
+                                        :next-status="$student->user->isAccountActive() ? 'inactive' : 'active'"
+                                        :is-active="$student->user->isAccountActive()"
+                                        :delete-name="$student->fullName()">
+                                        <x-slot:edit><button type="button" @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $student->id, 'course_id' => (string) $student->course_id, 'section_id' => (string) $student->section_id, 'first_name' => $student->first_name, 'last_name' => $student->last_name, 'middle_name' => $student->middle_name, 'status' => $student->status, 'avatar_url' => $student->user->avatar_url ?? asset('images/default-avatar.svg')]) }}">Edit</button></x-slot:edit>
+                                        <x-slot:qr><button type="button" @click="qrModal = {{ Illuminate\Support\Js::from(['show' => true, 'value' => $student->student_no, 'label' => $student->fullName()]) }}">View QR</button></x-slot:qr>
+                                    </x-action-menu>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-6 py-8 text-center text-gray-400">
+                                <td colspan="7" class="px-6 py-8 text-center text-gray-400">
                                     No students yet. Add your first one.
                                 </td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
+                </div>
 
                 <div class="px-6 py-4 border-t border-gray-200">
                     {{ $students->links() }}
@@ -114,8 +108,9 @@
                     </button>
                 </div>
 
-                <form method="POST" action="{{ route('students.store') }}">
+                <form method="POST" action="{{ route('students.store') }}" enctype="multipart/form-data">
                     @csrf
+                    <div class="mb-4"><label class="mb-1 block text-sm font-medium text-gray-700">Profile Photo</label><input type="file" name="avatar" accept="image/jpeg,image/png" required class="block w-full text-sm text-gray-600">@error('avatar')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror</div>
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
@@ -224,9 +219,10 @@
                     </button>
                 </div>
 
-                <form method="POST" :action="'{{ url('students') }}/' + editModal.id">
+                <form method="POST" :action="'{{ url('students') }}/' + editModal.id" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
+                    <div class="mb-4 flex items-center gap-4"><img :src="editModal.avatar_url" alt="Current profile photo" class="h-14 w-14 rounded-full object-cover"><div><label class="mb-1 block text-sm font-medium text-gray-700">Replace Profile Photo</label><input type="file" name="avatar" accept="image/jpeg,image/png" class="block w-full text-sm text-gray-600"></div></div>
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
@@ -322,6 +318,8 @@
                 </form>
             </div>
         </div>
+
+        <x-account-status-modal />
         <x-qr-modal />
     </div>
 </x-app-layout>

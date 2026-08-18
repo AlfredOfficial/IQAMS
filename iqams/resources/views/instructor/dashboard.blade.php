@@ -15,6 +15,11 @@
 @endphp
 <x-instructor-layout title="Dashboard">
 <div x-data="instructorWorkspace" data-realtime-url="{{ route('instructor.dashboard.realtime') }}" data-qr-value="{{ $instructor->qr_code ?? $instructor->employee_no }}" class="mx-auto max-w-[1500px] space-y-4">
+    @unless (Auth::user()->isAccountActive())
+        <div class="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-800">
+            <div class="flex items-center gap-3"><span class="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold">Inactive</span><p class="text-sm font-semibold">Attendance unavailable. Your account is inactive. Please contact the administrator.</p></div>
+        </div>
+    @endunless
     <div class="grid gap-4 xl:grid-cols-[minmax(0,1.9fr)_minmax(310px,1fr)]">
         <div class="space-y-4">
             <section class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">

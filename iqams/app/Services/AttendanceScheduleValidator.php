@@ -11,6 +11,8 @@ class AttendanceScheduleValidator
 {
     public const DENIED_MESSAGE = 'Attendance denied. You do not have a scheduled class session at this time.';
 
+    public function __construct(private StudentAttendanceWindow $studentWindow) {}
+
     /**
      * Ensure a student's attendance belongs to their section and occurs
      * during the selected class session. Non-student attendance is unchanged.
@@ -40,7 +42,7 @@ class AttendanceScheduleValidator
 
         if ($end->greaterThan($start)) {
             return strtolower($time->format('l')) === $scheduleDay
-                && $time->betweenIncluded($start, $end);
+                && $this->studentWindow->isOpen($schedule, $time);
         }
 
         // An end time at or before the start time represents a session that

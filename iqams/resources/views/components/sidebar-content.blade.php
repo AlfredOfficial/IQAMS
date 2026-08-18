@@ -60,6 +60,12 @@
         </x-slot>
     </x-sidebar-link>
 
+    @if (in_array(Auth::user()->role?->role_name, ['staff', 'student']))
+        <x-sidebar-link :href="route('leave-requests.index')" :active="request()->routeIs('leave-requests.*')" :collapsible="$collapsible" label="Leave Requests">
+            <x-slot name="icon"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 3h10a2 2 0 012 2v16l-7-3-7 3V5a2 2 0 012-2z"/></svg></x-slot>
+        </x-sidebar-link>
+    @endif
+
     @if (Auth::user()->role?->role_name === 'instructor')
         @foreach([
             'instructor.attendance' => 'My Attendance',
@@ -76,6 +82,9 @@
     @endif
 
     @if (Auth::user()->role?->role_name === 'admin')
+        <x-sidebar-link :href="route('admin.leave-requests.index')" :active="request()->routeIs('admin.leave-requests.*')" :collapsible="$collapsible" label="Leave Requests">
+            <x-slot name="icon"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 3h10a2 2 0 012 2v16l-7-3-7 3V5a2 2 0 012-2z"/></svg></x-slot>
+        </x-sidebar-link>
         <x-sidebar-link
             :href="route('attendance-scanner.index')"
             :active="request()->routeIs('attendance-scanner.*')"

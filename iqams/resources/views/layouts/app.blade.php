@@ -6,6 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ config('app.name', 'IQAMS') }}</title>
+    <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
 
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet">
@@ -31,6 +32,7 @@
         {{-- Mobile top bar: only visible below lg, gives access to the drawer toggle --}}
         <div class="lg:hidden sticky top-0 z-30 flex items-center justify-between bg-white border-b border-gray-200 px-4 py-3">
             <span class="font-semibold text-gray-800">{{ config('app.name', 'IQAMS') }}</span>
+            <div class="ml-auto mr-2"><x-leave-notification-bell /></div>
             <button
                 @click="mobileOpen = true"
                 type="button"
@@ -51,8 +53,9 @@
         >
             @isset($header)
                 <header class="bg-white shadow-sm">
-                    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                        {{ $header }}
+                    <div class="max-w-7xl mx-auto flex items-center gap-4 py-6 px-4 sm:px-6 lg:px-8">
+                        <div class="min-w-0 flex-1">{{ $header }}</div>
+                        <x-leave-notification-bell class="hidden lg:block" />
                     </div>
                 </header>
             @endisset

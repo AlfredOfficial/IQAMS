@@ -1,0 +1,3 @@
+@props(['status'])
+@php $styles = match(strtolower($status ?? '')) {'present','completed','active'=>'bg-emerald-50 text-emerald-700 ring-emerald-200','late','upcoming'=>'bg-amber-50 text-amber-700 ring-amber-200','absent','inactive'=>'bg-red-50 text-red-700 ring-red-200','excused','ongoing'=>'bg-sky-50 text-sky-700 ring-sky-200',default=>'bg-slate-50 text-slate-600 ring-slate-200'}; @endphp
+<span {{ $attributes->class("inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold capitalize ring-1 ring-inset $styles") }}><span class="h-1.5 w-1.5 rounded-full bg-current opacity-70"></span>{{ $status ?: 'Unknown' }}</span>

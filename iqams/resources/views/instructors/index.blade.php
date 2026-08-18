@@ -9,11 +9,12 @@
     <div class="py-8"
          x-data="{
             showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
-            editModal: { show: false, id: null, department_id: '', first_name: '', last_name: '' },
+            editModal: { show: false, id: null, department_id: '', first_name: '', last_name: '', avatar_url: '' },
             deleteModal: { show: false, id: null, name: '' },
+            statusModal: { show: false, userId: null, name: '', status: '' },
             qrModal: { show: false, value: '', label: '' }
          }"
-         @keydown.escape.window="showCreateModal = false; editModal.show = false; deleteModal.show = false; qrModal.show = false">
+         @keydown.escape.window="showCreateModal = false; editModal.show = false; deleteModal.show = false; statusModal.show = false; qrModal.show = false">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             @if (session('generated_username'))
                 <div class="mb-4 rounded border border-indigo-200 bg-indigo-50 px-4 py-3 text-indigo-800">
@@ -33,52 +34,43 @@
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
+                    <table class="min-w-[1040px] w-full table-fixed text-left text-sm [&_th]:px-5 [&_th]:py-4 [&_th]:align-middle [&_th]:font-medium [&_th]:tracking-wide [&_td]:h-20 [&_td]:px-5 [&_td]:py-4 [&_td]:align-middle">
+                        <colgroup><col class="w-40"><col class="w-20"><col class="w-44"><col class="w-48"><col class="w-52"><col class="w-28"><col class="w-20"></colgroup>
                         <thead class="bg-gray-50 text-xs uppercase text-gray-500">
                             <tr>
                                 <th class="px-6 py-3">Employee No.</th>
+                                <th class="px-6 py-3">Profile</th>
                                 <th class="px-6 py-3">Name</th>
                                 <th class="px-6 py-3">Department</th>
                                 <th class="px-6 py-3">Email</th>
+                                <th class="px-6 py-3">Status</th>
                                 <th class="px-6 py-3 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
                             @forelse ($instructors as $instructor)
-                                <tr>
-                                    <td class="px-6 py-3 font-medium text-gray-800">{{ $instructor->employee_no }}</td>
-                                    <td class="px-6 py-3 text-gray-600">{{ $instructor->first_name }} {{ $instructor->last_name }}</td>
+                                <tr class="transition-colors hover:bg-gray-50/80">
+                                    <td class="whitespace-nowrap px-6 py-3 font-medium text-gray-800">{{ $instructor->employee_no }}</td>
+                                    <td class="px-6 py-3"><img src="{{ $instructor->user->avatar_url ?? asset('images/default-avatar.svg') }}" alt="Profile photo" class="h-10 w-10 rounded-full object-cover"></td>
+                                    <td class="whitespace-nowrap px-6 py-3 text-gray-600">{{ $instructor->first_name }} {{ $instructor->last_name }}</td>
                                     <td class="px-6 py-3 text-gray-600">{{ $instructor->department->department_name ?? '—' }}</td>
                                     <td class="px-6 py-3 text-gray-600">{{ $instructor->user->email ?? '—' }}</td>
-                                    <td class="space-x-3 px-6 py-3 text-right whitespace-nowrap">
-                                        <button type="button"
-                                                @click="editModal = {{ Illuminate\Support\Js::from([
-                                                    'show' => true,
-                                                    'id' => $instructor->id,
-                                                    'department_id' => (string) $instructor->department_id,
-                                                    'first_name' => $instructor->first_name,
-                                                    'last_name' => $instructor->last_name,
-                                                ]) }}"
-                                                class="text-indigo-600 hover:text-indigo-800">Edit</button>
-                                        <button type="button"
-                                                @click="deleteModal = {{ Illuminate\Support\Js::from([
-                                                    'show' => true,
-                                                    'id' => $instructor->id,
-                                                    'name' => $instructor->first_name . ' ' . $instructor->last_name,
-                                                ]) }}"
-                                                class="text-red-600 hover:text-red-800">Delete</button>
-                                        <button type="button"
-                                                @click="qrModal = {{ Illuminate\Support\Js::from([
-                                                    'show' => true,
-                                                    'value' => $instructor->qr_code,
-                                                    'label' => $instructor->first_name . ' ' . $instructor->last_name,
-                                                ]) }}"
-                                                class="text-gray-600 hover:text-gray-800">View QR</button>
+                                    <td class="px-6 py-3"><span class="rounded px-2 py-1 text-xs font-medium {{ $instructor->user->isAccountActive() ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700' }}">{{ ucfirst($instructor->user->status) }}</span></td>
+                                    <td class="px-6 py-3 text-right">
+                                        <x-action-menu
+                                            :delete-action="route('instructors.destroy', $instructor)"
+                                            :toggle-action="route('users.status.update', $instructor->user)"
+                                            :next-status="$instructor->user->isAccountActive() ? 'inactive' : 'active'"
+                                            :is-active="$instructor->user->isAccountActive()"
+                                            :delete-name="$instructor->fullName()">
+                                            <x-slot:edit><button type="button" @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $instructor->id, 'department_id' => (string) $instructor->department_id, 'first_name' => $instructor->first_name, 'last_name' => $instructor->last_name, 'avatar_url' => $instructor->user->avatar_url ?? asset('images/default-avatar.svg')]) }}">Edit</button></x-slot:edit>
+                                            <x-slot:qr><button type="button" @click="qrModal = {{ Illuminate\Support\Js::from(['show' => true, 'value' => $instructor->qr_code, 'label' => $instructor->fullName()]) }}">View QR</button></x-slot:qr>
+                                        </x-action-menu>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="px-6 py-8 text-center text-gray-400">
+                                    <td colspan="7" class="px-6 py-8 text-center text-gray-400">
                                         No instructors yet. Add your first one.
                                     </td>
                                 </tr>
@@ -108,8 +100,9 @@
                     </button>
                 </div>
 
-                <form method="POST" action="{{ route('instructors.store') }}">
+                <form method="POST" action="{{ route('instructors.store') }}" enctype="multipart/form-data">
                     @csrf
+                    <div class="mb-4"><label class="mb-1 block text-sm font-medium text-gray-700">Profile Photo</label><input type="file" name="avatar" accept="image/jpeg,image/png" required class="block w-full text-sm text-gray-600">@error('avatar')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror</div>
 
                     <div class="mb-4">
                         <label for="department_id" class="mb-1 block text-sm font-medium text-gray-700">Department</label>
@@ -178,9 +171,10 @@
                     </button>
                 </div>
 
-                <form method="POST" :action="'{{ url('instructors') }}/' + editModal.id">
+                <form method="POST" :action="'{{ url('instructors') }}/' + editModal.id" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
+                    <div class="mb-4 flex items-center gap-4"><img :src="editModal.avatar_url" alt="Current profile photo" class="h-14 w-14 rounded-full object-cover"><div><label class="mb-1 block text-sm font-medium text-gray-700">Replace Profile Photo</label><input type="file" name="avatar" accept="image/jpeg,image/png" class="block w-full text-sm text-gray-600"></div></div>
 
                     <div class="mb-4">
                         <label class="mb-1 block text-sm font-medium text-gray-700">Department</label>
@@ -235,6 +229,8 @@
                 </form>
             </div>
         </div>
+
+        <x-account-status-modal />
 
         <x-qr-modal />
     </div>

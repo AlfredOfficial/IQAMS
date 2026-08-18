@@ -8,7 +8,9 @@ use App\Models\NonTeachingStaff;
 use App\Models\Schedule;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\AccountStatusService;
 use App\Services\AttendanceScheduleValidator;
+use App\Services\StudentAttendanceWindow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
@@ -18,8 +20,6 @@ class AttendanceLogController extends Controller
     /**
      * Display a listing of the resource.
      */
-    private const GRACE_MINUTES = 15;
-
     public function index(Request $request)
     {
         $query = AttendanceLog::with(['user', 'schedule.subject', 'schedule.section']);
@@ -75,10 +75,11 @@ class AttendanceLogController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request, AttendanceScheduleValidator $scheduleValidator)
+    public function store(Request $request, AttendanceScheduleValidator $scheduleValidator, AccountStatusService $accountStatus)
     {
         $identity = $request->validate(['user_id' => 'required|exists:users,id']);
         $user = User::with('student')->findOrFail($identity['user_id']);
+        $accountStatus->ensureAccountIsActive($user, 'user_id');
 
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
@@ -97,7 +98,7 @@ class AttendanceLogController extends Controller
             $scheduleValidator->validate($user, $schedule, $scanTime);
         }
 
-        $validated['status'] = $this->resolveStatus($validated, $schedule, $scanTime);
+        $validated['status'] = $this->resolveStatus($validated, $schedule, $scanTime, app(StudentAttendanceWindow::class));
         unset($validated['status_override']);
 
         AttendanceLog::create($validated);
@@ -127,10 +128,12 @@ class AttendanceLogController extends Controller
     public function update(
         Request $request,
         AttendanceLog $attendanceLog,
-        AttendanceScheduleValidator $scheduleValidator
+        AttendanceScheduleValidator $scheduleValidator,
+        AccountStatusService $accountStatus
     ) {
         $identity = $request->validate(['user_id' => 'required|exists:users,id']);
         $user = User::with('student')->findOrFail($identity['user_id']);
+        $accountStatus->ensureAccountIsActive($user, 'user_id');
 
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
@@ -149,7 +152,7 @@ class AttendanceLogController extends Controller
             $scheduleValidator->validate($user, $schedule, $scanTime);
         }
 
-        $validated['status'] = $this->resolveStatus($validated, $schedule, $scanTime);
+        $validated['status'] = $this->resolveStatus($validated, $schedule, $scanTime, app(StudentAttendanceWindow::class));
         unset($validated['status_override']);
 
         $attendanceLog->update($validated);
@@ -169,7 +172,7 @@ class AttendanceLogController extends Controller
 
     // if admin picked an explicit override (excused, late, absent, etc..)
 
-    private function resolveStatus(array $data, ?Schedule $schedule, Carbon $scanTime): string
+    private function resolveStatus(array $data, ?Schedule $schedule, Carbon $scanTime, StudentAttendanceWindow $window): string
     {
         if (! empty($data['status_override'])) {
             return $data['status_override'];
@@ -179,11 +182,6 @@ class AttendanceLogController extends Controller
             return 'present';
         }
 
-        $scheduleStart = Carbon::parse(
-            $scanTime->format('Y-m-d').' '.$schedule->start_time,
-            config('app.timezone')
-        )->addMinutes(self::GRACE_MINUTES);
-
-        return $scanTime->greaterThan($scheduleStart) ? 'late' : 'present';
+        return $window->status($schedule, $scanTime);
     }
 }

@@ -39,12 +39,6 @@ class QrIdentityResolver
             ]);
         }
 
-        if ($user->status !== 'active') {
-            throw ValidationException::withMessages([
-                'qr_code' => 'Attendance is denied because this account is inactive.',
-            ]);
-        }
-
         $expectedRole = match (true) {
             $profile instanceof Student => 'student',
             $profile instanceof Instructor => 'instructor',

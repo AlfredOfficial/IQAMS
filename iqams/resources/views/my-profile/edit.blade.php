@@ -25,6 +25,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>My Profile - {{ config('app.name', 'IQAMS') }}</title>
+    <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
 
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet">
@@ -95,6 +96,13 @@
                         <div class="sm:ml-auto sm:text-right">
                             <p class="text-lg font-semibold text-gray-900">{{ $user->name }}</p>
                             <p class="text-sm text-gray-500">{{ $roleLabel }}</p>
+                            <div class="mt-2 flex items-center gap-2 sm:justify-end">
+                                <span class="text-xs font-medium text-gray-500">Account Status</span>
+                                <span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $user->isAccountActive() ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">{{ ucfirst($user->status) }}</span>
+                            </div>
+                            @unless ($user->isAccountActive())
+                                <p class="mt-2 text-sm text-red-600">Attendance is disabled. Please contact the administrator.</p>
+                            @endunless
                         </div>
                     </div>
                 </div>

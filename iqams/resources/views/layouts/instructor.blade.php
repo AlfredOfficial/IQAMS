@@ -1,15 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title }} - {{ config('app.name', 'IQAMS') }}</title>
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
 @php
     $portalUser = Auth::user();
     $portalInstructor = $portalUser->instructor;
@@ -23,10 +11,17 @@
         ['route'=>'instructor.history','label'=>'Attendance History','icon'=>'M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z'],
         ['route'=>'instructor.summary','label'=>'Monthly Summary','icon'=>'M4 19h16M7 16V9m5 7V5m5 11v-4'],
         ['route'=>'instructor.issues','label'=>'Attendance Issues','icon'=>'M12 9v4m0 4h.01M10.3 3.6L2.6 17a2 2 0 001.7 3h15.4a2 2 0 001.7-3L13.7 3.6a2 2 0 00-3.4 0z'],
+        ['route'=>'leave-requests.index','label'=>'Leave Requests','icon'=>'M7 3h10a2 2 0 012 2v16l-7-3-7 3V5a2 2 0 012-2z'],
         ['route'=>'my-profile.edit','label'=>'Profile','icon'=>'M5.1 17.8a9 9 0 1113.8 0M15 11a3 3 0 11-6 0 3 3 0 016 0z'],
     ];
 @endphp
-<body class="bg-[#f5f7fb] font-sans text-slate-800 antialiased" x-data="{sidebarOpen:false,userMenuOpen:false}" @keydown.escape.window="sidebarOpen=false;userMenuOpen=false">
+<x-portal-document
+    :title="$title"
+    body-class="bg-[#f5f7fb] font-sans text-slate-800 antialiased"
+    :include-qr-code="true"
+    alpine-data="{ sidebarOpen: false, userMenuOpen: false }"
+    x-on:keydown.escape.window="sidebarOpen=false;userMenuOpen=false"
+>
 <x-toast-notifications />
 <div class="min-h-screen lg:flex">
     <div x-show="sidebarOpen" x-cloak @click="sidebarOpen=false" class="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"></div>
@@ -49,14 +44,17 @@
     <div class="min-w-0 flex-1">
         <header class="flex min-h-[92px] items-center bg-white px-4 sm:px-7 lg:px-8">
             <button @click="sidebarOpen=true" class="mr-4 rounded-lg bg-slate-50 p-2.5 text-[#15355e] hover:bg-slate-100 lg:hidden" aria-label="Open navigation"><svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
-            <div class="min-w-0"><h1 class="truncate text-lg font-extrabold text-slate-950 sm:text-xl">{{ $title === 'Dashboard' ? $portalGreeting.', '.$portalName.'! 👋' : $title }}</h1><p class="mt-1 text-xs text-slate-500 sm:text-sm">Teaching Personnel <span class="mx-2">•</span> {{ $portalInstructor?->department?->department_name ?? 'Department not assigned' }}</p></div>
+            <div class="min-w-0"><h1 class="truncate text-lg font-extrabold text-slate-950 sm:text-xl">{{ $title === 'Dashboard' ? $portalGreeting.', '.$portalName.'! ' : $title }}</h1><p class="mt-1 text-xs text-slate-500 sm:text-sm">Teaching Personnel <span class="mx-2">•</span> {{ $portalInstructor?->department?->department_name ?? 'Department not assigned' }}</p></div>
             <div class="ml-auto flex items-center gap-4 sm:gap-6">
-                <div class="hidden text-xs text-[#17345c] md:block"><p class="flex items-center gap-2 font-medium"><span>▣</span>{{ now()->format('l, F j, Y') }}</p><p class="mt-2 flex items-center gap-2"><span>◷</span><span id="live-clock">{{ now()->format('g:i A') }}</span></p></div>
-                <button class="relative hidden text-slate-500 sm:block" aria-label="Notifications"><svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="1.7" d="M15 17h5l-1.5-1.5A2 2 0 0118 14V9a6 6 0 10-12 0v5c0 .6-.2 1.1-.6 1.5L4 17h5m6 0a3 3 0 01-6 0"/></svg><span class="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-rose-500 text-[9px] font-bold text-white">3</span></button>
+                <div class="hidden min-w-[220px] rounded-xl bg-slate-50 px-4 py-2.5 text-sm text-[#17345c] ring-1 ring-slate-200/80 md:block">
+                    <p class="flex items-center gap-2 font-semibold"><svg class="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3M5 10h14M5 5h14v16H5z"/></svg>{{ now()->format('l, F j, Y') }}</p>
+                    <p class="mt-1.5 flex items-center gap-2 font-medium tabular-nums"><svg class="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="1.8"/><path stroke-linecap="round" stroke-width="1.8" d="M12 7v5l3 2"/></svg><span id="live-clock">{{ now()->format('g:i:s A') }}</span></p>
+                </div>
+                <x-leave-notification-bell />
                 <button @click="userMenuOpen=!userMenuOpen" class="relative h-12 w-12 overflow-hidden rounded-full bg-blue-100 text-blue-800 ring-1 ring-slate-200">@if($portalUser->avatar_url)<img src="{{ $portalUser->avatar_url }}" class="h-full w-full object-cover" alt="{{ $portalName }}">@else<span class="grid h-full place-items-center font-bold">{{ $initials }}</span>@endif</button>
             </div>
         </header>
         <main id="app-content" class="p-3 sm:p-5 lg:p-6">{{ $slot }}</main>
     </div>
 </div>
-</body></html>
+</x-portal-document>

@@ -1,8 +1,8 @@
 <?php
 
 return [
-    'student_early_minutes' => (int) env('ATTENDANCE_STUDENT_EARLY_MINUTES', 15),
-    'student_grace_minutes' => (int) env('ATTENDANCE_STUDENT_GRACE_MINUTES', 15),
+    'early_scan_minutes' => (int) env('ATTENDANCE_EARLY_SCAN_MINUTES', 15),
+    'present_grace_minutes' => (int) env('ATTENDANCE_PRESENT_GRACE_MINUTES', 15),
     'duplicate_cooldown_seconds' => (int) env('ATTENDANCE_DUPLICATE_COOLDOWN_SECONDS', 5),
     'personnel_daily_scan_limit' => (int) env('ATTENDANCE_PERSONNEL_DAILY_SCAN_LIMIT', 4),
     'scanner_idle_submit_milliseconds' => (int) env('ATTENDANCE_SCANNER_IDLE_SUBMIT_MS', 350),

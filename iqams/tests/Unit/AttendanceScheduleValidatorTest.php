@@ -17,8 +17,12 @@ class AttendanceScheduleValidatorTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['app.timezone' => 'Asia/Manila']);
-        $this->validator = new AttendanceScheduleValidator;
+        config([
+            'app.timezone' => 'Asia/Manila',
+            'attendance.early_scan_minutes' => 15,
+            'attendance.present_grace_minutes' => 15,
+        ]);
+        $this->validator = app(AttendanceScheduleValidator::class);
     }
 
     public function test_student_is_accepted_only_during_their_sections_session(): void
@@ -37,6 +41,15 @@ class AttendanceScheduleValidatorTest extends TestCase
 
         $this->expectException(ValidationException::class);
         $this->validator->validate($user, $schedule, Carbon::parse('2026-08-10 11:00:00', 'Asia/Manila'));
+    }
+
+    public function test_student_is_accepted_at_the_dynamic_early_scan_boundary(): void
+    {
+        [$user, $schedule] = $this->attendanceContext();
+
+        $this->validator->validate($user, $schedule, Carbon::parse('2026-08-10 07:45:00', 'Asia/Manila'));
+
+        $this->expectNotToPerformAssertions();
     }
 
     public function test_student_is_rejected_on_a_different_day(): void

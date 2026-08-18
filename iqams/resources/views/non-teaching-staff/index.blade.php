@@ -8,8 +8,9 @@
 
     <div class="py-8" x-data="{
             showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
-            editModal: { show: false, id: null, first_name: '', last_name: '' },
+            editModal: { show: false, id: null, department_id: '', first_name: '', last_name: '', avatar_url: '' },
             deleteModal: { show: false, id: null, name: '' },
+            statusModal: { show: false, userId: null, name: '', status: '' },
             qrModal: { show: false, value: '', label: '' }
         }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
@@ -31,49 +32,51 @@
                     </button>
                 </div>
 
-                <table class="w-full text-sm text-left">
+                <div class="overflow-x-auto">
+                <table class="min-w-[1040px] w-full table-fixed text-left text-sm [&_th]:px-5 [&_th]:py-4 [&_th]:align-middle [&_th]:font-medium [&_th]:tracking-wide [&_td]:h-20 [&_td]:px-5 [&_td]:py-4 [&_td]:align-middle">
+                    <colgroup><col class="w-40"><col class="w-20"><col class="w-44"><col class="w-48"><col class="w-52"><col class="w-28"><col class="w-20"></colgroup>
                     <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
                         <tr>
                             <th class="px-6 py-3">Employee No.</th>
+                            <th class="px-6 py-3">Profile</th>
                             <th class="px-6 py-3">Name</th>
+                            <th class="px-6 py-3">Department</th>
                             <th class="px-6 py-3">Email</th>
+                            <th class="px-6 py-3">Status</th>
                             <th class="px-6 py-3 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         @forelse ($staffMembers as $staff)
-                            <tr>
-                                <td class="px-6 py-3 text-gray-800 font-medium">{{ $staff->employee_no }}</td>
-                                <td class="px-6 py-3 text-gray-600">{{ $staff->first_name }} {{ $staff->last_name }}</td>
+                            <tr class="transition-colors hover:bg-gray-50/80">
+                                <td class="whitespace-nowrap px-6 py-3 font-medium text-gray-800">{{ $staff->employee_no }}</td>
+                                <td class="px-6 py-3"><img src="{{ $staff->user->avatar_url ?? asset('images/default-avatar.svg') }}" alt="Profile photo" class="h-10 w-10 rounded-full object-cover"></td>
+                                <td class="whitespace-nowrap px-6 py-3 text-gray-600">{{ $staff->first_name }} {{ $staff->last_name }}</td>
+                                <td class="px-6 py-3 text-gray-600">{{ $staff->department->department_name ?? '—' }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $staff->user->email ?? '—' }}</td>
-                                <td class="px-6 py-3 text-right space-x-3">
-                                    <button type="button"
-                                        @click="editModal = {
-                                            show: true,
-                                            id: {{ $staff->id }},
-                                            first_name: '{{ addslashes($staff->first_name) }}',
-                                            last_name: '{{ addslashes($staff->last_name) }}'
-                                        }"
-                                        class="text-indigo-600 hover:text-indigo-800">Edit</button>
-
-                                    <button type="button"
-                                        @click="deleteModal = { show: true, id: {{ $staff->id }}, name: '{{ addslashes($staff->first_name . ' ' . $staff->last_name) }}' }"
-                                        class="text-red-600 hover:text-red-800">Delete</button>
-                                    <button type="button"
-                                        @click="qrModal = { show: true, value: '{{ $staff->qr_code}}', label: '{{ addslashes($staff->first_name . ' ' . $staff->last_name) }}' }"
-                                        class="text-gray-600 hover:text-gray-800">View QR
-                                    </button>    
+                                <td class="px-6 py-3"><span class="rounded px-2 py-1 text-xs font-medium {{ $staff->user->isAccountActive() ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700' }}">{{ ucfirst($staff->user->status) }}</span></td>
+                                <td class="px-6 py-3 text-right">
+                                    <x-action-menu
+                                        :delete-action="route('non-teaching-staff.destroy', $staff)"
+                                        :toggle-action="route('users.status.update', $staff->user)"
+                                        :next-status="$staff->user->isAccountActive() ? 'inactive' : 'active'"
+                                        :is-active="$staff->user->isAccountActive()"
+                                        :delete-name="$staff->fullName()">
+                                        <x-slot:edit><button type="button" @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $staff->id, 'department_id' => (string) $staff->department_id, 'first_name' => $staff->first_name, 'last_name' => $staff->last_name, 'avatar_url' => $staff->user->avatar_url ?? asset('images/default-avatar.svg')]) }}">Edit</button></x-slot:edit>
+                                        <x-slot:qr><button type="button" @click="qrModal = {{ Illuminate\Support\Js::from(['show' => true, 'value' => $staff->qr_code, 'label' => $staff->fullName()]) }}">View QR</button></x-slot:qr>
+                                    </x-action-menu>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-6 py-8 text-center text-gray-400">
+                                <td colspan="7" class="px-6 py-8 text-center text-gray-400">
                                     No staff members yet. Add your first one.
                                 </td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
+                </div>
 
                 <div class="px-6 py-4 border-t border-gray-200">
                     {{ $staffMembers->links() }}
@@ -97,10 +100,11 @@
                     </button>
                 </div>
 
-                <form method="POST" action="{{ route('non-teaching-staff.store') }}">
+                <form method="POST" action="{{ route('non-teaching-staff.store') }}" enctype="multipart/form-data">
                     @csrf
+                    <div class="mb-4"><label class="mb-1 block text-sm font-medium text-gray-700">Profile Photo</label><input type="file" name="avatar" accept="image/jpeg,image/png" required class="block w-full text-sm text-gray-600">@error('avatar')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror</div>
 
-                    {{-- <div class="mb-4">
+                    <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
                         <select name="department_id" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">-- Select Department --</option>
@@ -113,7 +117,7 @@
                         @error('department_id')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
-                    </div> --}}
+                    </div>
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Employee No.</label>
@@ -183,19 +187,20 @@
                     </button>
                 </div>
 
-                <form method="POST" :action="'{{ url('non-teaching-staff') }}/' + editModal.id">
+                <form method="POST" :action="'{{ url('non-teaching-staff') }}/' + editModal.id" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
+                    <div class="mb-4 flex items-center gap-4"><img :src="editModal.avatar_url" alt="Current profile photo" class="h-14 w-14 rounded-full object-cover"><div><label class="mb-1 block text-sm font-medium text-gray-700">Replace Profile Photo</label><input type="file" name="avatar" accept="image/jpeg,image/png" class="block w-full text-sm text-gray-600"></div></div>
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                        {{-- <select name="department_id" x-model="editModal.department_id"
+                        <select name="department_id" x-model="editModal.department_id"
                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">-- Select Department --</option>
                             @foreach ($departments as $department)
                                 <option value="{{ $department->id }}">{{ $department->department_name }}</option>
                             @endforeach
-                        </select> --}}
+                        </select>
                     </div>
 
                     <div class="mb-6 grid grid-cols-2 gap-3">
@@ -253,6 +258,8 @@
                 </form>
             </div>
         </div>
+
+        <x-account-status-modal />
 
         <x-qr-modal />
     </div>

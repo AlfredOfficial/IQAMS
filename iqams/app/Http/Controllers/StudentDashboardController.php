@@ -3,11 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\AttendanceLog;
+use App\Services\StudentAbsenceWarningService;
 use Illuminate\Http\Request;
 
 class StudentDashboardController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, StudentAbsenceWarningService $absenceWarnings)
     {
         $student = $request->user()->student?->load(['course.department', 'section']);
 
@@ -36,6 +37,8 @@ class StudentDashboardController extends Controller
             'excused' => AttendanceLog::where('user_id', $request->user()->id)->where('status', 'excused')->count(),
         ];
 
-        return view('student.dashboard', compact('student', 'schedules', 'scheduleByDay', 'dayOrder', 'myAttendance', 'stats'));
+        $subjectAbsenceWarnings = $absenceWarnings->forStudent($student);
+
+        return view('student.dashboard', compact('student', 'schedules', 'scheduleByDay', 'dayOrder', 'myAttendance', 'stats', 'subjectAbsenceWarnings'));
     }
 }

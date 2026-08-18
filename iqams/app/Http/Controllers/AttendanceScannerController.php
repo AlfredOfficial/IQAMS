@@ -44,9 +44,12 @@ class AttendanceScannerController extends Controller
         }
 
         $formatted = $this->formatLog($log);
+        $message = $log->schedule_id
+            ? 'Attendance recorded as '.$formatted['status_label'].'.'
+            : $formatted['name'].' - '.$formatted['attendance_type_label'].' - '.$formatted['status_label'];
 
         return response()->json([
-            'message' => $formatted['name'].' - '.($formatted['subject'] ?? $formatted['attendance_type_label']).' - '.$formatted['status_label'],
+            'message' => $message,
             'attendance' => $formatted,
             'recent_attendance' => $this->recentAttendance(),
         ], 201);

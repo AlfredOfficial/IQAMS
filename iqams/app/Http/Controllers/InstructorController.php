@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class InstructorController extends Controller
@@ -44,11 +45,15 @@ class InstructorController extends Controller
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
+            'avatar' => 'required|image|mimes:jpg,jpeg,png|max:2048',
         ]);
+
+        $avatarPath = $request->file('avatar')->store('avatars', 'public');
 
         $plainPassword = 'Instructor@' . $validated['employee_no'];
 
-        DB::transaction(function () use ($validated, $plainPassword){
+        try {
+        DB::transaction(function () use ($validated, $plainPassword, $avatarPath){
             $instructorRole = Role::where('role_name', 'instructor')->firstOrFail();
 
             $user = User::create([
@@ -56,6 +61,7 @@ class InstructorController extends Controller
                 'username' => $validated['employee_no'],
                 'name' => $validated['first_name'] . ' ' . $validated['last_name'],
                 'email' => $validated['email'],
+                'avatar_path' => $avatarPath,
                 'password' => Hash::make($plainPassword),
                 'status' => 'active', 
                 'email_verified_at' => now(),
@@ -71,6 +77,10 @@ class InstructorController extends Controller
             ]);
 
         });
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete($avatarPath);
+            throw $exception;
+        }
 
         return redirect()->route('instructors.index')->with('success', 'Instructor created successfully.')->with('generated_username', $validated['employee_no'])->with('generated_password', $plainPassword);
 
@@ -101,14 +111,28 @@ class InstructorController extends Controller
             'department_id' => 'required|exists:departments,id',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
+            'avatar' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
-        $instructor->update($validated);
+        $oldAvatarPath = $instructor->user->avatar_path;
+        $newAvatarPath = $request->hasFile('avatar')
+            ? $request->file('avatar')->store('avatars', 'public')
+            : null;
 
-        //keep the linked user's display name in sync.
-        $instructor->user->update([
-            'name' => $validated['first_name'] . ' ' . $validated['last_name'],
-        ]);
+        try {
+            DB::transaction(function () use ($validated, $instructor, $newAvatarPath) {
+                $instructor->update($validated);
+                $instructor->user->update(array_filter([
+                    'name' => $validated['first_name'] . ' ' . $validated['last_name'],
+                    'avatar_path' => $newAvatarPath,
+                ], fn ($value) => $value !== null));
+            });
+        } catch (\Throwable $exception) {
+            if ($newAvatarPath) Storage::disk('public')->delete($newAvatarPath);
+            throw $exception;
+        }
+
+        if ($newAvatarPath && $oldAvatarPath) Storage::disk('public')->delete($oldAvatarPath);
 
         return redirect()->route('instructors.index')->with('success', 'Instructor updated successfully.');
     }
