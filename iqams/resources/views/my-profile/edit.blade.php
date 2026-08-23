@@ -27,8 +27,6 @@
     <title>My Profile - {{ config('app.name', 'IQAMS') }}</title>
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
 
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -37,9 +35,7 @@
     <header class="bg-white border-b border-gray-200">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <a href="{{ route($backRoute) }}" class="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1.5">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                </svg>
+                <x-heroicon-o-chevron-left class="w-4 h-4" aria-hidden="true" />
                 Back to Dashboard
             </a>
             <form method="POST" action="{{ route('logout') }}">

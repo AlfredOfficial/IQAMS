@@ -27,7 +27,7 @@
                 @endif
             </div>
             <div class="relative">
-                <svg class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4.5" y="10" width="15" height="10" rx="2" /><path stroke-linecap="round" d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
+                <x-heroicon-o-lock-closed class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                 <x-text-input id="password" class="block w-full rounded-xl border-slate-200 py-3 pl-11 pr-4 text-sm shadow-sm placeholder:text-slate-400 focus:border-teal-500 focus:ring-teal-500" type="password" name="password" required autocomplete="current-password" placeholder="Enter your password" />
             </div>
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
@@ -40,7 +40,7 @@
 
         <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2">
             Login
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m-6-6 6 6-6 6" /></svg>
+            <x-heroicon-o-arrow-right class="h-4 w-4" />
         </button>
     </form>
 </x-guest-layout>

@@ -1,9 +1,9 @@
 <x-app-layout>
-    <div class="min-h-screen bg-slate-50 py-6"
+    <div class="min-h-full bg-slate-50 pb-6"
          x-data="{
             data: {{ Illuminate\Support\Js::from($dashboardData) }},
             endpoint: {{ Illuminate\Support\Js::from(route('admin.dashboard.realtime')) }},
-            loading: false, online: true, lastId: {{ $dashboardData['scans'][0]['id'] ?? 0 }},
+            loading: false, online: true, cursor: {{ Illuminate\Support\Js::from($dashboardData['cursor']) }},
             confirmation: null, confirmTimer: null, timer: null, clockTimer: null,
             clockDate: '', clockTime: '', page: 1, perPage: 10,
             filters: { search: '', role: '', department: '', section: '', subject: '', status: '', period: 'today' },
@@ -21,17 +21,29 @@
                 if (this.loading || document.hidden) return;
                 this.loading = true;
                 try {
-                    const response = await fetch(this.endpoint, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+                    const url = new URL(this.endpoint, window.location.href);
+                    url.searchParams.set('cursor', this.cursor);
+                    const response = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
                     if (!response.ok) throw new Error('Unable to refresh');
                     const fresh = await response.json();
-                    const newest = fresh.scans[0];
-                    if (newest && newest.id > this.lastId) {
-                        this.lastId = newest.id;
+                    const newest = [...fresh.scans].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+                    if (newest && !this.data.scans.some(scan => scan.id === newest.id)) {
                         this.confirmation = newest;
                         clearTimeout(this.confirmTimer);
                         this.confirmTimer = setTimeout(() => this.confirmation = null, 7000);
                     }
-                    this.data = fresh; this.online = true;
+                    const scansById = new Map(this.data.scans.map(scan => [scan.id, scan]));
+                    fresh.scans.forEach(scan => scansById.set(scan.id, scan));
+                    this.data = {
+                        ...this.data,
+                        ...fresh,
+                        filters: this.data.filters,
+                        scans: [...scansById.values()]
+                            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                            .slice(0, 250),
+                    };
+                    this.cursor = fresh.cursor;
+                    this.online = true;
                 } catch (error) { this.online = false; }
                 finally { this.loading = false; }
             },
@@ -61,17 +73,17 @@
             points(items) { const max = this.max(items); const width = 560; const height = 120; return items.map((item, index) => `${items.length === 1 ? 0 : index * width / (items.length - 1)},${height - (item.value / max * 105)}`).join(' '); }
          }"
          @keydown.escape.window="confirmation = null">
-        <header class="-mt-6 mb-6 bg-white shadow-sm">
-            <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <header class="sticky top-0 z-30 mb-6 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
+            <div class="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">IQAMS Control Center</p>
+                        {{-- <p class="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">IQAMS Control Center</p> --}}
                         <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900">Attendance Dashboard</h1>
                         <p class="mt-1 text-sm text-slate-500">Live college-wide attendance monitoring and analytics</p>
                     </div>
                     <div class="flex items-center gap-3">
                         <div class="relative hidden md:block">
-                            <svg class="pointer-events-none absolute left-3 top-2.5 h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35m2.1-5.4a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z"/></svg>
+                            <x-heroicon-o-magnifying-glass class="pointer-events-none absolute left-3 top-2.5 h-5 w-5 text-slate-400" />
                             <input form="attendance-filters" name="search" x-model="filters.search" type="search" placeholder="Search attendance..." class="w-64 rounded-xl border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm focus:border-blue-500 focus:ring-blue-500">
                         </div>
                         <x-leave-notification-bell />
@@ -198,7 +210,7 @@
         {{-- Real-time scan confirmation --}}
         <div x-show="confirmation" x-transition.opacity x-cloak class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
             <div @click.outside="confirmation = null" x-transition class="relative w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl">
-                <div class="bg-gradient-to-r from-emerald-600 to-teal-500 px-6 py-5 text-center text-white"><div class="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-white/20"><svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="m5 12 4 4L19 6"/></svg></div><p class="text-xs font-bold tracking-[.2em]">QR SCAN SUCCESSFUL</p></div>
+                <div class="bg-gradient-to-r from-emerald-600 to-teal-500 px-6 py-5 text-center text-white"><div class="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-white/20"><x-heroicon-o-check class="h-7 w-7" /></div><p class="text-xs font-bold tracking-[.2em]">QR SCAN SUCCESSFUL</p></div>
                 <template x-if="confirmation"><div class="p-7 text-center"><div class="mx-auto h-24 w-24 overflow-hidden rounded-2xl bg-blue-50 ring-4 ring-white shadow-lg"><img x-show="confirmation.avatar" :src="confirmation.avatar" class="h-full w-full object-cover" alt=""><span x-show="!confirmation.avatar" class="flex h-full items-center justify-center text-2xl font-bold text-blue-700" x-text="confirmation.initials"></span></div><h3 class="mt-4 text-xl font-bold text-slate-900" x-text="confirmation.name"></h3><p class="font-mono text-sm text-slate-500" x-text="confirmation.identifier"></p><span class="mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold" :class="roleColor(confirmation.role_key)" x-text="confirmation.role"></span><div class="mt-5 grid grid-cols-2 gap-3 rounded-2xl bg-slate-50 p-4 text-left text-sm"><div><p class="text-xs text-slate-400">Section / Department</p><p class="font-semibold text-slate-700" x-text="confirmation.group"></p></div><div><p class="text-xs text-slate-400">Course</p><p class="font-semibold text-slate-700" x-text="confirmation.course || '—'"></p></div><div class="col-span-2"><p class="text-xs text-slate-400">Subject</p><p class="font-semibold text-slate-700" x-text="confirmation.subject || 'General attendance'"></p></div></div><div class="mt-5 flex items-center justify-center gap-3"><div><p class="text-xs text-slate-400" x-text="confirmation.date"></p><p class="text-2xl font-bold tabular-nums text-slate-900" x-text="confirmation.time"></p></div><span class="rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset" :class="actionColor(confirmation.attendance_type)" x-text="confirmation.attendance_label"></span><span class="rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset" :class="statusColor(confirmation.status)" x-text="confirmation.status_label"></span></div><button type="button" @click="confirmation = null" class="mt-6 text-xs font-semibold text-slate-400 hover:text-slate-700">Dismiss confirmation</button></div></template>
             </div>
         </div>

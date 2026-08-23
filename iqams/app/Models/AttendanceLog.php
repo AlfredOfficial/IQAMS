@@ -13,6 +13,7 @@ class AttendanceLog extends Model
     protected $fillable = [
         'user_id',
         'schedule_id',
+        'school_event_id',
         'attendance_type',
         'attendance_period',
         'scan_time',
@@ -38,5 +39,10 @@ class AttendanceLog extends Model
     public function schedule(): BelongsTo
     {
         return $this->belongsTo(Schedule::class);
+    }
+
+    public function schoolEvent(): BelongsTo
+    {
+        return $this->belongsTo(SchoolEvent::class);
     }
 }

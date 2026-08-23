@@ -15,14 +15,10 @@
     <title>{{ $title }} - {{ config('app.name', 'IQAMS') }}</title>
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
 
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&display=swap" rel="stylesheet">
-
-    @if($includeQrCode)
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    @endif
-
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @if($includeQrCode)
+        @vite('resources/js/qrcode.js')
+    @endif
 </head>
 <body {{ $attributes->class($bodyClass) }} x-data="{{ $alpineData }}">
     {{ $slot }}

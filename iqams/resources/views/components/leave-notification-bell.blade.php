@@ -27,7 +27,7 @@
     }
 }" @keydown.escape.window="open=false" @leave-notifications-read.window="unread=0">
     <button type="button" @click="toggle" class="relative rounded-lg border border-slate-200 bg-white p-2.5 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700" aria-label="Leave notifications" :aria-expanded="open">
-        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 17h5l-1.5-1.5A2 2 0 0118 14V9a6 6 0 10-12 0v5c0 .6-.2 1.1-.6 1.5L4 17h5m6 0a3 3 0 01-6 0"/></svg>
+        <x-heroicon-o-bell class="h-5 w-5" aria-hidden="true" />
         <span x-show="unread > 0" x-cloak x-text="unread > 99 ? '99+' : unread" class="absolute -right-2 -top-2 grid min-h-5 min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white ring-2 ring-white"></span>
     </button>
 
@@ -55,7 +55,7 @@
                     <p class="mt-1 text-[11px] text-slate-400">{{ $notification->created_at->diffForHumans() }}</p>
                 </a>
             @empty
-                <div class="px-5 py-10 text-center"><svg class="mx-auto h-8 w-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="1.5" d="M15 17h5l-1.5-1.5A2 2 0 0118 14V9a6 6 0 10-12 0v5c0 .6-.2 1.1-.6 1.5L4 17h5"/></svg><p class="mt-2 text-sm text-slate-500">No leave notifications yet.</p></div>
+                <div class="px-5 py-10 text-center"><x-heroicon-o-bell class="mx-auto h-8 w-8 text-slate-300" /><p class="mt-2 text-sm text-slate-500">No leave notifications yet.</p></div>
             @endforelse
         </div>
     </div>

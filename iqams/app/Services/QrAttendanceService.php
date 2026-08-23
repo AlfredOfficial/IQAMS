@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AttendanceLog;
 use App\Models\Schedule;
+use App\Models\SchoolEvent;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
@@ -16,6 +17,8 @@ class QrAttendanceService
         private QrIdentityResolver $identityResolver,
         private StudentAttendanceWindow $studentWindow,
         private AccountStatusService $accountStatus,
+        private ApprovedLeaveAttendanceGuard $leaveGuard,
+        private SchoolEventResolver $eventResolver,
     ) {}
 
     public function record(string $qrCode, ?string $location = null, ?Carbon $scannedAt = null): AttendanceLog
@@ -28,6 +31,7 @@ class QrAttendanceService
             $lockedUser = User::with(['role', 'student'])->lockForUpdate()->findOrFail($user->id);
 
             $this->accountStatus->ensureAccountIsActive($lockedUser, 'qr_code');
+            $this->leaveGuard->ensureAttendanceIsAllowed($lockedUser, $scannedAt, 'qr_code');
 
             return $lockedUser->student
                 ? $this->recordStudent($lockedUser, $scannedAt, $location)
@@ -47,6 +51,10 @@ class QrAttendanceService
             $this->deny('Attendance is denied because this student has no assigned section.');
         }
 
+        if ($event = $this->eventResolver->activeAttendanceEvent($student, $scannedAt)) {
+            return $this->recordEvent($user, $event, $scannedAt, $location);
+        }
+
         $day = strtolower($scannedAt->format('l'));
         $schedules = Schedule::with(['subject', 'section'])
             ->where('section_id', $student->section_id)
@@ -55,6 +63,7 @@ class QrAttendanceService
 
         $matches = $schedules
             ->filter(fn (Schedule $schedule) => $this->studentWindow->isOpen($schedule, $scannedAt))
+            ->reject(fn (Schedule $schedule) => $this->eventResolver->affectingSchedule($schedule, $scannedAt))
             ->sortByDesc(fn (Schedule $schedule) => [
                 $this->studentWindow->isPresent($schedule, $scannedAt) ? 1 : 0,
                 $this->studentWindow->start($schedule, $scannedAt)->getTimestamp(),
@@ -122,6 +131,34 @@ class QrAttendanceService
         }
     }
 
+    private function recordEvent(User $user, SchoolEvent $event, Carbon $scannedAt, ?string $location): AttendanceLog
+    {
+        $scanKey = "event:{$user->id}:{$event->id}";
+        $existing = AttendanceLog::where('scan_key', $scanKey)->lockForUpdate()->first();
+        $presentUntil = $event->starts_at->copy()->addMinutes(config('attendance.present_grace_minutes'))->endOfMinute();
+        $status = $scannedAt->lessThanOrEqualTo($presentUntil) ? 'present' : 'late';
+
+        if ($existing) {
+            if ($existing->status === 'absent') {
+                $existing->update(['scan_time' => $scannedAt, 'status' => $status, 'scanner_location' => $location, 'remarks' => null]);
+
+                return $existing->load(['user.role', 'schoolEvent']);
+            }
+            $this->deny('Attendance already recorded for this school event.');
+        }
+
+        return AttendanceLog::create([
+            'user_id' => $user->id,
+            'schedule_id' => null,
+            'school_event_id' => $event->id,
+            'attendance_type' => 'time_in',
+            'scan_time' => $scannedAt,
+            'scan_key' => $scanKey,
+            'status' => $status,
+            'scanner_location' => $location,
+        ])->load(['user.role', 'schoolEvent']);
+    }
+
     private function recordPersonnel(User $user, Carbon $scannedAt, ?string $location): AttendanceLog
     {
         $role = strtolower($user->role?->role_name ?? '');
@@ -156,11 +193,42 @@ class QrAttendanceService
             $this->deny('All required attendance scans for today have already been completed.');
         }
 
-        $period = $stageNames[$todayLogs->count()] ?? null;
-        $stage = $period ? $stages[$period] : null;
+        if ($role === 'instructor') {
+            // Instructor scans represent the period whose window is open now. Walking
+            // the stages in reverse makes a shared boundary (for example 12:30 PM)
+            // belong to the later period.
+            $period = collect($stages)
+                ->reverse()
+                ->search(fn (array $candidate) => $this->isWithinPersonnelWindow($candidate, $scannedAt));
+            $period = $period === false ? null : $period;
+            $stage = $period ? $stages[$period] : null;
+
+            if ($period && $todayLogs->contains('attendance_period', $period)) {
+                $this->deny("{$stage['label']} has already been recorded.");
+            }
+        } else {
+            $period = $stageNames[$todayLogs->count()] ?? null;
+            $stage = $period ? $stages[$period] : null;
+        }
 
         if (! $stage || ! $this->isWithinPersonnelWindow($stage, $scannedAt)) {
             if (! $stage) {
+                if ($role === 'instructor') {
+                    $upcomingStage = collect($stages)->first(function (array $candidate) use ($scannedAt) {
+                        $startsAt = $scannedAt->copy()->startOfDay()->setTimeFromTimeString($candidate['start']);
+
+                        return $scannedAt->lessThan($startsAt);
+                    });
+
+                    if ($upcomingStage) {
+                        $startLabel = Carbon::parse($upcomingStage['start'])->format('g:i A');
+                        $endLabel = Carbon::parse($upcomingStage['end'])->format('g:i A');
+                        $this->deny("{$upcomingStage['label']} is only allowed from {$startLabel} to {$endLabel}.");
+                    }
+
+                    $this->deny('Instructor attendance cannot be recorded because no attendance window is open at this time.');
+                }
+
                 $this->deny('Personnel attendance windows are not configured correctly. Contact the administrator.');
             }
 

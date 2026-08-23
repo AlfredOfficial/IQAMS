@@ -13,9 +13,7 @@
             class="inline-flex h-9 w-9 items-center justify-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
             aria-label="Open actions menu"
             :aria-expanded="open">
-        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <circle cx="10" cy="4" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="10" cy="16" r="1.6"/>
-        </svg>
+        <x-heroicon-m-ellipsis-vertical class="h-5 w-5" aria-hidden="true" />
     </button>
 
     <template x-teleport="body">

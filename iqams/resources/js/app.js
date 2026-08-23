@@ -42,30 +42,63 @@ Alpine.data('toastNotifications', (initialNotifications = []) => ({
 Alpine.data('instructorWorkspace', () => ({
     clockTimer: null,
     refreshTimer: null,
+    qrReadyHandler: null,
+    downloadingIdCard: false,
 
     init() {
         this.updateClock();
         this.clockTimer = window.setInterval(() => this.updateClock(), 1000);
         this.refreshTimer = window.setInterval(() => this.refresh(), 3000);
 
-        const qr = this.$root.querySelector('#instructor-qr');
-        const value = this.$root.dataset.qrValue;
+        this.qrReadyHandler = () => this.renderQrCode();
 
-        if (qr && value && window.QRCode) {
-            qr.replaceChildren();
-            new window.QRCode(qr, {
-                text: value,
-                width: 104,
-                height: 104,
-                colorDark: '#0f172a',
-                colorLight: '#ffffff',
-            });
+        if (window.QRCode) {
+            this.renderQrCode();
+        } else {
+            window.addEventListener('qrcode:ready', this.qrReadyHandler, { once: true });
         }
     },
 
     destroy() {
         window.clearInterval(this.clockTimer);
         window.clearInterval(this.refreshTimer);
+        window.removeEventListener('qrcode:ready', this.qrReadyHandler);
+    },
+
+    renderQrCode() {
+        const qr = this.$root.querySelector('#instructor-qr');
+        const value = this.$root.dataset.qrValue;
+
+        if (!qr) return;
+
+        if (!value) {
+            qr.textContent = 'No QR code assigned';
+            return;
+        }
+
+        if (!window.QRCode) return;
+
+        qr.replaceChildren();
+        new window.QRCode(qr, {
+            text: value,
+            width: 104,
+            height: 104,
+            colorDark: '#0f172a',
+            colorLight: '#ffffff',
+        });
+    },
+
+    async downloadIdCard() {
+        if (this.downloadingIdCard) return;
+        this.downloadingIdCard = true;
+
+        try {
+            await window.downloadIqamsIdCard(this.$root.dataset.idCardUrl);
+        } catch (error) {
+            window.alert(error.message || 'The ID card could not be downloaded.');
+        } finally {
+            this.downloadingIdCard = false;
+        }
     },
 
     updateClock() {
@@ -113,6 +146,55 @@ Alpine.data('instructorWorkspace', () => ({
             });
         } catch {
             // Keep the last rendered server state when polling is unavailable.
+        }
+    },
+}));
+
+Alpine.data('studentQr', () => ({
+    qrReadyHandler: null,
+    downloadingIdCard: false,
+
+    init() {
+        this.qrReadyHandler = () => this.renderQrCode();
+        if (window.QRCode) {
+            this.renderQrCode();
+        } else {
+            window.addEventListener('qrcode:ready', this.qrReadyHandler, { once: true });
+        }
+    },
+
+    destroy() {
+        window.removeEventListener('qrcode:ready', this.qrReadyHandler);
+    },
+
+    renderQrCode() {
+        const target = this.$root.querySelector('#student-qr');
+        const value = this.$root.dataset.qrValue;
+        if (!target) return;
+        if (!value) {
+            target.textContent = 'No QR code assigned';
+            return;
+        }
+        if (!window.QRCode) return;
+
+        target.replaceChildren();
+        new window.QRCode(target, {
+            text: value,
+            width: 224,
+            height: 224,
+            colorDark: '#093f3d',
+        });
+    },
+
+    async downloadIdCard() {
+        if (this.downloadingIdCard) return;
+        this.downloadingIdCard = true;
+        try {
+            await window.downloadIqamsIdCard(this.$root.dataset.idCardUrl);
+        } catch (error) {
+            window.alert(error.message || 'The ID card could not be downloaded.');
+        } finally {
+            this.downloadingIdCard = false;
         }
     },
 }));

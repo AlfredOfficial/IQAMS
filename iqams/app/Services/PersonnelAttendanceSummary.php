@@ -43,25 +43,44 @@ class PersonnelAttendanceSummary
         $events = collect(self::PERIODS)->mapWithKeys(fn ($period) => [$period => $logs->firstWhere('attendance_period', $period)]);
         $count = $events->filter()->count();
         $isPast = $date->isBefore(today());
+        $latestRecordedIndex = collect(self::PERIODS)
+            ->keys()
+            ->filter(fn ($index) => $events[self::PERIODS[$index]])
+            ->max();
+        $hasSkippedPeriod = $latestRecordedIndex !== null
+            && collect(self::PERIODS)
+                ->take($latestRecordedIndex + 1)
+                ->contains(fn ($period) => ! $events[$period]);
+        $isIncomplete = ! $leave && $count > 0 && ($hasSkippedPeriod || ($isPast && $count < count(self::PERIODS)));
         $late = $events->contains(fn ($log) => $log?->punctuality_status === 'late');
         $early = $events->contains(fn ($log) => $log?->punctuality_status === 'early_out');
-        $status = match ($count) {
-            0 => $isPast ? 'Absent' : 'Not Started',
-            1 => 'Morning In Recorded',
-            2 => 'Morning Complete',
-            3 => 'Afternoon In Recorded',
-            default => 'Completed',
+        $status = match (true) {
+            $count === 0 => $isPast ? 'Absent' : 'Not Started',
+            $count === count(self::PERIODS) => 'Completed',
+            (bool) $events['final_out'] => 'Final Out Recorded',
+            (bool) $events['afternoon_in'] => 'Afternoon In Recorded',
+            (bool) $events['lunch_out'] => 'Morning Complete',
+            default => 'Morning In Recorded',
         };
-        if ($leave && $count === 0) {
+        if ($leave) {
             $status = $leave->leave_type === 'sick' ? 'Sick Leave' : 'On Leave';
         }
-        $minutes = $this->pairMinutes($events['morning_in'], $events['lunch_out']) + $this->pairMinutes($events['afternoon_in'], $events['final_out']);
-        $notes = collect([$late ? 'Late Arrival' : null, $early ? 'Early Out' : null])->filter()->values();
+        $minutes = $leave ? 0 : $this->pairMinutes($events['morning_in'], $events['lunch_out']) + $this->pairMinutes($events['afternoon_in'], $events['final_out']);
+        $notes = collect([
+            $leave && $count > 0 ? 'Attendance exists during approved leave' : null,
+            ! $leave && $hasSkippedPeriod ? 'Missing earlier attendance scan' : null,
+            ! $leave && $late ? 'Late Arrival' : null,
+            ! $leave && $early ? 'Early Out' : null,
+        ])->filter()->values();
+
+        $nextPeriod = $leave || $latestRecordedIndex === count(self::PERIODS) - 1
+            ? null
+            : self::PERIODS[($latestRecordedIndex ?? -1) + 1];
 
         return compact('date', 'events', 'status', 'minutes', 'late', 'early', 'notes', 'leave') + [
-            'isIncomplete' => $isPast && $count > 0 && $count < 4,
-            'nextPeriod' => self::PERIODS[$count] ?? null,
-            'punctuality' => $leave && $count === 0 ? 'Excused' : ($count === 0 ? ($isPast ? 'Absent' : 'Pending') : ($late ? 'Late' : ($early ? 'Early Out' : ($count < 4 ? 'In Progress' : 'On Time')))),
+            'isIncomplete' => $isIncomplete,
+            'nextPeriod' => $nextPeriod,
+            'punctuality' => $leave ? 'Excused' : ($count === 0 ? ($isPast ? 'Absent' : 'Pending') : ($late ? 'Late' : ($early ? 'Early Out' : ($isIncomplete ? 'Incomplete' : ($count < 4 ? 'In Progress' : 'On Time'))))),
         ];
     }
 

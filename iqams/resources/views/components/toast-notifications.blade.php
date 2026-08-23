@@ -31,9 +31,7 @@
             aria-live="polite"
         >
             <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-700" aria-hidden="true">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
-                </svg>
+                <x-heroicon-o-check class="h-4 w-4" />
             </span>
             <span class="min-w-0">
                 <span class="block text-sm font-semibold text-slate-900" x-text="toast.title"></span>

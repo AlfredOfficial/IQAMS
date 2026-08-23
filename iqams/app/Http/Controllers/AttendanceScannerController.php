@@ -14,9 +14,7 @@ class AttendanceScannerController extends Controller
 {
     public function index(): View
     {
-        return view('attendance-scanner.index', [
-            'recentAttendance' => $this->recentAttendance(),
-        ]);
+        return view('attendance-scanner.index');
     }
 
     public function store(Request $request, QrAttendanceService $attendance): JsonResponse
@@ -44,26 +42,16 @@ class AttendanceScannerController extends Controller
         }
 
         $formatted = $this->formatLog($log);
-        $message = $log->schedule_id
-            ? 'Attendance recorded as '.$formatted['status_label'].'.'
-            : $formatted['name'].' - '.$formatted['attendance_type_label'].' - '.$formatted['status_label'];
+        $message = $log->school_event_id
+            ? $formatted['name'].' - '.$formatted['event'].' - '.$formatted['status_label']
+            : ($log->schedule_id
+                ? 'Attendance recorded as '.$formatted['status_label'].'.'
+                : $formatted['name'].' - '.$formatted['attendance_type_label'].' - '.$formatted['status_label']);
 
         return response()->json([
             'message' => $message,
             'attendance' => $formatted,
-            'recent_attendance' => $this->recentAttendance(),
         ], 201);
-    }
-
-    private function recentAttendance(): array
-    {
-        return AttendanceLog::with($this->relations())
-            ->latest('scan_time')
-            ->limit(10)
-            ->get()
-            ->map(fn (AttendanceLog $log) => $this->formatLog($log))
-            ->values()
-            ->all();
     }
 
     private function formatLog(AttendanceLog $log): array
@@ -106,6 +94,7 @@ class AttendanceScannerController extends Controller
             'schedule' => $schedule
                 ? ucfirst($schedule->day).' · '.Carbon::parse($schedule->start_time)->format('g:i A').'–'.Carbon::parse($schedule->end_time)->format('g:i A').' · '.$schedule->room
                 : null,
+            'event' => $log->schoolEvent?->title,
             'attendance_type' => $log->attendance_type,
             'attendance_type_label' => $this->attendanceLabel($log),
             'status' => $log->status,
@@ -126,6 +115,7 @@ class AttendanceScannerController extends Controller
             'user.nonTeachingStaff',
             'schedule.subject',
             'schedule.section',
+            'schoolEvent',
         ];
     }
 

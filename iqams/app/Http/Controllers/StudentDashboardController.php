@@ -25,7 +25,7 @@ class StudentDashboardController extends Controller
         $dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
         $myAttendance = AttendanceLog::where('user_id', $request->user()->id)
-            ->with('schedule.subject')
+            ->with(['schedule.subject', 'schoolEvent'])
             ->latest('scan_time')
             ->take(10)
             ->get();

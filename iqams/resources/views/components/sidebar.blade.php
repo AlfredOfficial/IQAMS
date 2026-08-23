@@ -49,9 +49,7 @@
                 class="p-2 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                 aria-label="Close navigation menu"
             >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <x-heroicon-o-x-mark class="w-5 h-5" aria-hidden="true" />
             </button>
         </div>
 

@@ -39,16 +39,16 @@
             @endforeach
         </nav>
         <div class="px-6 pb-3 text-center text-xs italic leading-5 text-blue-100/65">“Consistency is the key<br>to excellence.”</div>
-        <form method="POST" action="{{ route('logout') }}" class="border-t border-white/10 p-3">@csrf<button class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-blue-50/85 hover:bg-white/10"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="1.8" d="M17 16l4-4-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>Logout</button></form>
+        <form method="POST" action="{{ route('logout') }}" class="border-t border-white/10 p-3">@csrf<button class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-blue-50/85 hover:bg-white/10"><x-heroicon-o-arrow-right-start-on-rectangle class="h-5 w-5" />Logout</button></form>
     </aside>
     <div class="min-w-0 flex-1">
         <header class="flex min-h-[92px] items-center bg-white px-4 sm:px-7 lg:px-8">
-            <button @click="sidebarOpen=true" class="mr-4 rounded-lg bg-slate-50 p-2.5 text-[#15355e] hover:bg-slate-100 lg:hidden" aria-label="Open navigation"><svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+            <button @click="sidebarOpen=true" class="mr-4 rounded-lg bg-slate-50 p-2.5 text-[#15355e] hover:bg-slate-100 lg:hidden" aria-label="Open navigation"><x-heroicon-o-bars-3 class="h-6 w-6" /></button>
             <div class="min-w-0"><h1 class="truncate text-lg font-extrabold text-slate-950 sm:text-xl">{{ $title === 'Dashboard' ? $portalGreeting.', '.$portalName.'! ' : $title }}</h1><p class="mt-1 text-xs text-slate-500 sm:text-sm">Teaching Personnel <span class="mx-2">•</span> {{ $portalInstructor?->department?->department_name ?? 'Department not assigned' }}</p></div>
             <div class="ml-auto flex items-center gap-4 sm:gap-6">
                 <div class="hidden min-w-[220px] rounded-xl bg-slate-50 px-4 py-2.5 text-sm text-[#17345c] ring-1 ring-slate-200/80 md:block">
-                    <p class="flex items-center gap-2 font-semibold"><svg class="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3M5 10h14M5 5h14v16H5z"/></svg>{{ now()->format('l, F j, Y') }}</p>
-                    <p class="mt-1.5 flex items-center gap-2 font-medium tabular-nums"><svg class="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="1.8"/><path stroke-linecap="round" stroke-width="1.8" d="M12 7v5l3 2"/></svg><span id="live-clock">{{ now()->format('g:i:s A') }}</span></p>
+                    <p class="flex items-center gap-2 font-semibold"><x-heroicon-o-calendar-days class="h-4 w-4 text-blue-600" />{{ now()->format('l, F j, Y') }}</p>
+                    <p class="mt-1.5 flex items-center gap-2 font-medium tabular-nums"><x-heroicon-o-clock class="h-4 w-4 text-blue-600" /><span id="live-clock">{{ now()->format('g:i:s A') }}</span></p>
                 </div>
                 <x-leave-notification-bell />
                 <button @click="userMenuOpen=!userMenuOpen" class="relative h-12 w-12 overflow-hidden rounded-full bg-blue-100 text-blue-800 ring-1 ring-slate-200">@if($portalUser->avatar_url)<img src="{{ $portalUser->avatar_url }}" class="h-full w-full object-cover" alt="{{ $portalName }}">@else<span class="grid h-full place-items-center font-bold">{{ $initials }}</span>@endif</button>

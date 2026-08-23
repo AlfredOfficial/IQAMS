@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\DashboardReferenceCache;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -29,6 +30,12 @@ class User extends Authenticatable
         'password',
         'remember_token',
     ];
+
+    protected static function booted(): void
+    {
+        static::saved(fn () => DashboardReferenceCache::forget());
+        static::deleted(fn () => DashboardReferenceCache::forget());
+    }
 
     protected function casts(): array
     {

@@ -15,8 +15,11 @@ class Instructor extends Model
         'user_id',
         'department_id',
         'employee_no',
+        'name_prefix',
         'first_name',
+        'middle_name',
         'last_name',
+        'professional_credentials',
         'qr_code',
     ];
  
@@ -37,6 +40,22 @@ class Instructor extends Model
  
     public function fullName(): string
     {
-        return "{$this->first_name} {$this->last_name}";
+        return self::formatFullName($this->only([
+            'name_prefix', 'first_name', 'middle_name', 'last_name', 'professional_credentials',
+        ]));
+    }
+
+    public static function formatFullName(array $name): string
+    {
+        $baseName = collect([
+            $name['name_prefix'] ?? null,
+            $name['first_name'] ?? null,
+            $name['middle_name'] ?? null,
+            $name['last_name'] ?? null,
+        ])->map(fn ($part) => trim((string) $part))->filter()->implode(' ');
+
+        $credentials = trim((string) ($name['professional_credentials'] ?? ''), " \t\n\r\0\x0B,");
+
+        return $credentials ? "{$baseName}, {$credentials}" : $baseName;
     }
 }

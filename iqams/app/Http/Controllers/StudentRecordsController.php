@@ -13,7 +13,7 @@ class StudentRecordsController extends Controller
     {
         $student = $request->user()->student ?? abort(403, 'No student profile linked to this account.');
         $logs = AttendanceLog::where('user_id', $request->user()->id)
-            ->with('schedule.subject')->latest('scan_time')->paginate(15);
+            ->with(['schedule.subject', 'schoolEvent'])->latest('scan_time')->paginate(15);
 
         $subjectAbsenceWarnings = $absenceWarnings->forStudent($student);
 

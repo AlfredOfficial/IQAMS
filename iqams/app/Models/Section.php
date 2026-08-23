@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\DashboardReferenceCache;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,6 +18,12 @@ class Section extends Model
         'school_year',
         'semester',
     ];
+
+    protected static function booted(): void
+    {
+        static::saved(fn () => DashboardReferenceCache::forget());
+        static::deleted(fn () => DashboardReferenceCache::forget());
+    }
 
     public function course(): BelongsTo
     {

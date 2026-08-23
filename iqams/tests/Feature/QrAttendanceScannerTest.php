@@ -6,14 +6,18 @@ use App\Models\AttendanceLog;
 use App\Models\Course;
 use App\Models\Department;
 use App\Models\Instructor;
+use App\Models\LeaveRequest;
 use App\Models\NonTeachingStaff;
 use App\Models\Role;
 use App\Models\Schedule;
+use App\Models\SchoolEvent;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\User;
+use App\Services\PersonnelAttendanceSummary;
 use App\Services\QrAttendanceService;
+use App\Services\SchoolEventAttendanceService;
 use App\Services\StudentAbsenceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -89,7 +93,7 @@ class QrAttendanceScannerTest extends TestCase
         [$user] = $this->studentWithSchedule();
         $user->update(['status' => 'inactive']);
         $adminRole = Role::where('role_name', 'admin')->first() ?? Role::create(['role_name' => 'admin']);
-        $admin = User::factory()->create(['role_id' => $adminRole->id, 'status' => 'active']);
+        $admin = $this->createUser(['role_id' => $adminRole->id, 'status' => 'active']);
 
         $this->actingAs($admin)
             ->post(route('attendance-logs.store'), ['user_id' => $user->id])
@@ -102,7 +106,7 @@ class QrAttendanceScannerTest extends TestCase
     {
         $user = $this->createPersonnel('staff', 'EMP-MANUAL');
         $adminRole = Role::where('role_name', 'admin')->first() ?? Role::create(['role_name' => 'admin']);
-        $admin = User::factory()->create(['role_id' => $adminRole->id, 'status' => 'active']);
+        $admin = $this->createUser(['role_id' => $adminRole->id, 'status' => 'active']);
 
         $this->actingAs($admin)->post(route('attendance-logs.store'), [
             'user_id' => $user->id,
@@ -121,7 +125,7 @@ class QrAttendanceScannerTest extends TestCase
     {
         [$user] = $this->studentWithSchedule();
         $adminRole = Role::where('role_name', 'admin')->first() ?? Role::create(['role_name' => 'admin']);
-        $admin = User::factory()->create(['role_id' => $adminRole->id, 'status' => 'active']);
+        $admin = $this->createUser(['role_id' => $adminRole->id, 'status' => 'active']);
 
         $this->actingAs($admin)->patch(route('users.status.update', $user), ['status' => 'inactive'])->assertRedirect();
         $this->assertSame('inactive', $user->refresh()->status);
@@ -178,7 +182,7 @@ class QrAttendanceScannerTest extends TestCase
         $course = $section->course;
         $studentRole = Role::where('role_name', 'student')->firstOrFail();
 
-        $missingUser = User::factory()->create(['role_id' => $studentRole->id, 'status' => 'active']);
+        $missingUser = $this->createUser(['role_id' => $studentRole->id, 'status' => 'active']);
         Student::create([
             'user_id' => $missingUser->id, 'student_no' => 'STU-002', 'first_name' => 'Missing',
             'last_name' => 'Student', 'qr_code' => 'STU-002', 'section_id' => $section->id,
@@ -189,7 +193,7 @@ class QrAttendanceScannerTest extends TestCase
             'course_id' => $course->id, 'section_name' => 'BSIT-4B',
             'school_year' => '2026-2027', 'semester' => '1st',
         ]);
-        $otherUser = User::factory()->create(['role_id' => $studentRole->id, 'status' => 'active']);
+        $otherUser = $this->createUser(['role_id' => $studentRole->id, 'status' => 'active']);
         Student::create([
             'user_id' => $otherUser->id, 'student_no' => 'STU-003', 'first_name' => 'Other',
             'last_name' => 'Section', 'qr_code' => 'STU-003', 'section_id' => $otherSection->id,
@@ -291,6 +295,143 @@ class QrAttendanceScannerTest extends TestCase
         $service->record('EMP-001', 'Gate', Carbon::parse($date.'18:00:00', 'Asia/Manila'));
     }
 
+    public function test_instructor_can_record_afternoon_in_after_missing_lunch_out(): void
+    {
+        $user = $this->createPersonnel('instructor', 'INS-MISSED-LUNCH');
+        $service = app(QrAttendanceService::class);
+
+        $service->record('INS-MISSED-LUNCH', 'Gate', Carbon::parse('2026-08-10 07:45:00', 'Asia/Manila'));
+        $afternoon = $service->record('INS-MISSED-LUNCH', 'Gate', Carbon::parse('2026-08-10 13:00:00', 'Asia/Manila'));
+
+        $this->assertSame('afternoon_in', $afternoon->attendance_period);
+        $this->assertSame('time_in', $afternoon->attendance_type);
+        $this->assertDatabaseMissing('attendance_logs', [
+            'user_id' => $user->id,
+            'attendance_period' => 'lunch_out',
+        ]);
+    }
+
+    public function test_instructor_can_record_final_out_after_missing_earlier_periods(): void
+    {
+        $this->createPersonnel('instructor', 'INS-MISSED-PERIODS');
+        $service = app(QrAttendanceService::class);
+
+        $service->record('INS-MISSED-PERIODS', null, Carbon::parse('2026-08-10 07:45:00', 'Asia/Manila'));
+        $final = $service->record('INS-MISSED-PERIODS', null, Carbon::parse('2026-08-10 17:00:00', 'Asia/Manila'));
+
+        $this->assertSame('final_out', $final->attendance_period);
+        $this->assertSame('time_out', $final->attendance_type);
+    }
+
+    public function test_instructor_shared_window_boundary_prefers_the_later_period(): void
+    {
+        $this->createPersonnel('instructor', 'INS-BOUNDARY');
+        $service = app(QrAttendanceService::class);
+        $service->record('INS-BOUNDARY', null, Carbon::parse('2026-08-10 07:45:00', 'Asia/Manila'));
+
+        $log = $service->record('INS-BOUNDARY', null, Carbon::parse('2026-08-10 12:30:00', 'Asia/Manila'));
+
+        $this->assertSame('afternoon_in', $log->attendance_period);
+    }
+
+    public function test_instructor_cannot_record_the_same_current_period_twice(): void
+    {
+        $this->createPersonnel('instructor', 'INS-DUPLICATE-PERIOD');
+        $service = app(QrAttendanceService::class);
+        $service->record('INS-DUPLICATE-PERIOD', null, Carbon::parse('2026-08-10 13:00:00', 'Asia/Manila'));
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Afternoon Time In has already been recorded');
+
+        $service->record('INS-DUPLICATE-PERIOD', null, Carbon::parse('2026-08-10 13:10:00', 'Asia/Manila'));
+    }
+
+    public function test_instructor_summary_flags_a_skipped_period_and_advances_to_the_next_action(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-10 13:05:00', 'Asia/Manila'));
+        $user = $this->createPersonnel('instructor', 'INS-SUMMARY-GAP');
+        $service = app(QrAttendanceService::class);
+        $service->record('INS-SUMMARY-GAP', null, Carbon::parse('2026-08-10 07:45:00', 'Asia/Manila'));
+        $service->record('INS-SUMMARY-GAP', null, Carbon::parse('2026-08-10 13:00:00', 'Asia/Manila'));
+
+        $logs = AttendanceLog::where('user_id', $user->id)->orderBy('scan_time')->get();
+        $day = app(PersonnelAttendanceSummary::class)->day(today(), $logs);
+
+        $this->assertTrue($day['isIncomplete']);
+        $this->assertNull($day['events']['lunch_out']);
+        $this->assertSame('Afternoon In Recorded', $day['status']);
+        $this->assertSame('final_out', $day['nextPeriod']);
+        $this->assertSame(0, $day['minutes']);
+        $this->assertSame('Incomplete', $day['punctuality']);
+    }
+
+    public function test_personnel_qr_scan_is_rejected_during_approved_leave(): void
+    {
+        $user = $this->createPersonnel('instructor', 'INS-LEAVE');
+        LeaveRequest::create([
+            'user_id' => $user->id,
+            'leave_type' => 'vacation',
+            'start_date' => '2026-08-10',
+            'end_date' => '2026-08-12',
+            'reason' => 'Approved leave.',
+            'status' => 'approved',
+        ]);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('on approved leave');
+
+        app(QrAttendanceService::class)->record(
+            'INS-LEAVE', null, Carbon::parse('2026-08-11 07:45:00', 'Asia/Manila'),
+        );
+    }
+
+    public function test_pending_rejected_future_and_expired_leave_do_not_block_personnel_scan(): void
+    {
+        $user = $this->createPersonnel('staff', 'EMP-LEAVE-RANGES');
+
+        foreach ([
+            ['status' => 'pending', 'start_date' => '2026-08-10', 'end_date' => '2026-08-10'],
+            ['status' => 'rejected', 'start_date' => '2026-08-10', 'end_date' => '2026-08-10'],
+            ['status' => 'approved', 'start_date' => '2026-08-09', 'end_date' => '2026-08-09'],
+            ['status' => 'approved', 'start_date' => '2026-08-11', 'end_date' => '2026-08-11'],
+        ] as $leave) {
+            LeaveRequest::create($leave + [
+                'user_id' => $user->id,
+                'leave_type' => 'vacation',
+                'reason' => 'Range test.',
+            ]);
+        }
+
+        $log = app(QrAttendanceService::class)->record(
+            'EMP-LEAVE-RANGES', null, Carbon::parse('2026-08-10 07:45:00', 'Asia/Manila'),
+        );
+
+        $this->assertSame($user->id, $log->user_id);
+    }
+
+    public function test_manual_personnel_attendance_is_rejected_during_approved_leave(): void
+    {
+        $user = $this->createPersonnel('instructor', 'INS-MANUAL-LEAVE');
+        LeaveRequest::create([
+            'user_id' => $user->id,
+            'leave_type' => 'sick',
+            'start_date' => '2026-08-10',
+            'end_date' => '2026-08-10',
+            'reason' => 'Medical rest.',
+            'status' => 'approved',
+        ]);
+        $adminRole = Role::firstOrCreate(['role_name' => 'admin']);
+        $admin = $this->createUser(['role_id' => $adminRole->id, 'status' => 'active']);
+
+        $this->actingAs($admin)->post(route('attendance-logs.store'), [
+            'user_id' => $user->id,
+            'attendance_type' => 'time_in',
+            'scan_time' => '2026-08-10 08:00:00',
+        ])->assertSessionHasErrors(['scan_time']);
+
+        $this->assertDatabaseMissing('attendance_logs', ['user_id' => $user->id]);
+    }
+
     public function test_rapid_personnel_repeat_is_rejected(): void
     {
         $this->createPersonnel('staff', 'EMP-001');
@@ -317,7 +458,7 @@ class QrAttendanceScannerTest extends TestCase
         );
     }
 
-    public function test_personnel_next_scan_must_be_inside_the_expected_stage_window(): void
+    public function test_instructor_scan_outside_a_window_reports_the_next_available_period(): void
     {
         $this->createPersonnel('instructor', 'INS-001');
         $service = app(QrAttendanceService::class);
@@ -332,31 +473,42 @@ class QrAttendanceScannerTest extends TestCase
     public function test_scanner_routes_require_an_admin(): void
     {
         $adminRole = Role::create(['role_name' => 'admin']);
-        $admin = User::factory()->create(['role_id' => $adminRole->id]);
+        $admin = $this->createUser(['role_id' => $adminRole->id]);
         $this->actingAs($admin)->get(route('attendance-scanner.index'))
             ->assertOk()
-            ->assertSee('READY TO SCAN')
-            ->assertSee('Dedicated scanner input')
-            ->assertSee('Enter/CR is supported but not required')
-            ->assertDontSee('too slow to be recognized')
+            ->assertSee('IQAMS Attendance Terminal')
+            ->assertSee('Physical QR scanner input')
+            ->assertSee('Attendance not recorded')
+            ->assertSee('Waiting for QR input')
+            ->assertDontSee('Ready to Scan')
+            ->assertDontSee('Scanner Ready')
+            ->assertSee("localStorage.getItem('iqamsScannerLocation')", false)
+            ->assertSee('this.scheduleReset(1000)', false)
+            ->assertSee('this.scheduleReset(1000)', false)
+            ->assertSee("state = 'processing'", false)
+            ->assertSee("state = 'success'", false)
+            ->assertSee("state = 'error'", false)
+            ->assertDontSee('Recent attendance')
+            ->assertDontSee('Dedicated scanner input')
+            ->assertDontSee('Dashboard')
             ->assertDontSee('getUserMedia')
             ->assertDontSee('BarcodeDetector')
             ->assertDontSee('<video', false);
         $this->post(route('logout'));
 
         $studentRole = Role::create(['role_name' => 'student']);
-        $studentUser = User::factory()->create(['role_id' => $studentRole->id]);
+        $studentUser = $this->createUser(['role_id' => $studentRole->id]);
 
         $this->actingAs($studentUser)->get(route('attendance-scanner.index'))->assertForbidden();
         $this->post(route('logout'));
         $this->get(route('attendance-scanner.index'))->assertRedirect(route('login'));
     }
 
-    public function test_scanner_endpoint_returns_full_identity_and_recent_attendance(): void
+    public function test_scanner_endpoint_returns_full_identity_without_recent_attendance(): void
     {
         [$studentUser] = $this->studentWithSchedule();
         $adminRole = Role::create(['role_name' => 'admin']);
-        $admin = User::factory()->create(['role_id' => $adminRole->id]);
+        $admin = $this->createUser(['role_id' => $adminRole->id]);
         Carbon::setTestNow(Carbon::parse('2026-08-10 08:10:00', 'Asia/Manila'));
 
         $this->actingAs($admin)
@@ -372,13 +524,13 @@ class QrAttendanceScannerTest extends TestCase
             ->assertJsonPath('attendance.course_section', 'BSIT / BSIT-4A')
             ->assertJsonPath('attendance.subject', 'Capstone 2')
             ->assertJsonPath('attendance.status', 'present')
-            ->assertJsonCount(1, 'recent_attendance');
+            ->assertJsonMissingPath('recent_attendance');
     }
 
     public function test_scanner_endpoint_rejects_empty_and_invalid_qr_formats(): void
     {
         $adminRole = Role::create(['role_name' => 'admin']);
-        $admin = User::factory()->create(['role_id' => $adminRole->id]);
+        $admin = $this->createUser(['role_id' => $adminRole->id]);
 
         $this->actingAs($admin)
             ->postJson(route('attendance-scanner.store'), ['qr_code' => ''])
@@ -405,13 +557,81 @@ class QrAttendanceScannerTest extends TestCase
         );
     }
 
+    public function test_published_holiday_excuses_the_affected_class_instead_of_marking_absent(): void
+    {
+        [$user, $schedule] = $this->studentWithSchedule();
+        $event = SchoolEvent::create([
+            'title' => 'Foundation Day', 'starts_at' => '2026-08-10 07:00:00',
+            'ends_at' => '2026-08-10 17:00:00', 'attendance_mode' => 'cancelled',
+            'target_scope' => 'school', 'status' => 'published', 'published_at' => now(),
+        ]);
+
+        $this->assertSame(1, app(StudentAbsenceService::class)->markDue(
+            Carbon::parse('2026-08-10 08:16:00', 'Asia/Manila')));
+        $this->assertDatabaseHas('attendance_logs', [
+            'user_id' => $user->id, 'schedule_id' => $schedule->id,
+            'school_event_id' => $event->id, 'status' => 'excused',
+        ]);
+    }
+
+    public function test_one_required_event_scan_replaces_class_attendance(): void
+    {
+        [$user] = $this->studentWithSchedule();
+        $event = SchoolEvent::create([
+            'title' => 'General Assembly', 'starts_at' => '2026-08-10 08:00:00',
+            'ends_at' => '2026-08-10 11:00:00', 'attendance_mode' => 'event_attendance',
+            'target_scope' => 'school', 'status' => 'published', 'published_at' => now(),
+        ]);
+
+        $log = app(QrAttendanceService::class)->record('STU-001', 'Gym',
+            Carbon::parse('2026-08-10 08:05:00', 'Asia/Manila'));
+
+        $this->assertSame($event->id, $log->school_event_id);
+        $this->assertNull($log->schedule_id);
+        $this->assertSame('present', $log->status);
+        $this->assertSame(1, AttendanceLog::where('user_id', $user->id)->count());
+    }
+
+    public function test_missing_required_event_creates_one_idempotent_event_absence(): void
+    {
+        [$user] = $this->studentWithSchedule();
+        $event = SchoolEvent::create([
+            'title' => 'General Assembly', 'starts_at' => '2026-08-10 08:00:00',
+            'ends_at' => '2026-08-10 11:00:00', 'attendance_mode' => 'event_attendance',
+            'target_scope' => 'school', 'status' => 'published', 'published_at' => now(),
+        ]);
+        $at = Carbon::parse('2026-08-10 11:01:00', 'Asia/Manila');
+
+        $this->assertSame(1, app(SchoolEventAttendanceService::class)->markDue($at));
+        $this->assertSame(0, app(SchoolEventAttendanceService::class)->markDue($at));
+        $this->assertDatabaseHas('attendance_logs', [
+            'user_id' => $user->id, 'school_event_id' => $event->id,
+            'schedule_id' => null, 'status' => 'absent',
+        ]);
+    }
+
+    public function test_draft_and_information_only_events_leave_class_scanning_unchanged(): void
+    {
+        [, $schedule] = $this->studentWithSchedule();
+        SchoolEvent::create([
+            'title' => 'Career Talk', 'starts_at' => '2026-08-10 08:00:00',
+            'ends_at' => '2026-08-10 09:00:00', 'attendance_mode' => 'unchanged',
+            'target_scope' => 'school', 'status' => 'published', 'published_at' => now(),
+        ]);
+
+        $log = app(QrAttendanceService::class)->record('STU-001', null,
+            Carbon::parse('2026-08-10 08:05:00', 'Asia/Manila'));
+        $this->assertSame($schedule->id, $log->schedule_id);
+        $this->assertNull($log->school_event_id);
+    }
+
     private function studentWithSchedule(): array
     {
         $department = Department::create(['department_code' => 'IT', 'department_name' => 'Information Technology']);
         $course = Course::create(['department_id' => $department->id, 'course_code' => 'BSIT', 'course_name' => 'BS Information Technology']);
         $section = Section::create(['course_id' => $course->id, 'section_name' => 'BSIT-4A', 'school_year' => '2026-2027', 'semester' => '1st']);
         $studentRole = Role::create(['role_name' => 'student']);
-        $user = User::factory()->create(['role_id' => $studentRole->id, 'status' => 'active']);
+        $user = $this->createUser(['role_id' => $studentRole->id, 'status' => 'active']);
         Student::create([
             'user_id' => $user->id,
             'student_no' => 'STU-001',
@@ -422,7 +642,7 @@ class QrAttendanceScannerTest extends TestCase
             'course_id' => $course->id,
             'status' => 'active',
         ]);
-        $instructorUser = User::factory()->create(['role_id' => Role::create(['role_name' => 'instructor'])->id]);
+        $instructorUser = $this->createUser(['role_id' => Role::create(['role_name' => 'instructor'])->id]);
         $instructor = Instructor::create([
             'user_id' => $instructorUser->id,
             'department_id' => $department->id,
@@ -448,7 +668,7 @@ class QrAttendanceScannerTest extends TestCase
     private function createPersonnel(string $roleName, string $qrCode): User
     {
         $role = Role::firstOrCreate(['role_name' => $roleName]);
-        $user = User::factory()->create(['role_id' => $role->id, 'status' => 'active']);
+        $user = $this->createUser(['role_id' => $role->id, 'status' => 'active']);
 
         if ($roleName === 'instructor') {
             $department = Department::firstOrCreate(
@@ -472,6 +692,14 @@ class QrAttendanceScannerTest extends TestCase
                 'qr_code' => $qrCode,
             ]);
         }
+
+        return $user;
+    }
+
+    private function createUser(array $attributes): User
+    {
+        /** @var User $user */
+        $user = User::factory()->create($attributes);
 
         return $user;
     }

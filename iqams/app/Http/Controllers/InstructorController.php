@@ -42,8 +42,11 @@ class InstructorController extends Controller
         $validated = $request->validate([
             'department_id' => 'required|exists:departments,id',
             'employee_no' => 'required|string|max:50|unique:instructors,employee_no|unique:users,username',
+            'name_prefix' => 'nullable|string|max:50',
             'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
+            'professional_credentials' => 'nullable|string|max:255',
             'email' => 'required|email|unique:users,email',
             'avatar' => 'required|image|mimes:jpg,jpeg,png|max:2048',
         ]);
@@ -59,7 +62,7 @@ class InstructorController extends Controller
             $user = User::create([
                 'role_id' => $instructorRole->id,
                 'username' => $validated['employee_no'],
-                'name' => $validated['first_name'] . ' ' . $validated['last_name'],
+                'name' => Instructor::formatFullName($validated),
                 'email' => $validated['email'],
                 'avatar_path' => $avatarPath,
                 'password' => Hash::make($plainPassword),
@@ -71,8 +74,11 @@ class InstructorController extends Controller
                 'user_id' => $user->id,
                 'department_id' => $validated['department_id'],
                 'employee_no' => $validated['employee_no'],
+                'name_prefix' => $validated['name_prefix'] ?? null,
                 'first_name' => $validated['first_name'],
+                'middle_name' => $validated['middle_name'] ?? null,
                 'last_name' => $validated['last_name'],
+                'professional_credentials' => $validated['professional_credentials'] ?? null,
                 'qr_code' =>  $validated['employee_no'],
             ]);
 
@@ -109,8 +115,11 @@ class InstructorController extends Controller
     {
         $validated = $request->validate([
             'department_id' => 'required|exists:departments,id',
+            'name_prefix' => 'nullable|string|max:50',
             'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
+            'professional_credentials' => 'nullable|string|max:255',
             'avatar' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
@@ -123,7 +132,7 @@ class InstructorController extends Controller
             DB::transaction(function () use ($validated, $instructor, $newAvatarPath) {
                 $instructor->update($validated);
                 $instructor->user->update(array_filter([
-                    'name' => $validated['first_name'] . ' ' . $validated['last_name'],
+                    'name' => Instructor::formatFullName($validated),
                     'avatar_path' => $newAvatarPath,
                 ], fn ($value) => $value !== null));
             });

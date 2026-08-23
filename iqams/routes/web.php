@@ -6,16 +6,18 @@ use App\Http\Controllers\AttendanceLogController;
 use App\Http\Controllers\AttendanceScannerController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\IdCardController;
 use App\Http\Controllers\InstructorAttendanceController;
 use App\Http\Controllers\InstructorController;
 use App\Http\Controllers\InstructorDashboardController;
-use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LeaveNotificationController;
+use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\MyProfileController;
 use App\Http\Controllers\NonTeachingStaffController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\SchoolEventController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\StaffDashboardController;
 use App\Http\Controllers\StudentController;
@@ -47,6 +49,7 @@ Route::middleware(['auth', 'redirect.non-admin.profile', 'role:admin'])->group(f
 });
 
 Route::middleware(['auth', 'role:instructor,staff,student'])->group(function () {
+    Route::get('/my-id-card', [IdCardController::class, 'show'])->name('id-card.show');
     Route::get('/my-profile', [MyProfileController::class, 'edit'])->name('my-profile.edit');
     Route::patch('/my-profile', [MyProfileController::class, 'update'])->name('my-profile.update');
     Route::get('/leave-requests', [LeaveRequestController::class, 'index'])->name('leave-requests.index');
@@ -78,6 +81,10 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::resource('students', StudentController::class)->except(['create', 'edit', 'show']);
     Route::resource('schedules', ScheduleController::class)->except(['create', 'edit', 'show']);
     Route::resource('attendance-logs', AttendanceLogController::class)->except(['create', 'edit', 'show']);
+    Route::resource('school-events', SchoolEventController::class)
+        ->parameters(['school-events' => 'schoolEvent'])->except(['show', 'create', 'edit']);
+    Route::patch('school-events/{schoolEvent}/publish', [SchoolEventController::class, 'publish'])->name('school-events.publish');
+    Route::patch('school-events/{schoolEvent}/cancel', [SchoolEventController::class, 'cancel'])->name('school-events.cancel');
     Route::patch('users/{user}/status', [UserAccountStatusController::class, 'update'])->name('users.status.update');
 });
 

@@ -11,7 +11,10 @@ class AttendanceScheduleValidator
 {
     public const DENIED_MESSAGE = 'Attendance denied. You do not have a scheduled class session at this time.';
 
-    public function __construct(private StudentAttendanceWindow $studentWindow) {}
+    public function __construct(
+        private StudentAttendanceWindow $studentWindow,
+        private SchoolEventResolver $events,
+    ) {}
 
     /**
      * Ensure a student's attendance belongs to their section and occurs
@@ -26,7 +29,8 @@ class AttendanceScheduleValidator
         }
 
         if ((int) $student->section_id !== (int) $schedule->section_id
-            || ! $this->isWithinSession($schedule, $occurredAt)) {
+            || ! $this->isWithinSession($schedule, $occurredAt)
+            || $this->events->affectingSchedule($schedule, $occurredAt)) {
             throw ValidationException::withMessages([
                 'schedule_id' => self::DENIED_MESSAGE,
             ]);

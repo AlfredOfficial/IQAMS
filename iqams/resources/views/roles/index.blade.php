@@ -9,9 +9,7 @@
         <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
 
             <div class="mb-6 flex items-start gap-3 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-sm">
-                <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <x-heroicon-o-information-circle class="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
                 <p>Roles are fixed system values tied to login and access control. This can't be added, renamed, or removed here.</p>
             </div>
 
@@ -36,9 +34,7 @@
                                     </svg>
                                     @break
                                 @case('instructor')
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                                    </svg>
+                                    <x-heroicon-o-academic-cap class="w-5 h-5" aria-hidden="true" />
                                     @break
                                 @case('staff')
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">

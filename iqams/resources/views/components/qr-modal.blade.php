@@ -19,18 +19,6 @@
                 @click="
                     const el = $refs.qrTarget.querySelector('canvas') || $refs.qrTarget.querySelector('img');
                     const dataUrl = el.tagName === 'CANVAS' ? el.toDataURL('image/png') : el.src;
-                    const a = document.createElement('a');
-                    a.href = dataUrl;
-                    a.download = qrModal.label.replace(/\s+/g, '_') + '_QR.png';
-                    a.click();
-                "
-                class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
-                Download
-            </button>
-            <button type="button"
-                @click="
-                    const el = $refs.qrTarget.querySelector('canvas') || $refs.qrTarget.querySelector('img');
-                    const dataUrl = el.tagName === 'CANVAS' ? el.toDataURL('image/png') : el.src;
                     const w = window.open('', '_blank');
                     w.document.write('<img src=\'' + dataUrl + '\' onload=\'window.print();window.close()\'>');
                 "

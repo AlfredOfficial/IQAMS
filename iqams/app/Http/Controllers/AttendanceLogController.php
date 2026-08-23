@@ -9,6 +9,7 @@ use App\Models\Schedule;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\AccountStatusService;
+use App\Services\ApprovedLeaveAttendanceGuard;
 use App\Services\AttendanceScheduleValidator;
 use App\Services\StudentAttendanceWindow;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ class AttendanceLogController extends Controller
      */
     public function index(Request $request)
     {
-        $query = AttendanceLog::with(['user', 'schedule.subject', 'schedule.section']);
+        $query = AttendanceLog::with(['user', 'schedule.subject', 'schedule.section', 'schoolEvent']);
 
         if ($request->filled('date')) {
             $query->whereDate('scan_time', $request->date('date'));
@@ -75,10 +76,14 @@ class AttendanceLogController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request, AttendanceScheduleValidator $scheduleValidator, AccountStatusService $accountStatus)
-    {
+    public function store(
+        Request $request,
+        AttendanceScheduleValidator $scheduleValidator,
+        AccountStatusService $accountStatus,
+        ApprovedLeaveAttendanceGuard $leaveGuard
+    ) {
         $identity = $request->validate(['user_id' => 'required|exists:users,id']);
-        $user = User::with('student')->findOrFail($identity['user_id']);
+        $user = User::with(['student', 'role'])->findOrFail($identity['user_id']);
         $accountStatus->ensureAccountIsActive($user, 'user_id');
 
         $validated = $request->validate([
@@ -93,6 +98,7 @@ class AttendanceLogController extends Controller
 
         $schedule = isset($validated['schedule_id']) ? Schedule::findOrFail($validated['schedule_id']) : null;
         $scanTime = Carbon::parse($validated['scan_time'], config('app.timezone'));
+        $leaveGuard->ensureAttendanceIsAllowed($user, $scanTime, 'scan_time');
 
         if ($schedule) {
             $scheduleValidator->validate($user, $schedule, $scanTime);
@@ -129,15 +135,16 @@ class AttendanceLogController extends Controller
         Request $request,
         AttendanceLog $attendanceLog,
         AttendanceScheduleValidator $scheduleValidator,
-        AccountStatusService $accountStatus
+        AccountStatusService $accountStatus,
+        ApprovedLeaveAttendanceGuard $leaveGuard
     ) {
         $identity = $request->validate(['user_id' => 'required|exists:users,id']);
-        $user = User::with('student')->findOrFail($identity['user_id']);
+        $user = User::with(['student', 'role'])->findOrFail($identity['user_id']);
         $accountStatus->ensureAccountIsActive($user, 'user_id');
 
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
-            'schedule_id' => [Rule::requiredIf((bool) $user->student), 'nullable', 'exists:schedules,id'],
+            'schedule_id' => [Rule::requiredIf((bool) $user->student && ! $attendanceLog->school_event_id), 'nullable', 'exists:schedules,id'],
             'attendance_type' => 'required|in:time_in,time_out',
             'scan_time' => 'required|date',
             'status_override' => 'nullable|in:present,late,absent,excused',
@@ -147,6 +154,7 @@ class AttendanceLogController extends Controller
 
         $schedule = isset($validated['schedule_id']) ? Schedule::findOrFail($validated['schedule_id']) : null;
         $scanTime = Carbon::parse($validated['scan_time'], config('app.timezone'));
+        $leaveGuard->ensureAttendanceIsAllowed($user, $scanTime, 'scan_time');
 
         if ($schedule) {
             $scheduleValidator->validate($user, $schedule, $scanTime);

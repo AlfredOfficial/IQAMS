@@ -1,4 +1,7 @@
 <x-app-layout>
+    @push('scripts')
+        @vite('resources/js/qrcode.js')
+    @endpush
     <x-slot name="header">
         <div>
             <h1 class="text-2xl font-bold tracking-tight text-gray-900">Manage Instructors</h1>
@@ -9,7 +12,7 @@
     <div class="py-8"
          x-data="{
             showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
-            editModal: { show: false, id: null, department_id: '', first_name: '', last_name: '', avatar_url: '' },
+            editModal: { show: false, id: null, department_id: '', name_prefix: '', first_name: '', middle_name: '', last_name: '', professional_credentials: '', avatar_url: '' },
             deleteModal: { show: false, id: null, name: '' },
             statusModal: { show: false, userId: null, name: '', status: '' },
             qrModal: { show: false, value: '', label: '' }
@@ -34,7 +37,7 @@
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="min-w-[1040px] w-full table-fixed text-left text-sm [&_th]:px-5 [&_th]:py-4 [&_th]:align-middle [&_th]:font-medium [&_th]:tracking-wide [&_td]:h-20 [&_td]:px-5 [&_td]:py-4 [&_td]:align-middle">
+                    <table class="min-w-[1040px] w-full table-fixed text-left text-sm [&_th]:px-5 [&_th]:py-4 [&_th]:align-middle [&_th]:font-medium [&_th]:tracking-wide [&_td]:px-5 [&_td]:py-4 [&_td]:align-top">
                         <colgroup><col class="w-40"><col class="w-20"><col class="w-44"><col class="w-48"><col class="w-52"><col class="w-28"><col class="w-20"></colgroup>
                         <thead class="bg-gray-50 text-xs uppercase text-gray-500">
                             <tr>
@@ -52,8 +55,8 @@
                                 <tr class="transition-colors hover:bg-gray-50/80">
                                     <td class="whitespace-nowrap px-6 py-3 font-medium text-gray-800">{{ $instructor->employee_no }}</td>
                                     <td class="px-6 py-3"><img src="{{ $instructor->user->avatar_url ?? asset('images/default-avatar.svg') }}" alt="Profile photo" class="h-10 w-10 rounded-full object-cover"></td>
-                                    <td class="whitespace-nowrap px-6 py-3 text-gray-600">{{ $instructor->first_name }} {{ $instructor->last_name }}</td>
-                                    <td class="px-6 py-3 text-gray-600">{{ $instructor->department->department_name ?? '—' }}</td>
+                                    <td class="break-words px-6 py-3 text-gray-600">{{ $instructor->fullName() }}</td>
+                                    <td class="break-words px-6 py-3 text-gray-600">{{ $instructor->department->department_name ?? '—' }}</td>
                                     <td class="px-6 py-3 text-gray-600">{{ $instructor->user->email ?? '—' }}</td>
                                     <td class="px-6 py-3"><span class="rounded px-2 py-1 text-xs font-medium {{ $instructor->user->isAccountActive() ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700' }}">{{ ucfirst($instructor->user->status) }}</span></td>
                                     <td class="px-6 py-3 text-right">
@@ -63,7 +66,7 @@
                                             :next-status="$instructor->user->isAccountActive() ? 'inactive' : 'active'"
                                             :is-active="$instructor->user->isAccountActive()"
                                             :delete-name="$instructor->fullName()">
-                                            <x-slot:edit><button type="button" @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $instructor->id, 'department_id' => (string) $instructor->department_id, 'first_name' => $instructor->first_name, 'last_name' => $instructor->last_name, 'avatar_url' => $instructor->user->avatar_url ?? asset('images/default-avatar.svg')]) }}">Edit</button></x-slot:edit>
+                                            <x-slot:edit><button type="button" @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $instructor->id, 'department_id' => (string) $instructor->department_id, 'name_prefix' => $instructor->name_prefix ?? '', 'first_name' => $instructor->first_name, 'middle_name' => $instructor->middle_name ?? '', 'last_name' => $instructor->last_name, 'professional_credentials' => $instructor->professional_credentials ?? '', 'avatar_url' => $instructor->user->avatar_url ?? asset('images/default-avatar.svg')]) }}">Edit</button></x-slot:edit>
                                             <x-slot:qr><button type="button" @click="qrModal = {{ Illuminate\Support\Js::from(['show' => true, 'value' => $instructor->qr_code, 'label' => $instructor->fullName()]) }}">View QR</button></x-slot:qr>
                                         </x-action-menu>
                                     </td>
@@ -94,9 +97,7 @@
                 <div class="mb-4 flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-gray-800">Add Instructor</h3>
                     <button type="button" @click="showCreateModal = false" class="text-gray-400 hover:text-gray-600">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <x-heroicon-o-x-mark class="h-5 w-5" />
                     </button>
                 </div>
 
@@ -127,12 +128,27 @@
                         @error('employee_no')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                     </div>
 
-                    <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-[0.65fr_1.35fr]">
+                        <div>
+                            <label for="name_prefix" class="mb-1 block text-sm font-medium text-gray-700">Title / Prefix</label>
+                            <input id="name_prefix" type="text" name="name_prefix" value="{{ old('name_prefix') }}" placeholder="e.g. Engr."
+                                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            @error('name_prefix')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                        </div>
                         <div>
                             <label for="first_name" class="mb-1 block text-sm font-medium text-gray-700">First Name</label>
                             <input id="first_name" type="text" name="first_name" value="{{ old('first_name') }}"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             @error('first_name')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                        </div>
+                    </div>
+
+                    <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                            <label for="middle_name" class="mb-1 block text-sm font-medium text-gray-700">Middle Name</label>
+                            <input id="middle_name" type="text" name="middle_name" value="{{ old('middle_name') }}" placeholder="Optional"
+                                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            @error('middle_name')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
                         <div>
                             <label for="last_name" class="mb-1 block text-sm font-medium text-gray-700">Last Name</label>
@@ -140,6 +156,14 @@
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             @error('last_name')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="professional_credentials" class="mb-1 block text-sm font-medium text-gray-700">Professional Credentials</label>
+                        <input id="professional_credentials" type="text" name="professional_credentials" value="{{ old('professional_credentials') }}" placeholder="e.g. LPT, MATVE"
+                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <p class="mt-1 text-xs text-gray-400">Displayed after the name using conventional formatting.</p>
+                        @error('professional_credentials')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                     </div>
 
                     <div class="mb-6">
@@ -161,13 +185,11 @@
         <div x-show="editModal.show" x-cloak
              class="fixed inset-0 z-50 flex items-center justify-center px-4"
              style="background: rgba(0, 0, 0, 0.4)">
-            <div @click.outside="editModal.show = false" class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <div @click.outside="editModal.show = false" class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
                 <div class="mb-4 flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-gray-800">Edit Instructor</h3>
                     <button type="button" @click="editModal.show = false" class="text-gray-400 hover:text-gray-600">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <x-heroicon-o-x-mark class="h-5 w-5" />
                     </button>
                 </div>
 
@@ -187,10 +209,23 @@
                         </select>
                     </div>
 
-                    <div class="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-[0.65fr_1.35fr]">
+                        <div>
+                            <label class="mb-1 block text-sm font-medium text-gray-700">Title / Prefix</label>
+                            <input type="text" name="name_prefix" x-model="editModal.name_prefix" placeholder="e.g. Engr."
+                                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
                         <div>
                             <label class="mb-1 block text-sm font-medium text-gray-700">First Name</label>
                             <input type="text" name="first_name" x-model="editModal.first_name"
+                                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+                    </div>
+
+                    <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                            <label class="mb-1 block text-sm font-medium text-gray-700">Middle Name</label>
+                            <input type="text" name="middle_name" x-model="editModal.middle_name" placeholder="Optional"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         </div>
                         <div>
@@ -198,6 +233,12 @@
                             <input type="text" name="last_name" x-model="editModal.last_name"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="mb-1 block text-sm font-medium text-gray-700">Professional Credentials</label>
+                        <input type="text" name="professional_credentials" x-model="editModal.professional_credentials" placeholder="e.g. LPT, MATVE"
+                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
 
                     <p class="mb-4 text-xs text-gray-400">Employee number, email, and login credentials can't be changed here yet.</p>

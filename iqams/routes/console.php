@@ -11,3 +11,7 @@ Artisan::command('inspire', function () {
 Schedule::command('attendance:mark-student-absences')
     ->everyMinute()
     ->withoutOverlapping();
+
+Schedule::command('attendance:mark-school-event-absences')
+    ->everyMinute()
+    ->withoutOverlapping();

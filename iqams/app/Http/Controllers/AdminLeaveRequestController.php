@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AttendanceLog;
 use App\Models\LeaveRequest;
+use App\Models\User;
 use App\Notifications\LeaveRequestNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class AdminLeaveRequestController extends Controller
 {
@@ -24,7 +28,29 @@ class AdminLeaveRequestController extends Controller
     {
         $validated = $request->validate(['status' => 'required|in:approved,rejected', 'review_notes' => 'nullable|string|max:2000']);
         abort_unless($leaveRequest->status === 'pending', 422, 'Only pending requests can be reviewed.');
-        $leaveRequest->update($validated + ['reviewed_by' => $request->user()->id, 'reviewed_at' => now()]);
+
+        DB::transaction(function () use ($leaveRequest, $validated, $request) {
+            User::whereKey($leaveRequest->user_id)->lockForUpdate()->firstOrFail();
+
+            if ($validated['status'] === 'approved') {
+                $hasAttendance = AttendanceLog::where('user_id', $leaveRequest->user_id)
+                    ->whereNull('schedule_id')
+                    ->whereBetween('scan_time', [
+                        $leaveRequest->start_date->copy()->startOfDay(),
+                        $leaveRequest->end_date->copy()->endOfDay(),
+                    ])
+                    ->exists();
+
+                if ($hasAttendance) {
+                    throw ValidationException::withMessages([
+                        'status' => 'This leave cannot be approved because attendance already exists within the requested dates. Reconcile those attendance records first.',
+                    ]);
+                }
+            }
+
+            $leaveRequest->update($validated + ['reviewed_by' => $request->user()->id, 'reviewed_at' => now()]);
+        });
+
         $leaveRequest->user->notify(new LeaveRequestNotification($leaveRequest->fresh(), $validated['status']));
 
         return back()->with('success', 'Leave request '.$validated['status'].'.');

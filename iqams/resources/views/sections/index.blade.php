@@ -100,9 +100,7 @@
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-semibold text-gray-800">Add Section</h3>
                     <button @click="showCreateModal = false" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <x-heroicon-o-x-mark class="w-5 h-5" />
                     </button>
                 </div>
 
@@ -179,9 +177,7 @@
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-semibold text-gray-800">Edit Section</h3>
                     <button type="button" @click="editModal.show = false" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <x-heroicon-o-x-mark class="w-5 h-5" />
                     </button>
                 </div>
 
@@ -277,9 +273,7 @@
                         Subjects — <span x-text="subjectsModal.sectionName"></span>
                     </h3>
                     <button type="button" @click="subjectsModal.show = false" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <x-heroicon-o-x-mark class="w-5 h-5" />
                     </button>
                 </div>
 

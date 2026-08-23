@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\LeaveRequest;
+use App\Models\AttendanceLog;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\PersonnelAttendanceSummary;
@@ -54,6 +55,60 @@ class LeaveRequestTest extends TestCase
         $this->assertSame('Excused', $days->first()['punctuality']);
         $this->assertSame(0, $service->totals($days)['absentDays']);
         $this->assertSame(1, $service->totals($days)['leaveDays']);
+    }
+
+    public function test_leave_approval_is_rejected_when_attendance_exists_in_requested_dates(): void
+    {
+        $owner = $this->user('instructor');
+        $admin = $this->user('admin');
+        AttendanceLog::create([
+            'user_id' => $owner->id,
+            'attendance_type' => 'time_in',
+            'scan_time' => '2026-08-17 08:00:00',
+            'status' => 'present',
+        ]);
+        $leave = LeaveRequest::create([
+            'user_id' => $owner->id,
+            'leave_type' => 'vacation',
+            'start_date' => '2026-08-17',
+            'end_date' => '2026-08-17',
+            'reason' => 'Personal appointment.',
+        ]);
+
+        $this->actingAs($admin)
+            ->patch(route('admin.leave-requests.update', $leave), ['status' => 'approved'])
+            ->assertSessionHasErrors(['status']);
+
+        $this->assertSame('pending', $leave->fresh()->status);
+    }
+
+    public function test_legacy_attendance_during_approved_leave_is_reported_as_excused_leave(): void
+    {
+        $user = $this->user('staff');
+        $leave = LeaveRequest::create([
+            'user_id' => $user->id,
+            'leave_type' => 'vacation',
+            'start_date' => '2026-08-17',
+            'end_date' => '2026-08-17',
+            'reason' => 'Approved leave.',
+            'status' => 'approved',
+        ]);
+        $log = AttendanceLog::create([
+            'user_id' => $user->id,
+            'attendance_type' => 'time_in',
+            'attendance_period' => 'morning_in',
+            'scan_time' => '2026-08-17 08:00:00',
+            'status' => 'present',
+        ]);
+
+        $day = app(PersonnelAttendanceSummary::class)->day(
+            Carbon::parse('2026-08-17'), collect([$log]), $leave,
+        );
+
+        $this->assertSame('On Leave', $day['status']);
+        $this->assertSame('Excused', $day['punctuality']);
+        $this->assertSame(0, $day['minutes']);
+        $this->assertContains('Attendance exists during approved leave', $day['notes']);
     }
 
     private function user(string $role): User

@@ -78,7 +78,7 @@
                             <tr>
                                 <td class="px-6 py-3 text-gray-800 font-medium">{{ $log->user->name ?? '—' }}</td>
                                 <td class="px-6 py-3 text-gray-600">
-                                    {{ $log->schedule->subject->subject_code ?? '—' }}
+                                    {{ $log->schoolEvent?->title ?? $log->schedule?->subject?->subject_code ?? '—' }}
                                     ({{ $log->schedule->section->section_name ?? '—' }})
                                 </td>
                                 <td class="px-6 py-3 text-gray-600">{{ $log->attendance_type === 'time_in' ? 'Time In' : 'Time Out' }}</td>
@@ -142,9 +142,7 @@
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-semibold text-gray-800">Add Attendance Log</h3>
                     <button @click="showCreateModal = false" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <x-heroicon-o-x-mark class="w-5 h-5" />
                     </button>
                 </div>
 
@@ -261,9 +259,7 @@
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-semibold text-gray-800">Edit Attendance Log</h3>
                     <button type="button" @click="editModal.show = false" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <x-heroicon-o-x-mark class="w-5 h-5" />
                     </button>
                 </div>
 
