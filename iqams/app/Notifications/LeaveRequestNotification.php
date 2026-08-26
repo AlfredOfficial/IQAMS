@@ -20,7 +20,11 @@ class LeaveRequestNotification extends Notification
     public function toDatabase(object $notifiable): array
     {
         $leave = $this->leaveRequest->loadMissing('user');
-        $isAdmin = $notifiable->isAdmin();
+        $url = match (true) {
+            $notifiable->isAdmin() => route('admin.leave-requests.index'),
+            $notifiable->isStaff() => route('staff.leave-requests.index'),
+            default => route('leave-requests.index'),
+        };
 
         return [
             'leave_request_id' => $leave->id,
@@ -31,7 +35,7 @@ class LeaveRequestNotification extends Notification
             'start_date' => $leave->start_date->toDateString(),
             'end_date' => $leave->end_date->toDateString(),
             'review_notes' => $leave->review_notes,
-            'url' => $isAdmin ? route('admin.leave-requests.index') : route('leave-requests.index'),
+            'url' => $url,
         ];
     }
 }

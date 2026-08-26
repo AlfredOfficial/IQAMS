@@ -21,6 +21,7 @@ use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SchoolEventController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\StaffDashboardController;
+use App\Http\Controllers\StaffAttendanceController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\StudentDashboardController;
 use App\Http\Controllers\StudentProfileController;
@@ -111,6 +112,14 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
 
 Route::middleware(['auth', 'role:staff'])->prefix('staff')->name('staff.')->group(function () {
     Route::get('dashboard', [StaffDashboardController::class, 'index'])->name('dashboard');
+    Route::get('attendance/history', [StaffAttendanceController::class, 'history'])->name('attendance.history');
+    Route::get('attendance/summary', [StaffAttendanceController::class, 'summary'])->name('attendance.summary');
+    Route::get('attendance/issues', [StaffAttendanceController::class, 'issues'])->name('attendance.issues');
+    Route::get('profile', [MyProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('profile', [MyProfileController::class, 'update'])->name('profile.update');
+    Route::get('leave-requests', [LeaveRequestController::class, 'index'])->name('leave-requests.index');
+    Route::post('leave-requests', [LeaveRequestController::class, 'store'])->name('leave-requests.store');
+    Route::patch('leave-requests/{leaveRequest}/cancel', [LeaveRequestController::class, 'cancel'])->name('leave-requests.cancel');
 });
 
 Route::middleware(['auth', 'role:instructor'])->prefix('instructor')->name('instructor.')->group(function () {

@@ -17,7 +17,12 @@
         'student' => 'student.dashboard',
         default => 'dashboard',
     };
+    $isStaffPortal = $roleName === 'staff';
+    $updateRoute = $isStaffPortal ? 'staff.profile.update' : 'my-profile.update';
 @endphp
+@if ($isStaffPortal)
+<x-staff-layout title="Profile">
+@else
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -44,14 +49,15 @@
             </form>
         </div>
     </header>
+@endif
 
-    <div class="py-10">
+    <div class="{{ $isStaffPortal ? 'py-2' : 'py-10' }}">
         <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
 
             <h2 class="text-xl font-semibold leading-tight text-gray-800 mb-1">My Profile</h2>
             <p class="mt-1 text-sm text-gray-500 mb-6">Manage your personal information and account security.</p>
 
-            <form method="POST" action="{{ route('my-profile.update') }}" enctype="multipart/form-data" class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-200">
+            <form method="POST" action="{{ route($updateRoute) }}" enctype="multipart/form-data" class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-200">
                 @csrf
                 @method('PATCH')
 
@@ -187,6 +193,10 @@
             </form>
         </div>
     </div>
+@if ($isStaffPortal)
+</x-staff-layout>
+@else
     <x-logout-confirmation />
 </body>
 </html>
+@endif

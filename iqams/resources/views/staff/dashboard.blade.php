@@ -23,23 +23,13 @@
                 </div>
             @endunless
 
-            <section class="overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-700 to-blue-600 text-white shadow-sm">
-                <div class="flex flex-col gap-5 px-6 py-7 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-blue-100">{{ now()->format('l, F j, Y') }}</p>
-                        <h2 class="mt-1 text-2xl font-bold">Good {{ now()->hour < 12 ? 'morning' : (now()->hour < 18 ? 'afternoon' : 'evening') }}, {{ $staff->first_name }}!</h2>
-                        <p class="mt-2 text-sm text-blue-100">{{ $staff->department?->department_name ?? 'Department not assigned' }}</p>
-                    </div>
-                    <div class="sm:text-right">
-                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-bold {{ $statusClasses[$today['status']] ?? 'bg-amber-100 text-amber-700' }}">{{ $today['status'] }}</span>
-                        <p class="mt-2 text-sm text-blue-100">Next scan: {{ $today['nextPeriod'] ? str($today['nextPeriod'])->replace('_', ' ')->title() : 'All scans complete' }}</p>
-                    </div>
-                </div>
-            </section>
-
             <section aria-labelledby="today-attendance">
-                <div class="mb-3 flex items-end justify-between">
+                <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <div><h2 id="today-attendance" class="text-lg font-semibold text-gray-900">Today's attendance</h2><p class="text-sm text-gray-500">Your four daily attendance periods</p></div>
+                    <div class="flex items-center gap-3">
+                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-bold {{ $statusClasses[$today['status']] ?? 'bg-amber-100 text-amber-700' }}">{{ $today['status'] }}</span>
+                        <p class="text-sm text-slate-500">Next: {{ $today['nextPeriod'] ? str($today['nextPeriod'])->replace('_', ' ')->title() : 'Complete' }}</p>
+                    </div>
                 </div>
                 <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     @foreach ($periods as $key => [$label, $description])
@@ -97,7 +87,7 @@
                             <div class="min-w-0"><p class="break-words font-semibold text-gray-900">{{ $staff->fullName() }}</p><p class="text-sm text-gray-500">{{ $staff->employee_no }}</p><p class="mt-1 break-words text-xs text-gray-400">{{ $staff->department?->department_name ?? 'Department not assigned' }}</p></div>
                         </div>
                         <div class="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-                            <a href="{{ route('my-profile.edit') }}" class="rounded-lg bg-indigo-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-indigo-700">Edit profile</a>
+                            <a href="{{ route('staff.profile.edit') }}" class="rounded-lg bg-indigo-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-indigo-700">Edit profile</a>
                             <button type="button" @click="qrModal = {{ Illuminate\Support\Js::from(['show' => true, 'value' => $staff->qr_code ?? $staff->employee_no, 'label' => $staff->fullName()]) }}" class="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">View my QR code</button>
                             <button type="button" @click="window.downloadIqamsIdCard(@js(route('id-card.show'))).catch(error => window.alert(error.message))" class="inline-flex items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"><x-heroicon-o-arrow-down-tray class="h-5 w-5" />Download ID Card</button>
                         </div>
@@ -105,7 +95,7 @@
 
                     <section class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
                         <h2 class="font-semibold text-gray-900">Quick access</h2>
-                        <a href="{{ route('leave-requests.index') }}" class="mt-4 flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"><span>Leave requests</span><span aria-hidden="true">→</span></a>
+                        <a href="{{ route('staff.leave-requests.index') }}" class="mt-4 flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"><span>Leave requests</span><span aria-hidden="true">&rarr;</span></a>
                     </section>
                 </aside>
             </div>

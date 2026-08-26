@@ -3,6 +3,13 @@
     $leaveNotifications = Auth::user()->notifications()->where('type', $notificationType)->latest()->take(8)->get();
     $unreadCount = Auth::user()->unreadNotifications()->where('type', $notificationType)->count();
 @endphp
+@php
+    $leaveIndexRoute = match (true) {
+        Auth::user()->isAdmin() => 'admin.leave-requests.index',
+        Auth::user()->isStaff() => 'staff.leave-requests.index',
+        default => 'leave-requests.index',
+    };
+@endphp
 
 <div {{ $attributes->class('relative') }} x-data="{
     open: false,
@@ -32,7 +39,7 @@
     </button>
 
     <div x-show="open" x-cloak x-transition.origin.top.right @click.outside="open=false" class="absolute right-0 z-[80] mt-2 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-xl">
-        <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3"><div><p class="text-sm font-semibold text-slate-900">Leave notifications</p><p class="text-xs text-slate-500">Recent request activity</p></div>@if($leaveNotifications->isNotEmpty())<a href="{{ Auth::user()->isAdmin() ? route('admin.leave-requests.index') : route('leave-requests.index') }}" class="text-xs font-semibold text-blue-600 hover:text-blue-800">View all</a>@endif</div>
+        <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3"><div><p class="text-sm font-semibold text-slate-900">Leave notifications</p><p class="text-xs text-slate-500">Recent request activity</p></div>@if($leaveNotifications->isNotEmpty())<a href="{{ route($leaveIndexRoute) }}" class="text-xs font-semibold text-blue-600 hover:text-blue-800">View all</a>@endif</div>
         <div class="max-h-96 overflow-y-auto divide-y divide-slate-100">
             @forelse($leaveNotifications as $notification)
                 @php

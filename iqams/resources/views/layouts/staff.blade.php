@@ -6,8 +6,11 @@
     $initials = collect(explode(' ', $portalName))->filter()->take(2)->map(fn ($part) => strtoupper(substr($part, 0, 1)))->implode('');
     $nav = [
         ['route' => 'staff.dashboard', 'label' => 'Dashboard', 'icon' => 'M4 5a2 2 0 012-2h3a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9 0a2 2 0 012-2h3a2 2 0 012 2v7a2 2 0 01-2 2h-3a2 2 0 01-2-2V5zM4 16a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H6a2 2 0 01-2-2v-3zm9 1a2 2 0 012-2h3a2 2 0 012 2v2a2 2 0 01-2 2h-3a2 2 0 01-2-2v-2z'],
-        ['route' => 'leave-requests.index', 'label' => 'Leave Requests', 'icon' => 'M7 3h10a2 2 0 012 2v16l-7-3-7 3V5a2 2 0 012-2z'],
-        ['route' => 'my-profile.edit', 'label' => 'Profile', 'icon' => 'M5.1 17.8a9 9 0 1113.8 0M15 11a3 3 0 11-6 0 3 3 0 016 0z'],
+        ['route' => 'staff.attendance.history', 'label' => 'Attendance History', 'icon' => 'M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z'],
+        ['route' => 'staff.attendance.summary', 'label' => 'Monthly Summary', 'icon' => 'M4 19h16M7 16V9m5 7V5m5 11v-4'],
+        ['route' => 'staff.attendance.issues', 'label' => 'Attendance Issues', 'icon' => 'M12 9v4m0 4h.01M10.3 3.6L2.6 17a2 2 0 001.7 3h15.4a2 2 0 001.7-3L13.7 3.6a2 2 0 00-3.4 0z'],
+        ['route' => 'staff.leave-requests.index', 'active' => 'staff.leave-requests.*', 'label' => 'Leave Requests', 'icon' => 'M7 3h10a2 2 0 012 2v16l-7-3-7 3V5a2 2 0 012-2z'],
+        ['route' => 'staff.profile.edit', 'label' => 'Profile', 'icon' => 'M5.1 17.8a9 9 0 1113.8 0M15 11a3 3 0 11-6 0 3 3 0 016 0z'],
     ];
 @endphp
 
@@ -30,7 +33,8 @@
 
             <nav data-sidebar-nav class="flex-1 space-y-2 overflow-y-auto px-3 py-3" aria-label="Staff navigation">
                 @foreach ($nav as $item)
-                    <a data-sidebar-link href="{{ route($item['route']) }}" @class(['flex items-center gap-3 rounded-xl px-3 py-3.5 text-[13px] font-semibold transition', 'bg-blue-600 text-white shadow-lg shadow-blue-950/25' => request()->routeIs($item['route']), 'text-blue-50/90 hover:bg-white/10' => !request()->routeIs($item['route'])])>
+                    @php($active = request()->routeIs($item['active'] ?? $item['route']))
+                    <a data-sidebar-link href="{{ route($item['route']) }}" @class(['flex items-center gap-3 rounded-xl px-3 py-3.5 text-[13px] font-semibold transition', 'bg-blue-600 text-white shadow-lg shadow-blue-950/25' => $active, 'text-blue-50/90 hover:bg-white/10' => ! $active])>
                         <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="{{ $item['icon'] }}"/></svg>
                         {{ $item['label'] }}
                     </a>
@@ -54,7 +58,7 @@
                         <p class="mt-1.5 flex items-center gap-2 font-medium tabular-nums"><x-heroicon-o-clock class="h-4 w-4 text-blue-600" /><span id="live-clock">{{ now()->format('g:i:s A') }}</span></p>
                     </div>
                     <x-leave-notification-bell />
-                    <a href="{{ route('my-profile.edit') }}" class="relative h-12 w-12 overflow-hidden rounded-full bg-blue-100 text-blue-800 ring-1 ring-slate-200" aria-label="Open profile">@if($portalUser->avatar_url)<img src="{{ $portalUser->avatar_url }}" class="h-full w-full object-cover" alt="{{ $portalName }}">@else<span class="grid h-full place-items-center font-bold">{{ $initials }}</span>@endif</a>
+                    <a href="{{ route('staff.profile.edit') }}" class="relative h-12 w-12 overflow-hidden rounded-full bg-blue-100 text-blue-800 ring-1 ring-slate-200" aria-label="Open profile">@if($portalUser->avatar_url)<img src="{{ $portalUser->avatar_url }}" class="h-full w-full object-cover" alt="{{ $portalName }}">@else<span class="grid h-full place-items-center font-bold">{{ $initials }}</span>@endif</a>
                 </div>
             </header>
             <main id="app-content" class="p-3 sm:p-5 lg:p-6">{{ $slot }}</main>

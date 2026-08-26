@@ -12,9 +12,12 @@ class PersonnelAttendanceSummary
 {
     public const PERIODS = ['morning_in', 'lunch_out', 'afternoon_in', 'final_out'];
 
+    public function __construct(private PersonnelWorkCalendar $calendar) {}
+
     public function days(User $user, Carbon $from, Carbon $to, bool $includeEmpty = false): Collection
     {
-        $logs = AttendanceLog::where('user_id', $user->id)->whereNull('schedule_id')
+        $logs = AttendanceLog::where('user_id', $user->id)
+            ->whereNull('schedule_id')->whereNull('school_event_id')
             ->whereBetween('scan_time', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
             ->orderBy('scan_time')->get()->groupBy(fn ($log) => $log->scan_time->toDateString());
         $leaves = LeaveRequest::where('user_id', $user->id)->where('status', 'approved')
@@ -24,14 +27,22 @@ class PersonnelAttendanceSummary
         if ($from->gt($to)) {
             return $days;
         }
+        $calendar = $this->calendar->context($user, $from, $to);
         for ($date = $from->copy()->startOfDay(); $date->lte($to); $date->addDay()) {
-            if ($date->isWeekend()) {
-                continue;
-            }
             $dateLogs = $logs->get($date->toDateString(), collect());
             $leave = $leaves->first(fn ($item) => $date->betweenIncluded($item->start_date, $item->end_date));
-            if ($includeEmpty || $dateLogs->isNotEmpty() || $leave) {
+            $exclusionReason = $this->calendar->exclusionReason($date, $calendar);
+
+            if ($dateLogs->isNotEmpty()) {
+                $days->push($this->day($date->copy(), $dateLogs));
+            } elseif ($leave) {
                 $days->push($this->day($date->copy(), $dateLogs, $leave));
+            } elseif ($exclusionReason) {
+                if ($includeEmpty) {
+                    $days->push($this->excludedDay($date->copy(), $exclusionReason));
+                }
+            } elseif ($includeEmpty) {
+                $days->push($this->day($date->copy(), $dateLogs));
             }
         }
 
@@ -79,6 +90,8 @@ class PersonnelAttendanceSummary
 
         return compact('date', 'events', 'status', 'minutes', 'late', 'early', 'notes', 'leave') + [
             'isIncomplete' => $isIncomplete,
+            'isExcluded' => false,
+            'exclusionReason' => null,
             'nextPeriod' => $nextPeriod,
             'punctuality' => $leave ? 'Excused' : ($count === 0 ? ($isPast ? 'Absent' : 'Pending') : ($late ? 'Late' : ($early ? 'Early Out' : ($isIncomplete ? 'Incomplete' : ($count < 4 ? 'In Progress' : 'On Time'))))),
         ];
@@ -86,20 +99,34 @@ class PersonnelAttendanceSummary
 
     public function totals(Collection $days): array
     {
-        $working = $days->count();
-        $present = $days->whereNotIn('status', ['Absent', 'Not Started', 'On Leave', 'Sick Leave'])->count();
-        $required = $days->whereNotIn('status', ['On Leave', 'Sick Leave'])->count();
+        $included = $days->where('isExcluded', false);
+        $working = $included->count();
+        $present = $included->whereNotIn('status', ['Absent', 'Not Started', 'On Leave', 'Sick Leave'])->count();
+        $required = $included->whereNotIn('status', ['On Leave', 'Sick Leave'])->count();
 
         return [
             'workingDays' => $working, 'presentDays' => $present,
-            'absentDays' => $days->where('status', 'Absent')->count(),
-            'leaveDays' => $days->whereIn('status', ['On Leave', 'Sick Leave'])->count(),
-            'lateCount' => $days->where('late', true)->count(),
-            'earlyOutCount' => $days->where('early', true)->count(),
-            'incompleteCount' => $days->where('isIncomplete', true)->count(),
-            'totalMinutes' => $days->sum('minutes'),
+            'expectedDays' => $working,
+            'excludedDays' => $days->where('isExcluded', true)->count(),
+            'absentDays' => $included->where('status', 'Absent')->count(),
+            'leaveDays' => $included->whereIn('status', ['On Leave', 'Sick Leave'])->count(),
+            'lateCount' => $included->where('late', true)->count(),
+            'earlyOutCount' => $included->where('early', true)->count(),
+            'incompleteCount' => $included->where('isIncomplete', true)->count(),
+            'totalMinutes' => $included->sum('minutes'),
             'percentage' => $required ? round(($present / $required) * 100, 1) : 0,
         ];
+    }
+
+    private function excludedDay(Carbon $date, string $reason): array
+    {
+        return array_replace($this->day($date, collect()), [
+            'status' => 'Excluded',
+            'punctuality' => 'Excluded',
+            'notes' => collect([$reason]),
+            'isExcluded' => true,
+            'exclusionReason' => $reason,
+        ]);
     }
 
     private function pairMinutes(?AttendanceLog $in, ?AttendanceLog $out): int

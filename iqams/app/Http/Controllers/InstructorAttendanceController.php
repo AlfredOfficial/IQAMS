@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AttendanceLog;
 use App\Models\Schedule;
 use App\Models\Student;
-use App\Services\PersonnelAttendanceSummary;
+use App\Services\PersonnelAttendancePages;
 use App\Services\StudentAttendanceWindow;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,35 +14,25 @@ use Illuminate\Validation\ValidationException;
 
 class InstructorAttendanceController extends Controller
 {
-    public function history(Request $request, PersonnelAttendanceSummary $summary)
+    public function history(Request $request, PersonnelAttendancePages $pages)
     {
-        $from = Carbon::parse($request->input('from', now()->startOfMonth()->toDateString()));
-        $to = Carbon::parse($request->input('to', now()->toDateString()));
-        $days = $summary->days($request->user(), $from, $to, false)->reverse()->values();
-        if ($status = $request->input('status')) {
-            $days = $status === 'Incomplete' ? $days->where('isIncomplete', true)->values() : $days->where('status', $status)->values();
-        }
-        if ($punctuality = $request->input('punctuality')) $days = $days->where('punctuality', $punctuality)->values();
-        return view('instructor.history', compact('days', 'from', 'to'));
+        return view('instructor.history', $pages->history($request->user(), $request->only([
+            'from', 'to', 'status', 'punctuality',
+        ])));
     }
 
-    public function summary(Request $request, PersonnelAttendanceSummary $service)
+    public function summary(Request $request, PersonnelAttendancePages $pages)
     {
-        $month = max(1, min(12, (int) $request->input('month', now()->month)));
-        $year = max(2000, min(2100, (int) $request->input('year', now()->year)));
-        $from = Carbon::create($year, $month, 1);
-        $to = $from->isFuture() ? $from->copy()->subDay() : $from->copy()->endOfMonth()->min(today());
-        $days = $service->days($request->user(), $from, $to, true);
-        $totals = $service->totals($days);
-        return view('instructor.summary', compact('days', 'totals', 'month', 'year'));
+        return view('instructor.summary', $pages->monthly(
+            $request->user(),
+            (int) $request->input('month', now()->month),
+            (int) $request->input('year', now()->year),
+        ));
     }
 
-    public function issues(Request $request, PersonnelAttendanceSummary $service)
+    public function issues(Request $request, PersonnelAttendancePages $pages)
     {
-        $from = now()->startOfMonth();
-        $days = $service->days($request->user(), $from, today(), true)
-            ->filter(fn ($day) => $day['status'] === 'Absent' || $day['isIncomplete'] || $day['late'] || $day['early'])->reverse()->values();
-        return view('instructor.issues', compact('days'));
+        return view('instructor.issues', $pages->issues($request->user()));
     }
 
     public function schedule(Request $request)

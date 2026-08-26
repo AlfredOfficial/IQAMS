@@ -13,9 +13,17 @@ class LeaveRequestController extends Controller
 {
     public function index(Request $request)
     {
+        if ($request->user()->isStaff() && ! $request->routeIs('staff.leave-requests.index')) {
+            return redirect()->route('staff.leave-requests.index');
+        }
+
         $requests = $request->user()->leaveRequests()->latest()->paginate(10);
 
-        return view('leave-requests.index', compact('requests'));
+        $view = $request->user()->isStaff()
+            ? 'staff.leave-requests.index'
+            : 'leave-requests.index';
+
+        return view($view, compact('requests'));
     }
 
     public function store(Request $request)

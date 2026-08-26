@@ -95,6 +95,8 @@ class MyProfileController extends Controller
             Storage::disk('public')->delete($oldAvatarPath);
         }
 
-        return redirect()->route('my-profile.edit')->with('status', 'profile-updated');
+        $route = $user->isStaff() ? 'staff.profile.edit' : 'my-profile.edit';
+
+        return redirect()->route($route)->with('status', 'profile-updated');
     }
 }
