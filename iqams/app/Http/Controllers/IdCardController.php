@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\QrCredentialService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class IdCardController extends Controller
 {
-    public function show(Request $request): JsonResponse
+    public function show(Request $request, QrCredentialService $credentials): JsonResponse
     {
         $user = $request->user()->loadMissing([
             'role',
@@ -27,7 +28,7 @@ class IdCardController extends Controller
         abort_unless($card['profile'], 403, 'No profile is linked to this account.');
 
         $profile = $card['profile'];
-        $qrCode = (string) $profile->qr_code;
+        $qrCode = $credentials->plainText($credentials->activeFor($user));
 
         if (trim($qrCode) === '') {
             return response()->json(['message' => 'No QR code is assigned to your account.'], 422);

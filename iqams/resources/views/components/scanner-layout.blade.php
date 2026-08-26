@@ -11,5 +11,6 @@
 <body class="min-h-screen bg-slate-950 font-sans antialiased">
     <x-toast-notifications />
     {{ $slot }}
+    <x-logout-confirmation />
 </body>
 </html>

@@ -41,7 +41,7 @@
                         <colgroup><col class="w-40"><col class="w-20"><col class="w-44"><col class="w-48"><col class="w-52"><col class="w-28"><col class="w-20"></colgroup>
                         <thead class="bg-gray-50 text-xs uppercase text-gray-500">
                             <tr>
-                                <th class="px-6 py-3">Employee No.</th>
+                                <th class="px-6 py-3">Instructor ID</th> {{-- keep the employee no in the data base nevermind the table --}}
                                 <th class="px-6 py-3">Profile</th>
                                 <th class="px-6 py-3">Name</th>
                                 <th class="px-6 py-3">Department</th>
@@ -90,11 +90,12 @@
 
         {{-- Create Instructor Modal --}}
         <div x-show="showCreateModal" x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center px-4"
+             class="fixed inset-0 z-[70] overflow-y-auto px-4 py-4 sm:px-6"
              style="background: rgba(0, 0, 0, 0.4)">
+            <div class="flex min-h-full items-center justify-center">
             <div @click.outside="showCreateModal = false"
-                 class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
-                <div class="mb-4 flex items-center justify-between">
+                 class="w-full max-w-2xl rounded-lg bg-white p-4 shadow-xl sm:p-5">
+                <div class="mb-3 flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-gray-800">Add Instructor</h3>
                     <button type="button" @click="showCreateModal = false" class="text-gray-400 hover:text-gray-600">
                         <x-heroicon-o-x-mark class="h-5 w-5" />
@@ -103,32 +104,34 @@
 
                 <form method="POST" action="{{ route('instructors.store') }}" enctype="multipart/form-data">
                     @csrf
-                    <div class="mb-4"><label class="mb-1 block text-sm font-medium text-gray-700">Profile Photo</label><input type="file" name="avatar" accept="image/jpeg,image/png" required class="block w-full text-sm text-gray-600">@error('avatar')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror</div>
+                    <div class="grid grid-cols-1 gap-x-5 gap-y-3 md:grid-cols-2">
+                        <div class="md:col-span-2">
+                            <label class="mb-1 block text-sm font-medium text-gray-700">Profile Photo</label>
+                            <input type="file" name="avatar" accept="image/jpeg,image/png" required
+                                   class="block w-full text-sm text-gray-600">
+                            @error('avatar')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                        </div>
+                        <div>
+                            <label for="employee_no" class="mb-1 block text-sm font-medium text-gray-700">Instructor ID</label>
+                            <input id="employee_no" type="text" name="employee_no" value="{{ old('employee_no') }}" placeholder="e.g. INS2026001"
+                                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <p class="mt-1 text-xs leading-4 text-gray-400">This will also become the instructor's login username.</p>
+                            @error('employee_no')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                        </div>
 
-                    <div class="mb-4">
-                        <label for="department_id" class="mb-1 block text-sm font-medium text-gray-700">Department</label>
-                        <select id="department_id" name="department_id"
-                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">-- Select Department --</option>
-                            @foreach ($departments as $department)
-                                <option value="{{ $department->id }}" @selected(old('department_id') == $department->id)>
-                                    {{ $department->department_code }} - {{ $department->department_name }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('department_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
-                    </div>
-
-                    <div class="mb-4">
-                        <label for="employee_no" class="mb-1 block text-sm font-medium text-gray-700">Employee No.</label>
-                        <input id="employee_no" type="text" name="employee_no" value="{{ old('employee_no') }}"
-                               placeholder="e.g. INS2026001"
-                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <p class="mt-1 text-xs text-gray-400">This will also become the instructor's login username.</p>
-                        @error('employee_no')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
-                    </div>
-
-                    <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-[0.65fr_1.35fr]">
+                        <div>
+                            <label for="department_id" class="mb-1 block text-sm font-medium text-gray-700">Department</label>
+                            <select id="department_id" name="department_id"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">-- Select Department --</option>
+                                @foreach ($departments as $department)
+                                    <option value="{{ $department->id }}" @selected(old('department_id') == $department->id)>
+                                        {{ $department->department_code }} - {{ $department->department_name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('department_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                        </div>
                         <div>
                             <label for="name_prefix" class="mb-1 block text-sm font-medium text-gray-700">Title / Prefix</label>
                             <input id="name_prefix" type="text" name="name_prefix" value="{{ old('name_prefix') }}" placeholder="e.g. Engr."
@@ -143,10 +146,10 @@
                         </div>
                     </div>
 
-                    <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div>
-                            <label for="middle_name" class="mb-1 block text-sm font-medium text-gray-700">Middle Name</label>
-                            <input id="middle_name" type="text" name="middle_name" value="{{ old('middle_name') }}" placeholder="Optional"
+                            <label for="middle_name" class="mb-1 block text-sm font-medium text-gray-700">Middle Name <span class="font-normal text-gray-400">(optional)</span></label>
+                            <input id="middle_name" type="text" name="middle_name" value="{{ old('middle_name') }}"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             @error('middle_name')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
@@ -158,26 +161,29 @@
                         </div>
                     </div>
 
-                    <div class="mb-4">
+                    <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
                         <label for="professional_credentials" class="mb-1 block text-sm font-medium text-gray-700">Professional Credentials</label>
                         <input id="professional_credentials" type="text" name="professional_credentials" value="{{ old('professional_credentials') }}" placeholder="e.g. LPT, MATVE"
                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <p class="mt-1 text-xs text-gray-400">Displayed after the name using conventional formatting.</p>
+                        <p class="mt-1 text-xs leading-4 text-gray-400">Displayed after the name using conventional formatting.</p>
                         @error('professional_credentials')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                     </div>
 
-                    <div class="mb-6">
+                    <div>
                         <label for="email" class="mb-1 block text-sm font-medium text-gray-700">Email</label>
                         <input id="email" type="email" name="email" value="{{ old('email') }}" placeholder="instructor@email.com"
                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         @error('email')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                     </div>
+                    </div>
 
-                    <div class="flex items-center gap-3">
+                    <div class="mt-4 flex items-center justify-end gap-3 border-t border-gray-100 pt-3">
+                        <button type="button" @click="showCreateModal = false" class="rounded px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700">Cancel</button>
                         <button type="submit" class="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Save Instructor</button>
-                        <button type="button" @click="showCreateModal = false" class="text-sm text-gray-500 hover:text-gray-700">Cancel</button>
                     </div>
                 </form>
+            </div>
             </div>
         </div>
 

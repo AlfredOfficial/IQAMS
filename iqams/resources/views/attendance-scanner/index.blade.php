@@ -1,198 +1,72 @@
 <x-scanner-layout>
-    <main class="relative h-screen overflow-hidden bg-slate-950 text-white" x-data="attendanceScanner()" x-init="initialize()" @click="focusInput()">
-        <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-            <div class="absolute left-1/2 top-[-18rem] h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-blue-600/10 blur-3xl"></div>
-            <div class="absolute bottom-[-16rem] right-[-10rem] h-[34rem] w-[34rem] rounded-full bg-emerald-500/5 blur-3xl"></div>
-        </div>
+<main class="min-h-screen bg-[#f4f7fa] text-slate-900" x-data="scannerApp()" x-init="focus()" @click="focus()">
+    @unless($terminal)
+        <div class="grid min-h-screen place-items-center p-6"><section class="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+            <div class="flex items-center gap-4 border-b border-slate-200 pb-6"><img src="{{ asset('favicon.svg') }}" alt="IQAMS" class="h-14 w-14"><div><h1 class="text-2xl font-bold text-[#123f70]">IQAMS Attendance Terminal</h1><p class="text-slate-500">Continuous QR attendance kiosk</p></div></div>
+            <h2 class="mt-6 text-lg font-semibold">Select this computer's registered terminal</h2>
+            <form method="POST" action="{{ route('attendance-scanner.terminal') }}" class="mt-4 flex gap-3">@csrf
+                <select name="scanner_terminal_id" required class="min-w-0 flex-1 rounded-lg border-slate-300 bg-white"><option value="">Choose a terminal</option>@foreach($terminals as $item)<option value="{{ $item->id }}">{{ $item->name }} — {{ $item->location }}</option>@endforeach</select>
+                <button class="rounded-lg bg-[#124f87] px-5 py-2 font-semibold text-white">Use terminal</button>
+            </form>
+            @if($terminals->isEmpty())<p class="mt-4 text-amber-700">No active terminal exists. Register one in Scanner Security.</p>@endif
+        </section></div>
+    @else
+        <input x-ref="qr" x-model="qr" @input.debounce.350ms="scan()" @keydown.enter.prevent="scan()" class="fixed left-[-9999px]" autocomplete="off" aria-label="QR scanner input">
 
-        <div class="relative flex h-screen flex-col px-4 py-4 sm:px-6 lg:px-10">
-            <header class="flex min-h-12 items-center justify-between gap-4">
-                <div class="flex items-center gap-3">
-                    <div class="grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-white/5 text-sm font-bold">IQ</div>
-                    <div class="hidden sm:block">
-                        <p class="text-sm font-semibold">IQAMS Attendance Terminal</p>
-                        <p class="text-xs text-slate-500">Physical QR scanner</p>
-                    </div>
+        <section x-show="state === 'ready'" class="grid min-h-screen place-items-center p-8 text-center"><div>
+            <img src="{{ asset('favicon.svg') }}" alt="IQAMS" class="mx-auto h-24 w-24"><p class="mt-7 text-sm font-bold uppercase tracking-[.24em] text-[#1b5b91]">IQAMS Attendance Terminal</p>
+            <h1 class="mt-3 text-4xl font-bold">Waiting for QR card</h1><p class="mt-3 text-lg text-slate-500">Scan a school ID to record attendance.</p><p class="mt-10 text-sm text-slate-400">{{ $terminal->name }} · {{ $terminal->location }}</p>
+        </div></section>
+
+        <section x-show="state === 'processing'" x-cloak class="grid min-h-screen place-items-center text-center"><div><div class="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-[#1b5b91]"></div><p class="mt-5 text-xl font-medium">Validating attendance…</p></div></section>
+
+        <section x-show="state === 'result'" x-cloak class="min-h-screen bg-white">
+            <template x-if="result.person"><div class="grid min-h-screen grid-cols-12">
+                <div class="col-span-7 flex min-h-screen flex-col bg-[#eef3f7] p-5 lg:p-8">
+                    <header class="mb-5 flex items-center justify-between"><div class="flex items-center gap-3"><img src="{{ asset('favicon.svg') }}" alt="IQAMS" class="h-12 w-12"><div><p class="text-xl font-extrabold tracking-[.12em] text-[#123f70]">IQAMS</p><p class="text-xs text-slate-500">Integrated QR Attendance Monitoring System</p></div></div><p class="text-right text-xs font-medium text-slate-500">{{ $terminal->name }}<br>{{ $terminal->location }}</p></header>
+                    <div class="min-h-0 flex-1 overflow-hidden rounded-xl bg-slate-200 shadow-sm"><img x-show="result.person.avatar" :src="result.person.avatar" class="h-full w-full object-cover object-center" :alt="result.person.name"><div x-show="!result.person.avatar" class="grid h-full place-items-center text-8xl font-bold text-slate-400" x-text="result.person.initials"></div></div>
                 </div>
-                <div class="flex items-center gap-2" @click.stop>
-                    <label for="scanner-location" class="hidden text-xs font-medium text-slate-500 sm:block">Terminal location</label>
-                    <input id="scanner-location" x-model="location" @change="saveLocation" @keydown.enter.prevent="saveLocation(); focusInput()" @blur="saveLocation(); restoreFocus()"
-                           class="w-36 rounded-lg border-white/10 bg-white/5 px-3 py-2 text-right text-xs text-slate-300 placeholder:text-slate-600 focus:border-blue-500/60 focus:ring-blue-500/20 sm:w-48"
-                           placeholder="Main scanner" aria-label="Scanner location">
+
+                <div class="col-span-5 flex min-h-screen flex-col px-8 py-7 lg:px-12 lg:py-10">
+                    <div class="flex items-center justify-between border-b border-slate-200 pb-5"><p class="text-xs font-bold uppercase tracking-[.2em] text-slate-400">Verified identity</p><span class="rounded-md bg-[#e8f0f7] px-4 py-2 text-sm font-bold uppercase tracking-wider text-[#124f87]" x-text="result.person.role"></span></div>
+                    <div class="flex flex-1 flex-col justify-center py-6">
+                        <h1 class="text-4xl font-extrabold leading-tight text-[#102f4f] lg:text-5xl" x-text="result.person.name"></h1><p class="mt-3 text-xl font-medium text-slate-500" x-text="result.person.role"></p>
+                        <dl class="mt-9 space-y-4 border-y border-slate-200 py-6"><template x-for="detail in result.person.details" :key="detail.label"><div class="grid grid-cols-[8.5rem_1fr] items-baseline gap-4"><dt class="text-sm font-bold uppercase tracking-wide text-[#1b5b91]" x-text="detail.label"></dt><dd class="text-lg font-semibold leading-snug text-slate-800" x-text="detail.value"></dd></div></template></dl>
+                        <div class="mt-8 border-l-4 pl-5" :class="result.code === 'recorded' ? 'border-emerald-600' : (result.code === 'already_recorded' ? 'border-amber-500' : 'border-red-600')"><p class="text-sm font-bold uppercase tracking-[.18em]" :class="resultClass" x-text="result.code === 'recorded' ? 'Scan Successful' : result.title"></p><p class="mt-1 text-2xl font-bold" x-text="result.title"></p><p class="mt-2 text-sm leading-relaxed text-slate-500" x-text="result.message"></p></div>
+                        <template x-if="result.attendance"><div class="mt-7 flex items-end justify-between"><div><p class="text-xs font-bold uppercase tracking-wider text-slate-400">Attendance status</p><p class="mt-1 text-2xl font-extrabold uppercase text-[#123f70]" x-text="statusLabel"></p></div><div class="text-right"><p class="text-xs font-bold uppercase tracking-wider text-slate-400" x-text="attendanceLabel"></p><p class="mt-1 text-3xl font-extrabold tabular-nums" x-text="result.attendance.display_time || result.attendance.recorded_time"></p></div></div></template>
+                    </div>
+                    <p class="border-t border-slate-200 pt-4 text-center text-xs text-slate-400">Ready for the next scan in a moment</p>
                 </div>
-            </header>
+            </div></template>
+            <template x-if="!result.person"><div class="grid min-h-screen place-items-center p-8 text-center"><div class="max-w-xl"><img src="{{ asset('favicon.svg') }}" alt="IQAMS" class="mx-auto h-20 w-20"><p class="mt-7 text-sm font-bold uppercase tracking-[.2em]" :class="resultClass" x-text="result.title"></p><h1 class="mt-3 text-3xl font-bold">Scan could not be completed</h1><p class="mt-4 text-lg text-slate-500" x-text="result.message"></p></div></div></template>
+        </section>
+    @endunless
+</main>
 
-            <input x-ref="qrInput" x-model="qrCode" type="text" inputmode="none" autocomplete="off" autocapitalize="off" spellcheck="false" tabindex="-1"
-                   aria-label="Physical QR scanner input" @input="markInput" @keydown.enter.prevent="queueScan()" @blur="restoreFocus($event)"
-                   class="fixed left-[-9999px] top-0 h-px w-px opacity-0">
-
-            <section class="flex min-h-0 flex-1 items-center justify-center py-3 sm:py-4">
-                <div class="h-full w-full">
-                    <div class="h-full" x-show="state === 'ready' || state === 'processing'" x-transition.opacity.duration.250ms>
-                        <div class="flex h-full w-full items-center">
-                            <div class="relative h-full w-full overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-900/60 shadow-2xl shadow-black/30 sm:rounded-[2rem]">
-                                <div class="absolute left-5 top-5 h-16 w-16 rounded-tl-xl border-l-2 border-t-2 border-blue-400/80 sm:left-8 sm:top-8 sm:h-24 sm:w-24"></div>
-                                <div class="absolute right-5 top-5 h-16 w-16 rounded-tr-xl border-r-2 border-t-2 border-blue-400/80 sm:right-8 sm:top-8 sm:h-24 sm:w-24"></div>
-                                <div class="absolute bottom-5 left-5 h-16 w-16 rounded-bl-xl border-b-2 border-l-2 border-blue-400/80 sm:bottom-8 sm:left-8 sm:h-24 sm:w-24"></div>
-                                <div class="absolute bottom-5 right-5 h-16 w-16 rounded-br-xl border-b-2 border-r-2 border-blue-400/80 sm:bottom-8 sm:right-8 sm:h-24 sm:w-24"></div>
-                                <div class="absolute inset-0 grid place-items-center">
-                                    <div class="text-center">
-                                        <svg class="mx-auto h-20 w-20 text-slate-600 sm:h-28 sm:w-28" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.25" d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h2m4 0v2m-6 2h2v2m2-4h2v4h-4v-2"/></svg>
-                                        <p class="mt-5 text-base font-medium text-slate-400 sm:text-lg" x-text="state === 'processing' ? 'QR detected' : 'Waiting for QR input'"></p>
-                                    </div>
-                                </div>
-                                <div x-show="state === 'ready'" class="scanner-line absolute left-8 right-8 h-px bg-gradient-to-r from-transparent via-blue-400 to-transparent shadow-[0_0_14px_rgba(96,165,250,0.8)] sm:left-12 sm:right-12"></div>
-                                <div x-show="state === 'processing'" class="absolute inset-0 grid place-items-center bg-slate-950/55 backdrop-blur-sm">
-                                    <svg class="h-9 w-9 animate-spin text-blue-400" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle class="opacity-20" cx="12" cy="12" r="9" stroke="currentColor" stroke-width="3"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div x-show="state === 'success'" x-cloak x-transition.opacity.duration.250ms>
-                        <div class="mx-auto grid max-w-5xl items-center gap-7 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-12">
-                            <div class="text-center lg:text-right">
-                                <div class="relative mx-auto h-44 w-44 overflow-hidden rounded-[2rem] border-4 border-emerald-400/40 bg-slate-800 shadow-2xl shadow-emerald-950/40 sm:h-52 sm:w-52 lg:ml-auto lg:mr-0 lg:h-60 lg:w-60">
-                                    <img x-show="result.attendance && result.attendance.avatar" :src="result.attendance && result.attendance.avatar" :alt="result.attendance ? result.attendance.name : ''" class="h-full w-full object-cover">
-                                    <div x-show="result.attendance && !result.attendance.avatar" class="grid h-full w-full place-items-center bg-gradient-to-br from-slate-700 to-slate-900 text-5xl font-bold text-slate-300" x-text="result.attendance && result.attendance.initials"></div>
-                                </div>
-                            </div>
-                            <div class="min-w-0 text-center lg:text-left">
-                                <div class="inline-flex items-center gap-2 rounded-full bg-emerald-400/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-emerald-300 ring-1 ring-inset ring-emerald-400/25">
-                                    <x-heroicon-m-check class="h-4 w-4" aria-hidden="true" />
-                                    Attendance recorded
-                                </div>
-                                <h1 class="mt-4 truncate text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl" x-text="result.attendance && result.attendance.name"></h1>
-                                <p class="mt-2 font-mono text-sm tracking-wide text-slate-400" x-text="result.attendance && result.attendance.identifier"></p>
-                                <div class="mt-5 flex flex-wrap justify-center gap-2 lg:justify-start">
-                                    <span class="rounded-full bg-white/5 px-3 py-1 text-xs font-semibold text-slate-300 ring-1 ring-inset ring-white/10" x-text="result.attendance && result.attendance.role"></span>
-                                    <span x-show="result.attendance && result.attendance.department" class="rounded-full bg-white/5 px-3 py-1 text-xs font-semibold text-slate-300 ring-1 ring-inset ring-white/10" x-text="result.attendance && result.attendance.department"></span>
-                                    <span x-show="result.attendance && result.attendance.course_section" class="rounded-full bg-white/5 px-3 py-1 text-xs font-semibold text-slate-300 ring-1 ring-inset ring-white/10" x-text="result.attendance && result.attendance.course_section"></span>
-                                </div>
-                                <div x-show="result.attendance && (result.attendance.subject || result.attendance.schedule || result.attendance.event)" class="mt-6 rounded-2xl border border-white/10 bg-white/[0.035] p-4 sm:p-5">
-                                    <p x-show="result.attendance && result.attendance.event" class="text-base font-semibold" x-text="result.attendance && result.attendance.event"></p>
-                                    <p x-show="result.attendance && result.attendance.subject" class="text-base font-semibold" x-text="result.attendance ? `${result.attendance.subject_code || ''} ${result.attendance.subject || ''}`.trim() : ''"></p>
-                                    <p x-show="result.attendance && result.attendance.schedule" class="mt-1.5 text-sm text-slate-400" x-text="result.attendance && result.attendance.schedule"></p>
-                                </div>
-                                <div class="mt-6 flex flex-col items-center gap-4 sm:flex-row sm:justify-center lg:justify-start">
-                                    <div class="rounded-2xl px-5 py-3 text-center ring-1 ring-inset" :class="result.attendance && result.attendance.status === 'late' ? 'bg-amber-400/10 text-amber-300 ring-amber-400/25' : 'bg-emerald-400/10 text-emerald-300 ring-emerald-400/25'">
-                                        <p class="text-2xl font-bold uppercase tracking-wide" x-text="result.attendance && result.attendance.status_label"></p>
-                                        <p class="mt-0.5 text-xs font-medium opacity-80" x-text="result.attendance && result.attendance.attendance_type_label"></p>
-                                    </div>
-                                    <div class="text-center sm:text-left">
-                                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Scan time</p>
-                                        <p class="mt-1 text-sm font-semibold text-slate-200" x-text="result.attendance && result.attendance.scan_time"></p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div x-show="state === 'error'" x-cloak x-transition.opacity.duration.250ms>
-                        <div class="mx-auto max-w-xl text-center">
-                            <div class="mx-auto grid h-24 w-24 place-items-center rounded-full bg-red-400/10 text-red-300 ring-1 ring-inset ring-red-400/25">
-                                <x-heroicon-o-x-mark class="h-11 w-11" aria-hidden="true" />
-                            </div>
-                            <p class="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-red-300">Attendance not recorded</p>
-                            <h1 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Scan rejected</h1>
-                            <p class="mx-auto mt-4 max-w-lg text-base leading-7 text-slate-300" x-text="result.message"></p>
-                            <p class="mt-7 text-xs text-slate-600">The scanner will reset automatically.</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <footer class="flex min-h-8 items-center justify-center text-center text-[11px] text-slate-700">
-                <span x-show="pendingScans.length" x-text="`${pendingScans.length} scan${pendingScans.length === 1 ? '' : 's'} queued`"></span>
-            </footer>
-        </div>
-    </main>
-
-    <style>
-        [x-cloak] { display: none !important; }
-        @keyframes scanner-sweep { 0%, 100% { top: 2rem; opacity: .35; } 50% { top: calc(100% - 2rem); opacity: 1; } }
-        .scanner-line { animation: scanner-sweep 3.2s ease-in-out infinite; }
-        @media (prefers-reduced-motion: reduce) { .scanner-line { animation: none; top: 50%; } }
-    </style>
-
-    <script>
-        function attendanceScanner() {
-            return {
-                qrCode: '', location: localStorage.getItem('iqamsScannerLocation') || '', state: 'ready', processing: false,
-                pendingScans: [], idleTimer: null, resetTimer: null,
-                idleSubmitMilliseconds: @js(config('attendance.scanner_idle_submit_milliseconds')),
-                result: { message: '', attendance: null },
-                initialize() {
-                    this.focusInput();
-                    window.addEventListener('focus', () => this.focusInput());
-                    document.addEventListener('visibilitychange', () => { if (!document.hidden) this.focusInput(); });
-                },
-                focusInput() { this.$nextTick(() => this.$refs.qrInput?.focus({ preventScroll: true })); },
-                restoreFocus(event = null) {
-                    if (event?.relatedTarget?.id === 'scanner-location') return;
-                    setTimeout(() => this.focusInput(), 0);
-                },
-                markInput() {
-                    clearTimeout(this.idleTimer);
-                    if (!this.qrCode.trim()) return;
-                    this.idleTimer = setTimeout(() => this.queueScan(), this.idleSubmitMilliseconds);
-                },
-                queueScan() {
-                    clearTimeout(this.idleTimer);
-                    const value = String(this.qrCode || '').trim();
-                    this.qrCode = ''; this.idleTimer = null;
-                    if (!value) return;
-                    if (value.length < 2) return this.showError('The scanned QR value is too short.');
-                    clearTimeout(this.resetTimer);
-                    this.pendingScans.push(value);
-                    this.processNextScan();
-                },
-                showError(message) {
-                    this.result = { message, attendance: null };
-                    this.state = 'error';
-                    this.scheduleReset(1000);
-                    this.focusInput();
-                },
-                saveLocation() { localStorage.setItem('iqamsScannerLocation', this.location); },
-                scheduleReset(delay) {
-                    clearTimeout(this.resetTimer);
-                    this.resetTimer = setTimeout(() => {
-                        if (this.processing || this.pendingScans.length) return;
-                        this.result = { message: '', attendance: null };
-                        this.state = 'ready';
-                        this.focusInput();
-                    }, delay);
-                },
-                async processNextScan() {
-                    if (this.processing || !this.pendingScans.length) return;
-                    clearTimeout(this.resetTimer);
-                    this.processing = true; this.state = 'processing'; this.result = { message: '', attendance: null };
-                    const value = this.pendingScans.shift();
-                    this.saveLocation();
-                    try {
-                        const response = await fetch(@js(route('attendance-scanner.store')), {
-                            method: 'POST',
-                            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
-                            body: JSON.stringify({ qr_code: value, scanner_location: this.location || null }),
-                        });
-                        const data = await response.json().catch(() => ({}));
-                        const validationMessage = Object.values(data.errors || {}).flat()[0];
-                        if (!response.ok) throw new Error(validationMessage || data.message || 'Attendance could not be recorded.');
-                        this.result = { message: data.message, attendance: data.attendance };
-                        this.state = 'success';
-                        this.scheduleReset(1000);
-                    } catch (error) {
-                        const message = error instanceof TypeError ? 'The scanner could not reach the server. Check the network connection and scan again.' : error.message;
-                        this.result = { message, attendance: null };
-                        this.state = 'error';
-                        this.scheduleReset(1000);
-                    } finally {
-                        this.processing = false;
-                        this.focusInput();
-                        if (this.pendingScans.length) setTimeout(() => this.processNextScan(), 50);
-                    }
-                },
-            };
-        }
-    </script>
+@if($terminal)
+<script>
+function scannerApp() {
+    return {
+        qr: '', state: 'ready', busy: false, resetTimer: null,
+        result: { code: '', title: '', message: '', person: null, attendance: null },
+        get resultClass() { if (this.result.code === 'recorded') return 'text-emerald-700'; if (this.result.code === 'already_recorded') return 'text-amber-700'; return 'text-red-700'; },
+        get attendanceLabel() { const value = this.result.attendance?.period || this.result.attendance?.type || ''; return value.replaceAll('_', ' '); },
+        get statusLabel() { const status = this.result.attendance?.status || ''; return status === 'present' ? 'On Time' : status.replaceAll('_', ' '); },
+        focus() { this.$nextTick(() => this.$refs.qr?.focus()); },
+        async scan() {
+            const value = this.qr.trim(); this.qr = '';
+            if (!value || this.busy || this.state !== 'ready') return;
+            this.busy = true; this.state = 'processing';
+            try {
+                const response = await fetch(@js(route('attendance-scanner.scan')), { method: 'POST', headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content }, body: JSON.stringify({ qr_code: value }) });
+                const data = await response.json().catch(() => ({}));
+                this.showResult(data.code ? data : { code: 'rejected', title: 'Attendance Not Recorded', message: data.message || 'The scanner request failed.', person: null, attendance: null });
+            } catch (error) { this.showResult({ code: 'rejected', title: 'Scanner Unavailable', message: 'Unable to reach the attendance server. Please try again.', person: null, attendance: null }); }
+        },
+        showResult(result) { this.result = result; this.state = 'result'; clearTimeout(this.resetTimer); this.resetTimer = setTimeout(() => this.reset(), 5000); },
+        reset() { clearTimeout(this.resetTimer); this.qr = ''; this.result = { code: '', title: '', message: '', person: null, attendance: null }; this.busy = false; this.state = 'ready'; this.focus(); },
+    };
+}
+</script>
+@endif
 </x-scanner-layout>

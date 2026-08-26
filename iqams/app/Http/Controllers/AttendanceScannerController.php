@@ -2,134 +2,195 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\AttendanceAlreadyRecordedException;
 use App\Models\AttendanceLog;
+use App\Models\ScannerTerminal;
+use App\Services\AccountStatusService;
 use App\Services\QrAttendanceService;
-use Illuminate\Database\QueryException;
+use App\Services\QrIdentityResolver;
+use App\Services\ScanSecurityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class AttendanceScannerController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        return view('attendance-scanner.index');
+        $terminals = ScannerTerminal::where('is_active', true)->orderBy('name')->get();
+        $terminal = $terminals->firstWhere('id', (int) $request->session()->get('scanner_terminal_id'));
+
+        return view('attendance-scanner.index', compact('terminals', 'terminal'));
     }
 
-    public function store(Request $request, QrAttendanceService $attendance): JsonResponse
+    public function selectTerminal(Request $request)
     {
-        $validated = $request->validate([
-            'qr_code' => ['required', 'string', 'min:2', 'max:255', 'regex:/^[^\x00-\x1F\x7F]+$/u'],
-            'scanner_location' => ['nullable', 'string', 'max:255'],
-        ], [
-            'qr_code.required' => 'The scanner did not send a QR value.',
-            'qr_code.min' => 'The scanned QR value is too short.',
-            'qr_code.regex' => 'The scanned QR value has an invalid format.',
+        $validated = $request->validate(['scanner_terminal_id' => ['required', 'exists:scanner_terminals,id']]);
+        $terminal = ScannerTerminal::whereKey($validated['scanner_terminal_id'])->where('is_active', true)->firstOrFail();
+        $request->session()->put('scanner_terminal_id', $terminal->id);
+
+        return redirect()->route('attendance-scanner.index');
+    }
+
+    public function scan(
+        Request $request,
+        QrIdentityResolver $resolver,
+        QrAttendanceService $attendance,
+        ScanSecurityService $security,
+    ): JsonResponse {
+        try {
+            $validated = $request->validate([
+                'qr_code' => ['required', 'string', 'min:2', 'max:255', 'regex:/^[^\x00-\x1F\x7F]+$/u'],
+            ]);
+            $qrCode = trim($validated['qr_code']);
+            $resolved = $resolver->resolveWithMetadata($qrCode);
+        } catch (ValidationException $exception) {
+            $message = collect($exception->errors())->flatten()->first() ?? 'QR code rejected.';
+            $security->audit($request, str_contains(strtolower($message), 'revoked') ? 'revoked' : 'invalid', [
+                'failure_category' => 'credential_rejected',
+            ]);
+
+            return $this->result('rejected', 'Invalid QR Code', $message, status: 422);
+        }
+
+        $terminal = $request->attributes->get('scanner_terminal');
+        $user = $resolved['user']->loadMissing([
+            'role', 'student.course.department', 'instructor.department', 'nonTeachingStaff.department',
         ]);
+        $credentialType = $resolved['is_legacy'] ? 'legacy' : 'random';
 
         try {
-            $log = $attendance->record(
-                $validated['qr_code'],
-                $validated['scanner_location'] ?? null,
+            $log = $attendance->record($qrCode, $terminal->location);
+        } catch (AttendanceAlreadyRecordedException $exception) {
+            $security->audit($request, 'duplicate', [
+                'user_id' => $user->id,
+                'attendance_log_id' => $exception->attendanceLog->id,
+                'failure_category' => 'attendance_already_recorded',
+                'credential_type' => $credentialType,
+            ]);
+
+            return $this->result(
+                'already_recorded', 'Already Recorded',
+                collect($exception->errors())->flatten()->first() ?? 'Attendance has already been recorded.',
+                $user, $exception->attendanceLog,
             );
-        } catch (QueryException $exception) {
-            report($exception);
+        } catch (ValidationException $exception) {
+            $message = collect($exception->errors())->flatten()->first() ?? 'Attendance rejected.';
+            $inactive = $message === AccountStatusService::INACTIVE_MESSAGE;
+            $security->audit($request, $inactive ? 'inactive' : 'rejected', [
+                'user_id' => $user->id,
+                'failure_category' => $inactive ? 'account_inactive' : 'attendance_rejected',
+                'credential_type' => $credentialType,
+            ]);
 
-            return response()->json([
-                'message' => 'Attendance could not be saved because of a database error. Please scan again or contact the administrator.',
-            ], 500);
+            return $this->result(
+                $inactive ? 'account_inactive' : 'rejected',
+                $inactive ? 'Account Inactive' : 'Attendance Not Recorded',
+                $message, $user, status: 422,
+            );
         }
 
-        $formatted = $this->formatLog($log);
-        $message = $log->school_event_id
-            ? $formatted['name'].' - '.$formatted['event'].' - '.$formatted['status_label']
-            : ($log->schedule_id
-                ? 'Attendance recorded as '.$formatted['status_label'].'.'
-                : $formatted['name'].' - '.$formatted['attendance_type_label'].' - '.$formatted['status_label']);
+        $terminal->update(['last_used_at' => now()]);
+        $security->audit($request, 'recorded', [
+            'user_id' => $log->user_id,
+            'attendance_log_id' => $log->id,
+            'credential_type' => $credentialType,
+        ]);
 
+        return $this->result(
+            'recorded', 'Attendance Recorded', 'Attendance was recorded successfully.',
+            $user, $log, 201,
+        );
+    }
+
+    private function person($user): array
+    {
+        $profile = $user->student ?? $user->instructor ?? $user->nonTeachingStaff;
+        $department = $user->student?->course?->department
+            ?? $user->instructor?->department
+            ?? $user->nonTeachingStaff?->department;
+        $name = $profile && method_exists($profile, 'fullName') ? $profile->fullName() : $user->name;
+        $name = $name ?: $user->name;
+        $name = preg_replace('/\s+/u', ' ', trim($name));
+
+        $roleName = strtolower((string) $user->role?->role_name);
+        $role = match ($roleName) {
+            'student' => 'Student',
+            'instructor' => 'Instructor',
+            'staff', 'non-teaching staff', 'non_teaching_staff' => 'Non-Teaching Staff',
+            default => ucfirst($roleName),
+        };
+
+        $details = match ($roleName) {
+            'student' => [
+                ['label' => 'Department', 'value' => $department?->department_name ?? $department?->department_code ?? 'Not assigned'],
+                ['label' => 'Course', 'value' => $user->student?->course?->course_name ?? 'Not assigned'],
+                ['label' => 'Year Level', 'value' => $this->yearLevel($user->student?->year_level)],
+            ],
+            'instructor' => [
+                ['label' => 'Department', 'value' => $department?->department_name ?? $department?->department_code ?? 'Not assigned'],
+                ['label' => 'Employee ID', 'value' => $user->instructor?->employee_no ?? 'Not assigned'],
+                ['label' => 'Position', 'value' => 'Instructor'],
+            ],
+            default => [
+                ['label' => 'Department', 'value' => $department?->department_name ?? $department?->department_code ?? 'Not assigned'],
+                ['label' => 'Employee ID', 'value' => $user->nonTeachingStaff?->employee_no ?? 'Not assigned'],
+                ['label' => 'Position', 'value' => 'Non-Teaching Staff'],
+            ],
+        };
+
+        return [
+            'id' => $user->id,
+            'name' => $name,
+            'identifier' => $profile?->student_no ?? $profile?->employee_no ?? $user->username,
+            'role' => $role,
+            'department' => $department?->department_name ?? $department?->department_code ?? 'N/A',
+            'details' => $details,
+            'avatar' => $user->avatar_url,
+            'initials' => collect(explode(' ', $name))->filter()->take(2)
+                ->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))->implode(''),
+        ];
+    }
+
+    private function yearLevel(?int $year): string
+    {
+        if (! $year) {
+            return 'Not assigned';
+        }
+
+        $suffix = match (true) {
+            $year % 100 >= 11 && $year % 100 <= 13 => 'th',
+            $year % 10 === 1 => 'st',
+            $year % 10 === 2 => 'nd',
+            $year % 10 === 3 => 'rd',
+            default => 'th',
+        };
+
+        return "{$year}{$suffix} Year";
+    }
+
+    private function result(
+        string $code,
+        string $title,
+        string $message,
+        $user = null,
+        ?AttendanceLog $log = null,
+        int $status = 200,
+    ): JsonResponse {
         return response()->json([
+            'code' => $code,
+            'title' => $title,
             'message' => $message,
-            'attendance' => $formatted,
-        ], 201);
-    }
-
-    private function formatLog(AttendanceLog $log): array
-    {
-        $log->loadMissing($this->relations());
-        $user = $log->user;
-        $student = $user?->student;
-        $instructor = $user?->instructor;
-        $staff = $user?->nonTeachingStaff;
-        $role = strtolower($user?->role?->role_name ?? 'unknown');
-        $department = $instructor?->department?->department_name
-            ?? $student?->course?->department?->department_name
-            ?? ($role === 'staff' ? 'Administration' : null);
-        $identifier = $student?->student_no
-            ?? $instructor?->employee_no
-            ?? $staff?->employee_no
-            ?? $user?->username;
-        $schedule = $log->schedule;
-
-        return [
-            'id' => $log->id,
-            'user_id' => $user?->id,
-            'identifier' => $identifier,
-            'name' => $user?->name ?? 'Unknown user',
-            'avatar' => $user?->avatar_url,
-            'initials' => collect(explode(' ', $user?->name ?? '?'))->filter()->take(2)
-                ->map(fn (string $part) => mb_strtoupper(mb_substr($part, 0, 1)))->implode(''),
-            'role' => match ($role) {
-                'student' => 'Student',
-                'instructor' => 'Teaching Personnel',
-                'staff' => 'Non-teaching Personnel',
-                default => ucfirst($role),
-            },
-            'department' => $department,
-            'course_section' => $student
-                ? collect([$student->course?->course_code, $student->section?->section_name])->filter()->implode(' / ')
-                : null,
-            'subject' => $schedule?->subject?->subject_name,
-            'subject_code' => $schedule?->subject?->subject_code,
-            'schedule' => $schedule
-                ? ucfirst($schedule->day).' · '.Carbon::parse($schedule->start_time)->format('g:i A').'–'.Carbon::parse($schedule->end_time)->format('g:i A').' · '.$schedule->room
-                : null,
-            'event' => $log->schoolEvent?->title,
-            'attendance_type' => $log->attendance_type,
-            'attendance_type_label' => $this->attendanceLabel($log),
-            'status' => $log->status,
-            'status_label' => ucfirst($log->status),
-            'punctuality_status' => $log->punctuality_status,
-            'punctuality_label' => str($log->punctuality_status ?? 'on_time')->replace('_', ' ')->title()->toString(),
-            'scan_time' => $log->scan_time->format('M d, Y g:i:s A'),
-        ];
-    }
-
-    private function relations(): array
-    {
-        return [
-            'user.role',
-            'user.student.section',
-            'user.student.course.department',
-            'user.instructor.department',
-            'user.nonTeachingStaff',
-            'schedule.subject',
-            'schedule.section',
-            'schoolEvent',
-        ];
-    }
-
-    private function attendanceLabel(AttendanceLog $log): string
-    {
-        if ($log->attendance_period) {
-            $role = strtolower($log->user?->role?->role_name ?? '');
-            $label = config("attendance.personnel_windows.{$role}.{$log->attendance_period}.label");
-
-            if ($label) {
-                return $label;
-            }
-        }
-
-        return str_replace('_', ' ', ucfirst($log->attendance_type));
+            'person' => $user ? $this->person($user) : null,
+            'attendance' => $log ? [
+                'id' => $log->id,
+                'status' => $log->status,
+                'type' => $log->attendance_type,
+                'period' => $log->attendance_period,
+                'recorded_time' => $log->scan_time->timezone(config('app.timezone'))->format('M d, Y g:i:s A'),
+                'display_time' => $log->scan_time->timezone(config('app.timezone'))->format('g:i A'),
+            ] : null,
+        ], $status)->header('Cache-Control', 'no-store');
     }
 }

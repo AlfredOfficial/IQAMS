@@ -70,6 +70,11 @@ class User extends Authenticatable
         return $this->hasMany(AttendanceLog::class);
     }
 
+    public function qrCredentials(): HasMany
+    {
+        return $this->hasMany(QrCredential::class);
+    }
+
     public function leaveRequests(): HasMany
     {
         return $this->hasMany(LeaveRequest::class);

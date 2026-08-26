@@ -6,6 +6,10 @@ return [
     'duplicate_cooldown_seconds' => (int) env('ATTENDANCE_DUPLICATE_COOLDOWN_SECONDS', 5),
     'personnel_daily_scan_limit' => (int) env('ATTENDANCE_PERSONNEL_DAILY_SCAN_LIMIT', 4),
     'scanner_idle_submit_milliseconds' => (int) env('ATTENDANCE_SCANNER_IDLE_SUBMIT_MS', 350),
+    'legacy_qr_cutoff' => env('ATTENDANCE_LEGACY_QR_CUTOFF'),
+    'preview_ttl_seconds' => (int) env('ATTENDANCE_PREVIEW_TTL_SECONDS', 30),
+    'scanner_scan_rate' => (int) env('ATTENDANCE_SCANNER_SCAN_RATE', 120),
+    'invalid_scan_threshold' => (int) env('ATTENDANCE_INVALID_SCAN_THRESHOLD', 5),
 
     'personnel_windows' => [
         'instructor' => [

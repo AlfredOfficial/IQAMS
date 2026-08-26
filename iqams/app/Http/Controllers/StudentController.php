@@ -7,12 +7,11 @@ use App\Models\Role;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\QrCredentialService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
-
-use Illuminate\Http\Request;
 
 class StudentController extends Controller
 {
@@ -50,43 +49,44 @@ class StudentController extends Controller
             'student_no' => 'required|string|max:50|unique:students,student_no|unique:users,username',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
-            'middle_name' => 'nullable|string|max:255', 
+            'middle_name' => 'nullable|string|max:255',
             'email' => 'required|email|unique:users,email',
             'avatar' => 'required|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
         $avatarPath = $request->file('avatar')->store('avatars', 'public');
 
-        $plainPassword = 'Student@' . $validated['student_no'];
+        $plainPassword = 'Student@'.$validated['student_no'];
 
         try {
-        DB::transaction(function () use ($validated, $plainPassword, $avatarPath) {
+            DB::transaction(function () use ($validated, $plainPassword, $avatarPath) {
 
-            $studentRole = Role::where('role_name', 'student')->firstOrFail();
+                $studentRole = Role::where('role_name', 'student')->firstOrFail();
 
-            $user = User::create([
-                'role_id' => $studentRole->id,
-                'username' => $validated['student_no'],
-                'name' => $validated['first_name'] . ' ' . $validated['last_name'],
-                'email' => $validated['email'],
-                'avatar_path' => $avatarPath,
-                'password' => Hash::make($plainPassword),
-                'status' => 'active',
-                'email_verified_at' => now(),
-            ]);
+                $user = User::create([
+                    'role_id' => $studentRole->id,
+                    'username' => $validated['student_no'],
+                    'name' => $validated['first_name'].' '.$validated['last_name'],
+                    'email' => $validated['email'],
+                    'avatar_path' => $avatarPath,
+                    'password' => Hash::make($plainPassword),
+                    'status' => 'active',
+                    'email_verified_at' => now(),
+                ]);
 
-            Student::create([
-                'user_id' => $user->id,
-                'student_no' => $validated['student_no'],
-                'first_name' => $validated['first_name'], 
-                'last_name' => $validated['last_name'],
-                'middle_name' => $validated['middle_name'] ?? null,
-                'section_id' => $validated['section_id'] ?? null,
-                'course_id' => $validated['course_id'],
-                'status' => 'active',
-                'qr_code' => $validated['student_no'],
-            ]);
-        });
+                Student::create([
+                    'user_id' => $user->id,
+                    'student_no' => $validated['student_no'],
+                    'first_name' => $validated['first_name'],
+                    'last_name' => $validated['last_name'],
+                    'middle_name' => $validated['middle_name'] ?? null,
+                    'section_id' => $validated['section_id'] ?? null,
+                    'course_id' => $validated['course_id'],
+                    'status' => 'active',
+                    'qr_code' => $validated['student_no'],
+                ]);
+                app(QrCredentialService::class)->issue($user);
+            });
         } catch (\Throwable $exception) {
             Storage::disk('public')->delete($avatarPath);
             throw $exception;
@@ -128,22 +128,26 @@ class StudentController extends Controller
 
         $oldAvatarPath = $student->user->avatar_path;
         $newAvatarPath = $request->hasFile('avatar') ? $request->file('avatar')->store('avatars', 'public') : null;
- 
+
         try {
             DB::transaction(function () use ($validated, $student, $newAvatarPath) {
                 $student->update($validated);
                 $student->user->update(array_filter([
-                    'name' => $validated['first_name'] . ' ' . $validated['last_name'],
+                    'name' => $validated['first_name'].' '.$validated['last_name'],
                     'avatar_path' => $newAvatarPath,
                 ], fn ($value) => $value !== null));
             });
         } catch (\Throwable $exception) {
-            if ($newAvatarPath) Storage::disk('public')->delete($newAvatarPath);
+            if ($newAvatarPath) {
+                Storage::disk('public')->delete($newAvatarPath);
+            }
             throw $exception;
         }
 
-        if ($newAvatarPath && $oldAvatarPath) Storage::disk('public')->delete($oldAvatarPath);
- 
+        if ($newAvatarPath && $oldAvatarPath) {
+            Storage::disk('public')->delete($oldAvatarPath);
+        }
+
         return redirect()->route('students.index')->with('success', 'Student updated successfully.');
     }
 

@@ -61,5 +61,6 @@
                 </div>
             </section>
         </main>
+        <x-logout-confirmation />
     </body>
 </html>

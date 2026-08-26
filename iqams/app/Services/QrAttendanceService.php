@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\AttendanceAlreadyRecordedException;
 use App\Models\AttendanceLog;
 use App\Models\Schedule;
 use App\Models\SchoolEvent;
@@ -107,7 +108,10 @@ class QrAttendanceService
                 return $existing->load(['user.role', 'schedule.subject', 'schedule.section']);
             }
 
-            $this->deny('Attendance already recorded for this subject.');
+            throw AttendanceAlreadyRecordedException::forLog(
+                $existing->load(['user.role', 'schedule.subject', 'schedule.section']),
+                'Attendance already recorded for this subject.',
+            );
         }
 
         $status = $this->studentWindow->status($schedule, $scannedAt);
@@ -124,6 +128,15 @@ class QrAttendanceService
             ])->load(['user.role', 'schedule.subject', 'schedule.section']);
         } catch (QueryException $exception) {
             if ($this->isUniqueConstraintViolation($exception)) {
+                $existing = AttendanceLog::where('scan_key', $scanKey)->first();
+
+                if ($existing) {
+                    throw AttendanceAlreadyRecordedException::forLog(
+                        $existing->load(['user.role', 'schedule.subject', 'schedule.section']),
+                        'Attendance already recorded for this subject.',
+                    );
+                }
+
                 $this->deny('Attendance already recorded for this subject.');
             }
 
@@ -144,7 +157,10 @@ class QrAttendanceService
 
                 return $existing->load(['user.role', 'schoolEvent']);
             }
-            $this->deny('Attendance already recorded for this school event.');
+            throw AttendanceAlreadyRecordedException::forLog(
+                $existing->load(['user.role', 'schoolEvent']),
+                'Attendance already recorded for this school event.',
+            );
         }
 
         return AttendanceLog::create([
@@ -182,7 +198,10 @@ class QrAttendanceService
             : null;
 
         if ($latestLocalTime && abs($latestLocalTime->getTimestamp() - $scannedAt->getTimestamp()) < $cooldown) {
-            $this->deny("Please wait {$cooldown} seconds before scanning this QR code again.");
+            throw AttendanceAlreadyRecordedException::forLog(
+                $latest->load('user.role'),
+                "Please wait {$cooldown} seconds before scanning this QR code again.",
+            );
         }
 
         $stages = config("attendance.personnel_windows.{$role}", []);
@@ -190,7 +209,10 @@ class QrAttendanceService
         $limit = min(config('attendance.personnel_daily_scan_limit'), count($stageNames));
 
         if ($todayLogs->count() >= $limit) {
-            $this->deny('All required attendance scans for today have already been completed.');
+            throw AttendanceAlreadyRecordedException::forLog(
+                $latest->load('user.role'),
+                'All required attendance scans for today have already been completed.',
+            );
         }
 
         if ($role === 'instructor') {
@@ -204,7 +226,11 @@ class QrAttendanceService
             $stage = $period ? $stages[$period] : null;
 
             if ($period && $todayLogs->contains('attendance_period', $period)) {
-                $this->deny("{$stage['label']} has already been recorded.");
+                $existing = $todayLogs->firstWhere('attendance_period', $period);
+                throw AttendanceAlreadyRecordedException::forLog(
+                    $existing->load('user.role'),
+                    "{$stage['label']} has already been recorded.",
+                );
             }
         } else {
             $period = $stageNames[$todayLogs->count()] ?? null;

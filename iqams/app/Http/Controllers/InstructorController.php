@@ -6,11 +6,11 @@ use App\Models\Department;
 use App\Models\Instructor;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\QrCredentialService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class InstructorController extends Controller
 {
@@ -53,36 +53,37 @@ class InstructorController extends Controller
 
         $avatarPath = $request->file('avatar')->store('avatars', 'public');
 
-        $plainPassword = 'Instructor@' . $validated['employee_no'];
+        $plainPassword = 'Instructor@'.$validated['employee_no'];
 
         try {
-        DB::transaction(function () use ($validated, $plainPassword, $avatarPath){
-            $instructorRole = Role::where('role_name', 'instructor')->firstOrFail();
+            DB::transaction(function () use ($validated, $plainPassword, $avatarPath) {
+                $instructorRole = Role::where('role_name', 'instructor')->firstOrFail();
 
-            $user = User::create([
-                'role_id' => $instructorRole->id,
-                'username' => $validated['employee_no'],
-                'name' => Instructor::formatFullName($validated),
-                'email' => $validated['email'],
-                'avatar_path' => $avatarPath,
-                'password' => Hash::make($plainPassword),
-                'status' => 'active', 
-                'email_verified_at' => now(),
-            ]);
+                $user = User::create([
+                    'role_id' => $instructorRole->id,
+                    'username' => $validated['employee_no'],
+                    'name' => Instructor::formatFullName($validated),
+                    'email' => $validated['email'],
+                    'avatar_path' => $avatarPath,
+                    'password' => Hash::make($plainPassword),
+                    'status' => 'active',
+                    'email_verified_at' => now(),
+                ]);
 
-            Instructor::create([
-                'user_id' => $user->id,
-                'department_id' => $validated['department_id'],
-                'employee_no' => $validated['employee_no'],
-                'name_prefix' => $validated['name_prefix'] ?? null,
-                'first_name' => $validated['first_name'],
-                'middle_name' => $validated['middle_name'] ?? null,
-                'last_name' => $validated['last_name'],
-                'professional_credentials' => $validated['professional_credentials'] ?? null,
-                'qr_code' =>  $validated['employee_no'],
-            ]);
+                Instructor::create([
+                    'user_id' => $user->id,
+                    'department_id' => $validated['department_id'],
+                    'employee_no' => $validated['employee_no'],
+                    'name_prefix' => $validated['name_prefix'] ?? null,
+                    'first_name' => $validated['first_name'],
+                    'middle_name' => $validated['middle_name'] ?? null,
+                    'last_name' => $validated['last_name'],
+                    'professional_credentials' => $validated['professional_credentials'] ?? null,
+                    'qr_code' => $validated['employee_no'],
+                ]);
+                app(QrCredentialService::class)->issue($user);
 
-        });
+            });
         } catch (\Throwable $exception) {
             Storage::disk('public')->delete($avatarPath);
             throw $exception;
@@ -137,11 +138,15 @@ class InstructorController extends Controller
                 ], fn ($value) => $value !== null));
             });
         } catch (\Throwable $exception) {
-            if ($newAvatarPath) Storage::disk('public')->delete($newAvatarPath);
+            if ($newAvatarPath) {
+                Storage::disk('public')->delete($newAvatarPath);
+            }
             throw $exception;
         }
 
-        if ($newAvatarPath && $oldAvatarPath) Storage::disk('public')->delete($oldAvatarPath);
+        if ($newAvatarPath && $oldAvatarPath) {
+            Storage::disk('public')->delete($oldAvatarPath);
+        }
 
         return redirect()->route('instructors.index')->with('success', 'Instructor updated successfully.');
     }
@@ -151,8 +156,8 @@ class InstructorController extends Controller
      */
     public function destroy(Instructor $instructor)
     {
-        //deleteng the linked User cascades to delete the Instructor roww too
-        //instructors.user_id has cascadesOnDelete in the migration
+        // deleteng the linked User cascades to delete the Instructor roww too
+        // instructors.user_id has cascadesOnDelete in the migration
 
         $instructor->user()->delete();
 

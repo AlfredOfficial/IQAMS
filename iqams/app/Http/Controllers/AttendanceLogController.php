@@ -57,7 +57,7 @@ class AttendanceLogController extends Controller
 
             ->concat(NonTeachingStaff::with('user')->get()->map(fn ($s) => [
                 'user_id' => $s->user_id,
-                'label' => "{$s->first_name} {$s->last_name} (Staff)",
+                'label' => $s->fullName().' (Staff)',
             ]))
             ->sortBy('label')
             ->values();

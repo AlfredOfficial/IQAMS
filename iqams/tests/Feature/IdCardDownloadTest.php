@@ -16,7 +16,7 @@ class IdCardDownloadTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_student_receives_an_id_card_payload_using_their_exact_assigned_qr_code(): void
+    public function test_student_receives_an_id_card_payload_using_a_random_non_identifying_qr_code(): void
     {
         $department = Department::create(['department_code' => 'IS', 'department_name' => 'Information Systems']);
         $course = Course::create(['department_id' => $department->id, 'course_code' => 'BSIS', 'course_name' => 'BS Information Systems']);
@@ -32,7 +32,7 @@ class IdCardDownloadTest extends TestCase
             'status' => 'active',
         ]);
 
-        $this->actingAs($user)->getJson(route('id-card.show'))
+        $response = $this->actingAs($user)->getJson(route('id-card.show'))
             ->assertOk()
             ->assertHeader('Cache-Control', 'no-store, private')
             ->assertJson([
@@ -42,10 +42,11 @@ class IdCardDownloadTest extends TestCase
                 'identifier' => '2026-0001',
                 'department' => 'Information Systems',
                 'year_level' => '3rd Year',
-                'qr_code' => ' EXACT-STUDENT-QR-9f4c ',
                 'filename' => 'STUDENT-2026-0001-IQAMS-ID.png',
             ])
             ->assertJsonPath('avatar_url', asset('storage/avatars/student.png'));
+        $this->assertMatchesRegularExpression('/^IQAMS-[A-Za-z0-9]{43}$/', $response->json('qr_code'));
+        $this->assertNotSame('2026-0001', $response->json('qr_code'));
 
         $this->get(route('student.qr'))
             ->assertOk()
@@ -66,7 +67,7 @@ class IdCardDownloadTest extends TestCase
             'qr_code' => 'EXACT-INSTRUCTOR-QR',
         ]);
 
-        $this->actingAs($user)->getJson(route('id-card.show'))
+        $response = $this->actingAs($user)->getJson(route('id-card.show'))
             ->assertOk()
             ->assertJson([
                 'role' => 'Teaching Personnel',
@@ -74,9 +75,9 @@ class IdCardDownloadTest extends TestCase
                 'identifier' => 'EMP001',
                 'department' => 'Computer Science',
                 'year_level' => null,
-                'qr_code' => 'EXACT-INSTRUCTOR-QR',
                 'filename' => 'INSTRUCTOR-EMP001-IQAMS-ID.png',
             ]);
+        $this->assertStringStartsWith('IQAMS-', $response->json('qr_code'));
 
         $this->get(route('instructor.dashboard'))
             ->assertOk()
@@ -97,7 +98,7 @@ class IdCardDownloadTest extends TestCase
             'qr_code' => 'EXACT-STAFF-QR',
         ]);
 
-        $this->actingAs($user)->getJson(route('id-card.show'))
+        $response = $this->actingAs($user)->getJson(route('id-card.show'))
             ->assertOk()
             ->assertJson([
                 'role' => 'Non-Teaching Personnel',
@@ -105,9 +106,9 @@ class IdCardDownloadTest extends TestCase
                 'identifier' => 'EMP002',
                 'department' => 'Human Resources',
                 'year_level' => null,
-                'qr_code' => 'EXACT-STAFF-QR',
                 'filename' => 'STAFF-EMP002-IQAMS-ID.png',
             ]);
+        $this->assertStringStartsWith('IQAMS-', $response->json('qr_code'));
 
         $this->get(route('staff.dashboard'))
             ->assertOk()
@@ -138,7 +139,7 @@ class IdCardDownloadTest extends TestCase
             ]);
     }
 
-    public function test_missing_qr_code_returns_an_error_instead_of_using_the_identifier(): void
+    public function test_missing_legacy_qr_code_gets_a_random_credential_instead_of_using_the_identifier(): void
     {
         $department = Department::create(['department_code' => 'IT', 'department_name' => 'Information Technology']);
         $user = $this->user('instructor');
@@ -151,9 +152,9 @@ class IdCardDownloadTest extends TestCase
             'qr_code' => null,
         ]);
 
-        $this->actingAs($user)->getJson(route('id-card.show'))
-            ->assertStatus(422)
-            ->assertJson(['message' => 'No QR code is assigned to your account.']);
+        $response = $this->actingAs($user)->getJson(route('id-card.show'))->assertOk();
+        $this->assertStringStartsWith('IQAMS-', $response->json('qr_code'));
+        $this->assertNotSame('EMP-NO-QR', $response->json('qr_code'));
     }
 
     public function test_endpoint_requires_authentication_and_does_not_accept_a_user_identifier(): void

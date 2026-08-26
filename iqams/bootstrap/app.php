@@ -2,6 +2,8 @@
 
 use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\RedirectNonAdminFromProfile;
+use App\Http\Middleware\RequireScannerTerminal;
+use App\Http\Middleware\ThrottleScannerRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'redirect.non-admin.profile' => RedirectNonAdminFromProfile::class,
             'role' => CheckRole::class,
+            'scanner.terminal' => RequireScannerTerminal::class,
+            'scanner.throttle' => ThrottleScannerRequests::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

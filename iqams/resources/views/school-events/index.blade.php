@@ -1,6 +1,24 @@
 <x-app-layout>
     <x-slot name="header"><h2 class="text-xl font-semibold text-gray-800">School Events</h2></x-slot>
-    <div class="py-8" x-data="schoolEventsModal()" @keydown.escape.window="closeModal()">
+    <div class="py-8"
+         x-data="schoolEventsModal(@js([
+             'showModal' => $errors->any() && old('form_context') === 'school_event_modal',
+             'form' => $errors->any() && old('form_context') === 'school_event_modal' ? [
+                 'id' => old('event_id', ''),
+                 'title' => old('title', ''),
+                 'description' => old('description', ''),
+                 'location' => old('location', ''),
+                 'starts_at' => old('starts_at', ''),
+                 'ends_at' => old('ends_at', ''),
+                 'attendance_mode' => old('attendance_mode', 'cancelled'),
+                 'target_scope' => old('target_scope', 'school'),
+                 'section_ids' => array_map('strval', old('section_ids', [])),
+                 'schedule_ids' => array_map('strval', old('schedule_ids', [])),
+             ] : null,
+             'baseUrl' => url('school-events'),
+             'storeUrl' => route('school-events.store'),
+         ]))"
+         @keydown.escape.window="closeModal()">
         <div class="mx-auto max-w-7xl space-y-4 px-4 sm:px-6 lg:px-8">
             @if($errors->any() && old('form_context') !== 'school_event_modal')<div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ $errors->first() }}</div>@endif
             <div class="flex items-center justify-between">
@@ -37,9 +55,12 @@
             </div>
         </div>
 
-        <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" @click.self="closeModal()">
-            <section role="dialog" aria-modal="true" aria-labelledby="school-event-modal-title" class="w-[560px] max-w-full overflow-y-auto rounded-xl bg-white shadow-2xl" style="max-height: 80vh; padding: 24px;">
-                <div class="mb-5 flex items-center justify-between">
+        <div x-show="showModal" x-cloak
+             class="fixed inset-y-0 right-0 left-0 z-50 flex items-center justify-center bg-black/40 p-4 lg:left-[260px]"
+             :class="sidebarCollapsed ? 'lg:!left-[80px]' : 'lg:!left-[260px]'"
+             @click.self="closeModal()">
+            <section role="dialog" aria-modal="true" aria-labelledby="school-event-modal-title" class="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+                <div class="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
                     <h3 id="school-event-modal-title" class="text-lg font-semibold text-gray-900" x-text="editing ? 'Edit School Event' : 'New School Event'"></h3>
                     <button type="button" @click="closeModal()" class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700" aria-label="Close modal"><x-heroicon-o-x-mark class="h-5 w-5" /></button>
                 </div>
@@ -48,23 +69,4 @@
         </div>
     </div>
 
-    <script>
-        function schoolEventsModal() {
-            const empty = () => ({ id: '', title: '', description: '', location: '', starts_at: '', ends_at: '', attendance_mode: 'cancelled', target_scope: 'school', section_ids: [], schedule_ids: [] });
-            return {
-                showModal: @js($errors->any() && old('form_context') === 'school_event_modal'),
-                form: @js($errors->any() && old('form_context') === 'school_event_modal' ? [
-                    'id' => old('event_id', ''), 'title' => old('title', ''), 'description' => old('description', ''),
-                    'location' => old('location', ''), 'starts_at' => old('starts_at', ''), 'ends_at' => old('ends_at', ''),
-                    'attendance_mode' => old('attendance_mode', 'cancelled'), 'target_scope' => old('target_scope', 'school'),
-                    'section_ids' => array_map('strval', old('section_ids', [])), 'schedule_ids' => array_map('strval', old('schedule_ids', [])),
-                ] : null) || empty(),
-                get editing() { return Boolean(this.form.id); },
-                get formAction() { return this.editing ? @js(url('school-events')).concat('/', this.form.id) : @js(route('school-events.store')); },
-                openCreate() { this.form = empty(); this.showModal = true; this.$nextTick(() => document.querySelector('[name=title]')?.focus()); },
-                openEdit(event) { this.form = event; this.showModal = true; this.$nextTick(() => document.querySelector('[name=title]')?.focus()); },
-                closeModal() { this.showModal = false; },
-            };
-        }
-    </script>
 </x-app-layout>

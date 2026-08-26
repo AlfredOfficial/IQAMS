@@ -9,6 +9,7 @@ use App\Models\Instructor;
 use App\Models\LeaveRequest;
 use App\Models\NonTeachingStaff;
 use App\Models\Role;
+use App\Models\ScannerTerminal;
 use App\Models\Schedule;
 use App\Models\SchoolEvent;
 use App\Models\Section;
@@ -477,19 +478,9 @@ class QrAttendanceScannerTest extends TestCase
         $this->actingAs($admin)->get(route('attendance-scanner.index'))
             ->assertOk()
             ->assertSee('IQAMS Attendance Terminal')
-            ->assertSee('Physical QR scanner input')
-            ->assertSee('Attendance not recorded')
-            ->assertSee('Waiting for QR input')
-            ->assertDontSee('Ready to Scan')
-            ->assertDontSee('Scanner Ready')
-            ->assertSee("localStorage.getItem('iqamsScannerLocation')", false)
-            ->assertSee('this.scheduleReset(1000)', false)
-            ->assertSee('this.scheduleReset(1000)', false)
-            ->assertSee("state = 'processing'", false)
-            ->assertSee("state = 'success'", false)
-            ->assertSee("state = 'error'", false)
-            ->assertDontSee('Recent attendance')
-            ->assertDontSee('Dedicated scanner input')
+            ->assertSee('Continuous QR attendance kiosk')
+            ->assertSee('Select this computer')
+            ->assertDontSee('Confirm Attendance')
             ->assertDontSee('Dashboard')
             ->assertDontSee('getUserMedia')
             ->assertDontSee('BarcodeDetector')
@@ -504,42 +495,138 @@ class QrAttendanceScannerTest extends TestCase
         $this->get(route('attendance-scanner.index'))->assertRedirect(route('login'));
     }
 
-    public function test_scanner_endpoint_returns_full_identity_without_recent_attendance(): void
+    public function test_scanner_scan_automatically_records_attendance_and_returns_display_data(): void
     {
         [$studentUser] = $this->studentWithSchedule();
         $adminRole = Role::create(['role_name' => 'admin']);
         $admin = $this->createUser(['role_id' => $adminRole->id]);
         Carbon::setTestNow(Carbon::parse('2026-08-10 08:10:00', 'Asia/Manila'));
+        $terminal = ScannerTerminal::create(['name' => 'Main', 'location' => 'T-D4 Main Desk']);
 
-        $this->actingAs($admin)
-            ->postJson(route('attendance-scanner.store'), [
-                'qr_code' => 'STU-001',
-                'scanner_location' => 'T-D4 Main Desk',
-            ])
+        $this->actingAs($admin)->withSession(['scanner_terminal_id' => $terminal->id])
+            ->postJson(route('attendance-scanner.scan'), ['qr_code' => 'STU-001'])
             ->assertCreated()
-            ->assertJsonPath('attendance.user_id', $studentUser->id)
-            ->assertJsonPath('attendance.identifier', 'STU-001')
-            ->assertJsonPath('attendance.name', $studentUser->name)
-            ->assertJsonPath('attendance.role', 'Student')
-            ->assertJsonPath('attendance.course_section', 'BSIT / BSIT-4A')
-            ->assertJsonPath('attendance.subject', 'Capstone 2')
+            ->assertJsonPath('code', 'recorded')
+            ->assertJsonPath('title', 'Attendance Recorded')
+            ->assertJsonPath('person.id', $studentUser->id)
+            ->assertJsonPath('person.identifier', 'STU-001')
+            ->assertJsonPath('person.role', 'Student')
+            ->assertJsonPath('person.department', 'Information Technology')
+            ->assertJsonPath('person.details.0.label', 'Department')
+            ->assertJsonPath('person.details.1.label', 'Course')
+            ->assertJsonPath('person.details.1.value', 'BS Information Technology')
+            ->assertJsonPath('person.details.2.label', 'Year Level')
             ->assertJsonPath('attendance.status', 'present')
-            ->assertJsonMissingPath('recent_attendance');
+            ->assertJsonPath('attendance.display_time', '8:10 AM')
+            ->assertJsonPath('attendance.recorded_time', 'Aug 10, 2026 8:10:00 AM');
+        $this->assertDatabaseHas('attendance_logs', ['user_id' => $studentUser->id, 'scanner_location' => 'T-D4 Main Desk']);
+        $this->assertNotNull($terminal->fresh()->last_used_at);
+    }
+
+    public function test_scanner_scan_returns_schedule_error_without_recording_before_window_opens(): void
+    {
+        [$studentUser] = $this->studentWithSchedule();
+        $adminRole = Role::create(['role_name' => 'admin']);
+        $admin = $this->createUser(['role_id' => $adminRole->id]);
+        Carbon::setTestNow(Carbon::parse('2026-08-10 07:30:00', 'Asia/Manila'));
+        $terminal = ScannerTerminal::create(['name' => 'Main', 'location' => 'T-D4 Main Desk']);
+
+        $this->actingAs($admin)->withSession(['scanner_terminal_id' => $terminal->id])
+            ->postJson(route('attendance-scanner.scan'), ['qr_code' => 'STU-001'])
+            ->assertUnprocessable()
+            ->assertJsonPath('code', 'rejected')
+            ->assertJsonPath('title', 'Attendance Not Recorded')
+            ->assertJsonPath('person.id', $studentUser->id)
+            ->assertJsonPath('message', 'Attendance scanning opens at 7:45 AM.');
+
+        $this->assertDatabaseCount('attendance_logs', 0);
+    }
+
+    public function test_scanner_duplicate_returns_existing_attendance_time_without_creating_another_log(): void
+    {
+        [$studentUser] = $this->studentWithSchedule();
+        $admin = $this->createUser(['role_id' => Role::create(['role_name' => 'admin'])->id]);
+        $terminal = ScannerTerminal::create(['name' => 'Main', 'location' => 'Main Gate']);
+        Carbon::setTestNow(Carbon::parse('2026-08-10 08:10:00', 'Asia/Manila'));
+
+        $this->actingAs($admin)->withSession(['scanner_terminal_id' => $terminal->id])
+            ->postJson(route('attendance-scanner.scan'), ['qr_code' => 'STU-001'])
+            ->assertCreated();
+
+        Carbon::setTestNow(Carbon::parse('2026-08-10 08:12:00', 'Asia/Manila'));
+        $this->postJson(route('attendance-scanner.scan'), ['qr_code' => 'STU-001'])
+            ->assertOk()
+            ->assertJsonPath('code', 'already_recorded')
+            ->assertJsonPath('title', 'Already Recorded')
+            ->assertJsonPath('attendance.recorded_time', 'Aug 10, 2026 8:10:00 AM');
+
+        $this->assertSame(1, AttendanceLog::where('user_id', $studentUser->id)->count());
+    }
+
+    public function test_scanner_inactive_account_returns_named_result_without_recording(): void
+    {
+        [$studentUser] = $this->studentWithSchedule();
+        $studentUser->update(['status' => 'inactive']);
+        $admin = $this->createUser(['role_id' => Role::create(['role_name' => 'admin'])->id]);
+        $terminal = ScannerTerminal::create(['name' => 'Main', 'location' => 'Main Gate']);
+        Carbon::setTestNow(Carbon::parse('2026-08-10 08:10:00', 'Asia/Manila'));
+
+        $this->actingAs($admin)->withSession(['scanner_terminal_id' => $terminal->id])
+            ->postJson(route('attendance-scanner.scan'), ['qr_code' => 'STU-001'])
+            ->assertUnprocessable()
+            ->assertJsonPath('code', 'account_inactive')
+            ->assertJsonPath('title', 'Account Inactive')
+            ->assertJsonPath('person.id', $studentUser->id);
+
+        $this->assertDatabaseMissing('attendance_logs', ['user_id' => $studentUser->id]);
+    }
+
+    public function test_scanner_records_instructor_and_staff_consecutively(): void
+    {
+        $instructor = $this->createPersonnel('instructor', 'INS-KIOSK');
+        $staff = $this->createPersonnel('staff', 'STAFF-KIOSK');
+        $admin = $this->createUser(['role_id' => Role::create(['role_name' => 'admin'])->id]);
+        $terminal = ScannerTerminal::create(['name' => 'Main', 'location' => 'Main Gate']);
+        Carbon::setTestNow(Carbon::parse('2026-08-10 07:45:00', 'Asia/Manila'));
+
+        $this->actingAs($admin)->withSession(['scanner_terminal_id' => $terminal->id])
+            ->postJson(route('attendance-scanner.scan'), ['qr_code' => 'INS-KIOSK'])
+            ->assertCreated()
+            ->assertJsonPath('code', 'recorded')
+            ->assertJsonPath('person.id', $instructor->id)
+            ->assertJsonPath('person.role', 'Instructor')
+            ->assertJsonPath('person.department', 'General Department')
+            ->assertJsonPath('person.details.1.label', 'Employee ID')
+            ->assertJsonPath('person.details.2.value', 'Instructor');
+
+        $this->postJson(route('attendance-scanner.scan'), ['qr_code' => 'STAFF-KIOSK'])
+            ->assertCreated()
+            ->assertJsonPath('code', 'recorded')
+            ->assertJsonPath('person.id', $staff->id)
+            ->assertJsonPath('person.role', 'Non-Teaching Staff')
+            ->assertJsonPath('person.department', 'N/A')
+            ->assertJsonPath('person.details.1.label', 'Employee ID')
+            ->assertJsonPath('person.details.2.value', 'Non-Teaching Staff');
+
+        $this->assertDatabaseHas('attendance_logs', ['user_id' => $instructor->id, 'attendance_period' => 'morning_in']);
+        $this->assertDatabaseHas('attendance_logs', ['user_id' => $staff->id, 'attendance_period' => 'morning_in']);
     }
 
     public function test_scanner_endpoint_rejects_empty_and_invalid_qr_formats(): void
     {
         $adminRole = Role::create(['role_name' => 'admin']);
         $admin = $this->createUser(['role_id' => $adminRole->id]);
+        $terminal = ScannerTerminal::create(['name' => 'Main', 'location' => 'Main Gate']);
 
-        $this->actingAs($admin)
-            ->postJson(route('attendance-scanner.store'), ['qr_code' => ''])
+        $this->actingAs($admin)->withSession(['scanner_terminal_id' => $terminal->id])
+            ->postJson(route('attendance-scanner.scan'), ['qr_code' => ''])
             ->assertUnprocessable()
-            ->assertJsonStructure(['errors' => ['qr_code']]);
+            ->assertJsonPath('code', 'rejected')
+            ->assertJsonPath('title', 'Invalid QR Code');
 
-        $this->postJson(route('attendance-scanner.store'), ['qr_code' => "ABC\x07"])
+        $this->postJson(route('attendance-scanner.scan'), ['qr_code' => "ABC\x07"])
             ->assertUnprocessable()
-            ->assertJsonStructure(['errors' => ['qr_code']]);
+            ->assertJsonPath('code', 'rejected');
     }
 
     public function test_qr_profile_role_mismatch_is_rejected(): void

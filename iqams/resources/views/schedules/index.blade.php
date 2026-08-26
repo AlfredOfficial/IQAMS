@@ -105,19 +105,20 @@
 
         {{-- Create Schedule Modal --}}
         <div x-show="showCreateModal" x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center px-4"
+             class="fixed inset-y-0 right-0 left-0 z-50 flex items-center justify-center p-4 lg:left-[260px]"
+             :class="sidebarCollapsed ? 'lg:!left-[80px]' : 'lg:!left-[260px]'"
              style="background: rgba(0,0,0,0.4);">
             <div @click.outside="showCreateModal = false"
-                 class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+                 class="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
 
-                <div class="flex items-center justify-between mb-4">
+                <div class="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
                     <h3 class="text-lg font-semibold text-gray-800">Add Schedule</h3>
                     <button @click="showCreateModal = false" class="text-gray-400 hover:text-gray-600">
                         <x-heroicon-o-x-mark class="w-5 h-5" />
                     </button>
                 </div>
 
-                <form method="POST" action="{{ route('schedules.store') }}">
+                <form method="POST" action="{{ route('schedules.store') }}" class="grid min-h-0 gap-x-4 overflow-y-auto px-6 py-5 md:grid-cols-2">
                     @csrf
                     <input type="hidden" name="_form" value="create">
 
@@ -166,7 +167,7 @@
                         @enderror
                     </div>
 
-                    <div class="mb-4">
+                    <div class="mb-4 md:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Days</label>
                         <div class="mb-2 flex flex-wrap gap-2">
                             <button type="button" @click="applyPreset(createDays, 'mwf')" class="rounded-md border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">MWF</button>
@@ -221,7 +222,7 @@
                         @enderror
                     </div>
 
-                    <div class="flex items-center gap-3">
+                    <div class="sticky bottom-0 flex items-center gap-3 border-t border-gray-100 bg-white py-4 md:col-span-2">
                         <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
                             Save Schedule
                         </button>
@@ -235,26 +236,27 @@
 
         {{-- Edit Schedule Modal --}}
         <div x-show="editModal.show" x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center px-4"
+             class="fixed inset-y-0 right-0 left-0 z-50 flex items-center justify-center p-4 lg:left-[260px]"
+             :class="sidebarCollapsed ? 'lg:!left-[80px]' : 'lg:!left-[260px]'"
              style="background: rgba(0,0,0,0.4);">
             <div @click.outside="editModal.show = false"
-                 class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+                 class="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
 
-                <div class="flex items-center justify-between mb-4">
+                <div class="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
                     <h3 class="text-lg font-semibold text-gray-800">Edit Schedule</h3>
                     <button type="button" @click="editModal.show = false" class="text-gray-400 hover:text-gray-600">
                         <x-heroicon-o-x-mark class="w-5 h-5" />
                     </button>
                 </div>
 
-                <form method="POST" :action="'{{ url('schedules') }}/' + editModal.id">
+                <form method="POST" :action="'{{ url('schedules') }}/' + editModal.id" class="grid min-h-0 gap-x-4 overflow-y-auto px-6 py-5 md:grid-cols-2">
                     @csrf
                     @method('PUT')
                     <input type="hidden" name="_form" value="edit">
                     <input type="hidden" name="_schedule_id" :value="editModal.id">
 
                     @if ($errors->any() && old('_form') === 'edit')
-                        <div class="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        <div class="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 md:col-span-2">
                             Please correct the highlighted schedule information.
                         </div>
                     @endif
@@ -295,7 +297,7 @@
                         @if (old('_form') === 'edit') @error('section_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror @endif
                     </div>
 
-                    <div class="mb-4">
+                    <div class="mb-4 md:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Days</label>
                         <div class="mb-2 flex flex-wrap gap-2">
                             <button type="button" @click="applyPreset(editModal.days, 'mwf')" class="rounded-md border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">MWF</button>
@@ -341,7 +343,7 @@
                         @if (old('_form') === 'edit') @error('room')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror @endif
                     </div>
 
-                    <div class="flex items-center gap-3">
+                    <div class="sticky bottom-0 flex items-center gap-3 border-t border-gray-100 bg-white py-4 md:col-span-2">
                         <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
                             Update Schedule
                         </button>

@@ -16,6 +16,7 @@ use App\Http\Controllers\MyProfileController;
 use App\Http\Controllers\NonTeachingStaffController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\ScannerSecurityController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SchoolEventController;
 use App\Http\Controllers\SectionController;
@@ -70,7 +71,15 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('attendance-scanner', [AttendanceScannerController::class, 'index'])->name('attendance-scanner.index');
-    Route::post('attendance-scanner/scan', [AttendanceScannerController::class, 'store'])->name('attendance-scanner.store');
+    Route::post('attendance-scanner/terminal', [AttendanceScannerController::class, 'selectTerminal'])->name('attendance-scanner.terminal');
+    Route::middleware('scanner.terminal')->group(function () {
+        Route::post('attendance-scanner/scan', [AttendanceScannerController::class, 'scan'])->middleware('scanner.throttle:scan')->name('attendance-scanner.scan');
+    });
+    Route::get('scanner-security', [ScannerSecurityController::class, 'index'])->name('scanner-security.index');
+    Route::post('scanner-security/terminals', [ScannerSecurityController::class, 'storeTerminal'])->name('scanner-security.terminals.store');
+    Route::patch('scanner-security/terminals/{terminal}', [ScannerSecurityController::class, 'updateTerminal'])->name('scanner-security.terminals.update');
+    Route::post('scanner-security/users/{user}/qr/regenerate', [ScannerSecurityController::class, 'regenerate'])->name('scanner-security.qr.regenerate');
+    Route::patch('scanner-security/flags/{flag}', [ScannerSecurityController::class, 'reviewFlag'])->name('scanner-security.flags.update');
     Route::resource('departments', DepartmentController::class);
     Route::resource('courses', CourseController::class);
     Route::resource('instructors', InstructorController::class)->except(['create', 'edit', 'show']);
@@ -112,6 +121,7 @@ Route::middleware(['auth', 'role:instructor'])->prefix('instructor')->name('inst
     Route::get('summary', [InstructorAttendanceController::class, 'summary'])->name('summary');
     Route::get('issues', [InstructorAttendanceController::class, 'issues'])->name('issues');
     Route::get('schedule', [InstructorAttendanceController::class, 'schedule'])->name('schedule');
+    Route::get('schedule/{schedule}/attendance', [InstructorAttendanceController::class, 'classAttendance'])->name('schedule.attendance');
 });
 
 require __DIR__.'/auth.php';

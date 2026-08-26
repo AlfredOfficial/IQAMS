@@ -103,6 +103,9 @@
                 <x-heroicon-o-check-badge class="w-5 h-5 shrink-0" aria-hidden="true" />
             </x-slot>
         </x-sidebar-link>
+        <x-sidebar-link :href="route('scanner-security.index')" :active="request()->routeIs('scanner-security.*')" :collapsible="$collapsible" label="Scanner Security">
+            <x-slot name="icon"><x-heroicon-o-shield-check class="h-5 w-5" /></x-slot>
+        </x-sidebar-link>
         <x-sidebar-link :href="route('school-events.index')" :active="request()->routeIs('school-events.*')" :collapsible="$collapsible" label="School Events">
             <x-slot name="icon"><x-heroicon-o-calendar-days class="h-5 w-5" /></x-slot>
         </x-sidebar-link>
@@ -173,7 +176,7 @@
             label="Manage Course"
         >
             <x-slot name="icon">
-                <x-heroicon-o-book-open class="w-5 h-5 shrink-0" aria-hidden="true" />
+                <x-heroicon-o-rectangle-group class="w-5 h-5 shrink-0" aria-hidden="true" />
             </x-slot>
         </x-sidebar-link>
         <x-sidebar-link

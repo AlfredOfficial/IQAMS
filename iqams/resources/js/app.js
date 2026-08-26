@@ -1,8 +1,59 @@
 
 
 import Alpine from 'alpinejs';
+import './qrcode';
 
 window.Alpine = Alpine;
+
+Alpine.data('schoolEventsModal', (initialState = {}) => {
+    const emptyForm = () => ({
+        id: '',
+        title: '',
+        description: '',
+        location: '',
+        starts_at: '',
+        ends_at: '',
+        attendance_mode: 'cancelled',
+        target_scope: 'school',
+        section_ids: [],
+        schedule_ids: [],
+    });
+
+    return {
+        showModal: initialState.showModal ?? false,
+        form: initialState.form ?? emptyForm(),
+
+        get editing() {
+            return Boolean(this.form.id);
+        },
+
+        get formAction() {
+            return this.editing
+                ? `${initialState.baseUrl}/${this.form.id}`
+                : initialState.storeUrl;
+        },
+
+        openCreate() {
+            this.form = emptyForm();
+            this.showModal = true;
+            this.focusTitle();
+        },
+
+        openEdit(event) {
+            this.form = { ...emptyForm(), ...event };
+            this.showModal = true;
+            this.focusTitle();
+        },
+
+        closeModal() {
+            this.showModal = false;
+        },
+
+        focusTitle() {
+            this.$nextTick(() => this.$root.querySelector('[name="title"]')?.focus());
+        },
+    };
+});
 
 Alpine.data('toastNotifications', (initialNotifications = []) => ({
     toasts: [],
@@ -216,6 +267,57 @@ updateLiveClock();
 window.setInterval(updateLiveClock, 1000);
 
 /**
+ * A single delayed loading state for full-page requests and in-app navigation.
+ * The interaction shield is active immediately, but the visual treatment waits
+ * briefly so quick responses do not flash a spinner.
+ */
+const pageLoader = (() => {
+    const SHOW_DELAY = 200;
+    let showTimer = null;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'global-page-loader';
+    overlay.className = 'global-page-loader';
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.innerHTML = `
+        <div class="global-page-loader__indicator" role="status" aria-live="polite">
+            <span class="global-page-loader__spinner" aria-hidden="true"></span>
+            <span class="global-page-loader__label">Loading…</span>
+        </div>
+    `;
+    document.body.append(overlay);
+
+    const start = () => {
+        window.clearTimeout(showTimer);
+        overlay.classList.add('is-active');
+        document.body.setAttribute('aria-busy', 'true');
+
+        showTimer = window.setTimeout(() => {
+            overlay.classList.add('is-visible');
+            overlay.setAttribute('aria-hidden', 'false');
+        }, SHOW_DELAY);
+    };
+
+    const stop = () => {
+        window.clearTimeout(showTimer);
+        overlay.classList.remove('is-visible', 'is-active');
+        overlay.setAttribute('aria-hidden', 'true');
+        document.body.removeAttribute('aria-busy');
+    };
+
+    return { start, stop };
+})();
+
+// Cover the remainder of a genuinely slow initial document/resource load.
+if (document.readyState !== 'complete') {
+    pageLoader.start();
+    window.addEventListener('load', pageLoader.stop, { once: true });
+}
+
+// Restore pages returned from the browser's back-forward cache without a stale overlay.
+window.addEventListener('pageshow', pageLoader.stop);
+
+/**
  * Keep the navigation shell in place when a sidebar link is selected.
  * Laravel still renders the destination server-side; only the content area and
  * navigation markup are swapped in the browser.
@@ -254,6 +356,8 @@ const replaceNavigation = (documentResponse) => {
 };
 
 const navigateInApp = async (url, pushState = true) => {
+    pageLoader.start();
+
     try {
         const response = await fetch(url, {
             headers: {
@@ -288,6 +392,7 @@ const navigateInApp = async (url, pushState = true) => {
 
         window.dispatchEvent(new CustomEvent('spa-navigated'));
         window.scrollTo(0, 0);
+        pageLoader.stop();
     } catch {
         window.location.assign(url);
     }
@@ -302,6 +407,58 @@ document.addEventListener('click', (event) => {
 
     event.preventDefault();
     navigateInApp(link.href);
+});
+
+document.addEventListener('click', (event) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+    }
+
+    const link = event.target.closest('a[href]');
+    if (!link || (link.target && link.target.toLowerCase() !== '_self') || link.hasAttribute('download')) {
+        return;
+    }
+
+    const destination = new URL(link.href, window.location.href);
+    if (!['http:', 'https:'].includes(destination.protocol)) {
+        return;
+    }
+
+    const currentUrl = new URL(window.location.href);
+    const isSameDocumentHash = destination.origin === currentUrl.origin
+        && destination.pathname === currentUrl.pathname
+        && destination.search === currentUrl.search
+        && destination.hash;
+
+    if (!isSameDocumentHash) {
+        pageLoader.start();
+    }
+});
+
+document.addEventListener('submit', (event) => {
+    const form = event.target;
+
+    if (!(form instanceof HTMLFormElement) || form.hasAttribute('data-logout-confirmed')) {
+        return;
+    }
+
+    const action = new URL(form.action, window.location.href);
+    const isLogoutRequest = form.method.toLowerCase() === 'post' && /\/logout\/?$/.test(action.pathname);
+
+    if (isLogoutRequest) {
+        event.preventDefault();
+        window.dispatchEvent(new CustomEvent('open-modal', { detail: 'confirm-logout' }));
+    }
+});
+
+document.addEventListener('submit', (event) => {
+    const form = event.target;
+    const navigatesCurrentPage = form instanceof HTMLFormElement
+        && (!form.target || form.target.toLowerCase() === '_self');
+
+    if (!event.defaultPrevented && navigatesCurrentPage && form.checkValidity()) {
+        pageLoader.start();
+    }
 });
 
 window.addEventListener('popstate', () => navigateInApp(window.location.href, false));

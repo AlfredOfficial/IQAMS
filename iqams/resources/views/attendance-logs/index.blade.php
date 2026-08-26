@@ -132,21 +132,20 @@
 
         {{-- Create Log Modal --}}
         <div x-show="showCreateModal" x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center px-4"
+             class="fixed inset-y-0 right-0 left-0 z-50 flex items-center justify-center p-4 lg:left-[260px]"
+             :class="sidebarCollapsed ? 'lg:!left-[80px]' : 'lg:!left-[260px]'"
              style="background: rgba(0,0,0,0.4);">
             <div @click.outside="showCreateModal = false"
-                 class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto scrollbar-autohide"
-                 x-data="{ scrollTimer: null }"
-                 @scroll="$el.classList.add('is-scrolling'); clearTimeout(scrollTimer); scrollTimer = setTimeout(() => $el.classList.remove('is-scrolling'), 800)">
+                 class="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
 
-                <div class="flex items-center justify-between mb-4">
+                <div class="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
                     <h3 class="text-lg font-semibold text-gray-800">Add Attendance Log</h3>
                     <button @click="showCreateModal = false" class="text-gray-400 hover:text-gray-600">
                         <x-heroicon-o-x-mark class="w-5 h-5" />
                     </button>
                 </div>
 
-                <form method="POST" action="{{ route('attendance-logs.store') }}">
+                <form method="POST" action="{{ route('attendance-logs.store') }}" class="grid min-h-0 gap-x-4 overflow-y-auto px-6 py-5 md:grid-cols-2">
                     @csrf
 
                     <div class="mb-4">
@@ -225,7 +224,7 @@
                         @enderror
                     </div>
 
-                    <div class="mb-6">
+                    <div class="mb-6 md:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Remarks <span class="text-gray-400 font-normal">(optional)</span></label>
                         <input type="text" name="remarks" value="{{ old('remarks') }}"
                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -235,7 +234,7 @@
                         @enderror
                     </div>
 
-                    <div class="flex items-center gap-3">
+                    <div class="sticky bottom-0 flex items-center gap-3 border-t border-gray-100 bg-white py-4 md:col-span-2">
                         <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
                             Save Log
                         </button>
@@ -249,21 +248,20 @@
 
         {{-- Edit Log Modal --}}
         <div x-show="editModal.show" x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center px-4"
+             class="fixed inset-y-0 right-0 left-0 z-50 flex items-center justify-center p-4 lg:left-[260px]"
+             :class="sidebarCollapsed ? 'lg:!left-[80px]' : 'lg:!left-[260px]'"
              style="background: rgba(0,0,0,0.4);">
             <div @click.outside="editModal.show = false"
-                 class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto scrollbar-autohide"
-                 x-data="{ scrollTimer: null }"
-                 @scroll="$el.classList.add('is-scrolling'); clearTimeout(scrollTimer); scrollTimer = setTimeout(() => $el.classList.remove('is-scrolling'), 800)">
+                 class="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
 
-                <div class="flex items-center justify-between mb-4">
+                <div class="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
                     <h3 class="text-lg font-semibold text-gray-800">Edit Attendance Log</h3>
                     <button type="button" @click="editModal.show = false" class="text-gray-400 hover:text-gray-600">
                         <x-heroicon-o-x-mark class="w-5 h-5" />
                     </button>
                 </div>
 
-                <form method="POST" :action="'{{ url('attendance-logs') }}/' + editModal.id">
+                <form method="POST" :action="'{{ url('attendance-logs') }}/' + editModal.id" class="grid min-h-0 gap-x-4 overflow-y-auto px-6 py-5 md:grid-cols-2">
                     @csrf
                     @method('PUT')
 
@@ -324,13 +322,13 @@
                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
 
-                    <div class="mb-6">
+                    <div class="mb-6 md:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
                         <input type="text" name="remarks" x-model="editModal.remarks"
                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
 
-                    <div class="flex items-center gap-3">
+                    <div class="sticky bottom-0 flex items-center gap-3 border-t border-gray-100 bg-white py-4 md:col-span-2">
                         <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
                             Update Log
                         </button>

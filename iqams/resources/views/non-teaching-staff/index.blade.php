@@ -11,7 +11,7 @@
 
     <div class="py-8" x-data="{
             showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
-            editModal: { show: false, id: null, department_id: '', first_name: '', last_name: '', avatar_url: '' },
+            editModal: { show: false, id: null, department_id: '', first_name: '', middle_name: '', last_name: '', avatar_url: '' },
             deleteModal: { show: false, id: null, name: '' },
             statusModal: { show: false, userId: null, name: '', status: '' },
             qrModal: { show: false, value: '', label: '' }
@@ -40,7 +40,7 @@
                     <colgroup><col class="w-40"><col class="w-20"><col class="w-44"><col class="w-48"><col class="w-52"><col class="w-28"><col class="w-20"></colgroup>
                     <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
                         <tr>
-                            <th class="px-6 py-3">Employee No.</th>
+                            <th class="px-6 py-3">Staff ID</th> {{-- never mind the table keep the employee no in the data base --}}
                             <th class="px-6 py-3">Profile</th>
                             <th class="px-6 py-3">Name</th>
                             <th class="px-6 py-3">Department</th>
@@ -54,7 +54,7 @@
                             <tr class="transition-colors hover:bg-gray-50/80">
                                 <td class="whitespace-nowrap px-6 py-3 font-medium text-gray-800">{{ $staff->employee_no }}</td>
                                 <td class="px-6 py-3"><img src="{{ $staff->user->avatar_url ?? asset('images/default-avatar.svg') }}" alt="Profile photo" class="h-10 w-10 rounded-full object-cover"></td>
-                                <td class="whitespace-nowrap px-6 py-3 text-gray-600">{{ $staff->first_name }} {{ $staff->last_name }}</td>
+                                <td class="whitespace-nowrap px-6 py-3 text-gray-600">{{ $staff->fullName() }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $staff->department->department_name ?? '—' }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $staff->user->email ?? '—' }}</td>
                                 <td class="px-6 py-3"><span class="rounded px-2 py-1 text-xs font-medium {{ $staff->user->isAccountActive() ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700' }}">{{ ucfirst($staff->user->status) }}</span></td>
@@ -65,7 +65,7 @@
                                         :next-status="$staff->user->isAccountActive() ? 'inactive' : 'active'"
                                         :is-active="$staff->user->isAccountActive()"
                                         :delete-name="$staff->fullName()">
-                                        <x-slot:edit><button type="button" @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $staff->id, 'department_id' => (string) $staff->department_id, 'first_name' => $staff->first_name, 'last_name' => $staff->last_name, 'avatar_url' => $staff->user->avatar_url ?? asset('images/default-avatar.svg')]) }}">Edit</button></x-slot:edit>
+                                        <x-slot:edit><button type="button" @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $staff->id, 'department_id' => (string) $staff->department_id, 'first_name' => $staff->first_name, 'middle_name' => $staff->middle_name ?? '', 'last_name' => $staff->last_name, 'avatar_url' => $staff->user->avatar_url ?? asset('images/default-avatar.svg')]) }}">Edit</button></x-slot:edit>
                                         <x-slot:qr><button type="button" @click="qrModal = {{ Illuminate\Support\Js::from(['show' => true, 'value' => $staff->qr_code, 'label' => $staff->fullName()]) }}">View QR</button></x-slot:qr>
                                     </x-action-menu>
                                 </td>
@@ -121,7 +121,7 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Employee No.</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Staff ID</label>
                         <input type="text" name="employee_no" value="{{ old('employee_no') }}"
                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                placeholder="e.g. STF2026001">
@@ -131,12 +131,20 @@
                         @enderror
                     </div>
 
-                    <div class="mb-4 grid grid-cols-2 gap-3">
+                    <div class="mb-4 grid gap-3 sm:grid-cols-3">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                             <input type="text" name="first_name" value="{{ old('first_name') }}"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             @error('first_name')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
+                            <input type="text" name="middle_name" value="{{ old('middle_name') }}"
+                                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            @error('middle_name')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                             @enderror
                         </div>
@@ -202,11 +210,19 @@
                         </select>
                     </div>
 
-                    <div class="mb-6 grid grid-cols-2 gap-3">
+                    <div class="mb-6 grid gap-3 sm:grid-cols-3">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                             <input type="text" name="first_name" x-model="editModal.first_name"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
+                            <input type="text" name="middle_name" x-model="editModal.middle_name"
+                                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            @error('middle_name')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>

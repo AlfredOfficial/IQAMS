@@ -6,3 +6,67 @@
 [x-cloak] {
     display: none !important;
 }
+
+/* Global navigation/loading feedback. The transparent active state blocks input
+   immediately; visual feedback is added by JavaScript only after a short delay. */
+.global-page-loader {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background: rgb(15 23 42 / 0%);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: background-color 120ms ease, opacity 120ms ease;
+}
+
+.global-page-loader.is-active {
+    visibility: visible;
+    pointer-events: auto;
+    cursor: wait;
+}
+
+.global-page-loader.is-visible {
+    background: rgb(15 23 42 / 24%);
+    opacity: 1;
+}
+
+.global-page-loader__indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 8.5rem;
+    padding: 0.875rem 1rem;
+    border: 1px solid rgb(226 232 240 / 90%);
+    border-radius: 0.875rem;
+    background: rgb(255 255 255 / 96%);
+    color: #334155;
+    box-shadow: 0 18px 45px rgb(15 23 42 / 18%);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.global-page-loader__spinner {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: none;
+    border: 2px solid #cbd5e1;
+    border-top-color: #0d9488;
+    border-radius: 9999px;
+    animation: global-page-loader-spin 700ms linear infinite;
+}
+
+@keyframes global-page-loader-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .global-page-loader,
+    .global-page-loader__spinner {
+        transition: none;
+        animation-duration: 1.4s;
+    }
+}

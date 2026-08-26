@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Instructor;
 use App\Models\NonTeachingStaff;
+use App\Models\QrCredential;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
@@ -12,6 +13,29 @@ class QrIdentityResolver
 {
     public function resolve(string $qrCode): User
     {
+        return $this->resolveWithMetadata($qrCode)['user'];
+    }
+
+    public function resolveWithMetadata(string $qrCode): array
+    {
+        $credential = QrCredential::with('user.role')->where('code_hash', hash('sha256', $qrCode))->first();
+
+        if ($credential) {
+            if ($credential->status !== 'active') {
+                throw ValidationException::withMessages(['qr_code' => 'This QR credential has been revoked.']);
+            }
+
+            if (! $credential->user) {
+                throw ValidationException::withMessages(['qr_code' => 'This QR credential is not linked to a user.']);
+            }
+
+            return ['user' => $credential->user, 'credential' => $credential, 'is_legacy' => false];
+        }
+
+        if (! $this->legacyAllowed()) {
+            throw ValidationException::withMessages(['qr_code' => 'This legacy QR card is no longer accepted. Request a replacement ID card.']);
+        }
+
         $profiles = collect([
             Student::with(['user.role', 'user.student'])->where('qr_code', $qrCode)->first(),
             Instructor::with(['user.role', 'user.instructor'])->where('qr_code', $qrCode)->first(),
@@ -51,6 +75,13 @@ class QrIdentityResolver
             ]);
         }
 
-        return $user;
+        return ['user' => $user, 'credential' => null, 'is_legacy' => true];
+    }
+
+    private function legacyAllowed(): bool
+    {
+        $cutoff = config('attendance.legacy_qr_cutoff');
+
+        return ! $cutoff || now()->lessThanOrEqualTo($cutoff);
     }
 }

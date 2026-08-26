@@ -187,5 +187,6 @@
             </form>
         </div>
     </div>
+    <x-logout-confirmation />
 </body>
 </html>

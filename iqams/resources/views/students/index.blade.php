@@ -97,10 +97,11 @@
 
         {{-- Create Student Modal --}}
         <div x-show="showCreateModal" x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center px-4"
+             class="fixed inset-0 z-[70] overflow-y-auto px-4 py-4 sm:px-6"
              style="background: rgba(0,0,0,0.4);">
+            <div class="flex min-h-full items-center justify-center">
             <div @click.outside="showCreateModal = false"
-                 class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+                 class="w-full max-w-xl rounded-lg bg-white p-5 shadow-xl sm:p-6">
 
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-semibold text-gray-800">Add Student</h3>
@@ -113,7 +114,8 @@
                     @csrf
                     <div class="mb-4"><label class="mb-1 block text-sm font-medium text-gray-700">Profile Photo</label><input type="file" name="avatar" accept="image/jpeg,image/png" required class="block w-full text-sm text-gray-600">@error('avatar')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror</div>
 
-                    <div class="mb-4">
+                    <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
                         <select name="course_id" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">-- Select Course --</option>
@@ -128,7 +130,7 @@
                         @enderror
                     </div>
 
-                    <div class="mb-4">
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Section <span class="text-gray-400 font-normal">(optional)</span></label>
                         <select name="section_id" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">-- No Section Yet --</option>
@@ -142,24 +144,35 @@
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
                     </div>
-
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Student No.</label>
-                        <input type="text" name="student_no" value="{{ old('student_no') }}"
-                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                               placeholder="e.g. 2026-00123">
-                        <p class="mt-1 text-xs text-gray-400">This will also become the student's login username.</p>
-                        @error('student_no')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
                     </div>
 
-                    <div class="mb-4 grid grid-cols-2 gap-3">
+                    <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Student No.</label>
+                            <input type="text" name="student_no" value="{{ old('student_no') }}"
+                                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                   placeholder="e.g. 2026-00123">
+                            <p class="mt-1 text-xs leading-4 text-gray-400">This will also become the student's login username.</p>
+                            @error('student_no')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                             <input type="text" name="first_name" value="{{ old('first_name') }}"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             @error('first_name')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name <span class="text-gray-400 font-normal">(optional)</span></label>
+                            <input type="text" name="middle_name" value="{{ old('middle_name') }}"
+                                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            @error('middle_name')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                             @enderror
                         </div>
@@ -171,15 +184,6 @@
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                             @enderror
                         </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name <span class="text-gray-400 font-normal">(optional)</span></label>
-                        <input type="text" name="middle_name" value="{{ old('middle_name') }}"
-                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        @error('middle_name')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
                     </div>
 
                     <div class="mb-6">
@@ -201,6 +205,7 @@
                         </button>
                     </div>
                 </form>
+            </div>
             </div>
         </div>
 

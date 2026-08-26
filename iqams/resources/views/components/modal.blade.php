@@ -1,7 +1,8 @@
 @props([
     'name',
     'show' => false,
-    'maxWidth' => '2xl'
+    'maxWidth' => '2xl',
+    'centered' => false,
 ])
 
 @php
@@ -46,7 +47,10 @@ $maxWidth = [
     x-on:keydown.tab.prevent="$event.shiftKey || nextFocusable().focus()"
     x-on:keydown.shift.tab.prevent="prevFocusable().focus()"
     x-show="show"
-    class="fixed inset-0 overflow-y-auto px-4 py-6 sm:px-0 z-50"
+    @class([
+        'fixed inset-0 flex items-center justify-center overflow-y-auto px-4 py-6 sm:px-0 z-50' => $centered,
+        'fixed inset-0 overflow-y-auto px-4 py-6 sm:px-0 z-50' => !$centered,
+    ])
     style="display: {{ $show ? 'block' : 'none' }};"
 >
     <div
@@ -65,7 +69,11 @@ $maxWidth = [
 
     <div
         x-show="show"
-        class="mb-6 bg-white rounded-lg overflow-hidden shadow-xl transform transition-all sm:w-full {{ $maxWidth }} sm:mx-auto"
+        @class([
+            'bg-white rounded-lg overflow-hidden shadow-xl transform transition-all sm:w-full',
+            'mb-6 sm:mx-auto' => !$centered,
+            $maxWidth,
+        ])
         x-transition:enter="ease-out duration-300"
         x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
         x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"

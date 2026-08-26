@@ -17,6 +17,7 @@ class NonTeachingStaff extends Model
         'department_id',
         'employee_no',
         'first_name',
+        'middle_name',
         'last_name',
         'qr_code',
     ];
@@ -33,6 +34,10 @@ class NonTeachingStaff extends Model
  
     public function fullName(): string
     {
-        return "{$this->first_name} {$this->last_name}";
+        return implode(' ', array_filter([
+            $this->first_name,
+            $this->middle_name,
+            $this->last_name,
+        ], fn ($part) => filled($part)));
     }
 }
