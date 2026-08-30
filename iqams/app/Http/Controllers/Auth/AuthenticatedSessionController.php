@@ -28,7 +28,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect($this->redirectPathRole());
+        return redirect()->route('dashboard');
     }
 
     /**
@@ -48,7 +48,7 @@ class AuthenticatedSessionController extends Controller
     //determine the redirect path based on the user's role
     protected function redirectPathRole(): string
     {
-        $role = Auth::user()->role?->role_name;
+        $role = Auth::user()->getRoleNames()->first();
 
         return match ($role) {
             'admin' => route('admin.dashboard'),

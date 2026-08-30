@@ -1,5 +1,5 @@
 <div x-show="statusModal.show" x-cloak
-     class="fixed inset-0 z-50 flex items-center justify-center px-4"
+     class="fixed inset-0 z-[70] flex items-center justify-center px-4"
      style="background: rgba(0, 0, 0, 0.4);">
     <div @click.outside="statusModal.show = false" class="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
         <h3 class="mb-2 text-lg font-semibold text-gray-800" x-text="statusModal.status === 'inactive' ? 'Deactivate Account' : 'Activate Account'"></h3>

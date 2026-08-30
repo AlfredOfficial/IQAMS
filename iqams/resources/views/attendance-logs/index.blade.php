@@ -76,7 +76,7 @@
                     <tbody class="divide-y divide-gray-100">
                         @forelse ($logs as $log)
                             <tr>
-                                <td class="px-6 py-3 text-gray-800 font-medium">{{ $log->user->name ?? '—' }}</td>
+                                <td class="px-6 py-3 text-gray-800 font-medium">{{ $log->user?->nonTeachingStaff?->fullName() ?? $log->user?->name ?? '—' }}</td>
                                 <td class="px-6 py-3 text-gray-600">
                                     {{ $log->schoolEvent?->title ?? $log->schedule?->subject?->subject_code ?? '—' }}
                                     ({{ $log->schedule->section->section_name ?? '—' }})
@@ -110,7 +110,7 @@
                                         class="text-indigo-600 hover:text-indigo-800">Edit</button>
 
                                     <button type="button"
-                                        @click="deleteModal = { show: true, id: {{ $log->id }}, name: '{{ addslashes(($log->user->name ?? 'Log') . ' - ' . \Illuminate\Support\Carbon::parse($log->scan_time)->format('M d, g:i A')) }}' }"
+                                        @click="deleteModal = { show: true, id: {{ $log->id }}, name: {{ Illuminate\Support\Js::from(($log->user?->nonTeachingStaff?->fullName() ?? $log->user?->name ?? 'Log').' - '.\Illuminate\Support\Carbon::parse($log->scan_time)->format('M d, g:i A')) }} }"
                                         class="text-red-600 hover:text-red-800">Delete</button>
                                 </td>
                             </tr>

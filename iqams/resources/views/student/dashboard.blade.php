@@ -1,4 +1,5 @@
 <x-student-layout title="Dashboard">
+ <div x-data="studentWorkspace" data-realtime-url="{{ route('student.dashboard.realtime') }}">
  @unless(Auth::user()->isAccountActive())<div class="mb-6 border-l-4 border-red-500 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">Attendance is unavailable because your account is inactive. Please contact the administrator.</div>@endunless
  <x-student-absence-warning :warnings="$subjectAbsenceWarnings" />
  <section class="border border-slate-200 bg-white px-5 py-5 sm:px-6"><p class="text-sm font-medium text-teal-700">{{ now()->format('l, F j, Y') }}</p><h2 class="mt-1 text-xl font-semibold text-slate-900">Good {{ now()->hour < 12 ? 'morning' : (now()->hour < 18 ? 'afternoon' : 'evening') }}, {{ $student->first_name }}</h2><p class="mt-1 text-sm text-slate-600"><span class="font-medium">{{ $student->course?->course_code ?? 'Course not assigned' }}@if($student->section) {{ $student->section->section_name }}@endif</span>@if($student->course?->department)<span class="mx-2 text-slate-300">|</span>{{ $student->course->department->department_name }}@endif</p></section>
@@ -11,5 +12,6 @@
   <section><div class="mb-4 flex items-end justify-between"><div><h2 class="text-lg font-semibold text-slate-900">Recent attendance</h2><p class="mt-0.5 text-sm text-slate-500">Latest scan records</p></div><a href="{{ route('student.attendance') }}" class="text-sm font-semibold text-teal-700 hover:text-teal-900">View all</a></div>
    <div class="border border-slate-200 bg-white">@forelse($myAttendance as $log)<article class="border-b border-slate-100 px-4 py-4 last:border-0"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="text-xs font-bold text-teal-800">{{ $log->schoolEvent ? 'SCHOOL EVENT' : ($log->schedule?->subject?->subject_code ?? '—') }}</p><p class="truncate text-sm font-medium text-slate-800">{{ $log->schoolEvent?->title ?? $log->schedule?->subject?->subject_name ?? 'Attendance record' }}</p></div><x-student-status :status="$log->status" /></div><div class="mt-2 flex flex-wrap gap-x-3 text-xs text-slate-500"><span>{{ \Illuminate\Support\Carbon::parse($log->scan_time)->format('F j, Y') }}</span><span>{{ \Illuminate\Support\Carbon::parse($log->scan_time)->format('g:i A') }}</span><span class="capitalize">{{ str_replace('_',' ',$log->attendance_type) }}</span></div></article>@empty<div class="py-12 text-center text-sm text-slate-500">No attendance records yet.</div>@endforelse</div>
   </section>
+ </div>
  </div>
 </x-student-layout>

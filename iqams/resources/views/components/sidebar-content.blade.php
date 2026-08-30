@@ -110,6 +110,18 @@
             <x-slot name="icon"><x-heroicon-o-calendar-days class="h-5 w-5" /></x-slot>
         </x-sidebar-link>
 
+        <div class="px-3 pb-2 pt-5" @if($collapsible) x-show="!sidebarCollapsed" x-cloak @endif>
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Reports</p>
+        </div>
+        <x-sidebar-link
+            :href="route('admin.reports.daily-personnel.index')"
+            :active="request()->routeIs('admin.reports.daily-personnel.*')"
+            :collapsible="$collapsible"
+            label="Daily Personnel Attendance"
+        >
+            <x-slot name="icon"><x-heroicon-o-document-chart-bar class="h-5 w-5" /></x-slot>
+        </x-sidebar-link>
+
         <div class="px-3 pt-5 pb-2" @if($collapsible) x-show="!sidebarCollapsed" x-cloak @endif>
             <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">User Management</p>
         </div>
@@ -144,6 +156,14 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-8.13a4 4 0 110 8 4 4 0 010-8zM17 8a3 3 0 110 6" />
                 </svg>
             </x-slot>
+        </x-sidebar-link>
+        <x-sidebar-link
+            :href="route('office-units.index')"
+            :active="request()->routeIs('office-units.*')"
+            :collapsible="$collapsible"
+            label="Manage Offices"
+        >
+            <x-slot name="icon"><x-heroicon-o-building-office class="h-5 w-5" /></x-slot>
         </x-sidebar-link>
 
         <div class="px-3 pt-5 pb-2" @if($collapsible) x-show="!sidebarCollapsed" x-cloak @endif>

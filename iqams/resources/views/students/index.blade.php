@@ -196,12 +196,12 @@
                         @enderror
                     </div>
 
-                    <div class="flex items-center gap-3">
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
-                            Save Student
-                        </button>
+                    <div class="flex items-center justify-end gap-3">
                         <button type="button" @click="showCreateModal = false" class="text-sm text-gray-500 hover:text-gray-700">
                             Cancel
+                        </button>
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
+                            Save Student
                         </button>
                     </div>
                 </form>
@@ -282,12 +282,12 @@
 
                     <p class="text-xs text-gray-400 mb-4">Email and login credentials can't be changed here yet.</p>
 
-                    <div class="flex items-center gap-3">
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
-                            Update Student
-                        </button>
+                    <div class="flex items-center justify-end gap-3">
                         <button type="button" @click="editModal.show = false" class="text-sm text-gray-500 hover:text-gray-700">
                             Cancel
+                        </button>
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
+                            Update Student
                         </button>
                     </div>
                 </form>
@@ -311,12 +311,12 @@
                     @csrf
                     @method('DELETE')
 
-                    <div class="flex items-center gap-3">
-                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded">
-                            Delete
-                        </button>
+                    <div class="flex items-center justify-end gap-3">
                         <button type="button" @click="deleteModal.show = false" class="text-sm text-gray-500 hover:text-gray-700">
                             Cancel
+                        </button>
+                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded">
+                            Delete
                         </button>
                     </div>
                 </form>

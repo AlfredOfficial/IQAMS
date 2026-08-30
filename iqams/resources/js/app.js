@@ -169,8 +169,18 @@ Alpine.data('instructorWorkspace', () => ({
 
             const data = await response.json();
             const day = data.today;
-            const hero = this.$root.querySelector('#hero-status');
-            if (hero) hero.textContent = `✓ ${day.status}`;
+            const statusBadge = this.$root.querySelector('[data-instructor-status]');
+            if (statusBadge) statusBadge.textContent = day.status;
+            const next = this.$root.querySelector('[data-instructor-next]');
+            if (next) next.textContent = day.next_period?.replaceAll('_', ' ').replace(/\b\w/g, char => char.toUpperCase()) ?? 'Complete';
+            const progressCount = this.$root.querySelector('[data-instructor-progress-count]');
+            if (progressCount) progressCount.textContent = `${day.completed_periods} of 4 completed`;
+            const progressPercent = this.$root.querySelector('[data-instructor-progress-percent]');
+            if (progressPercent) progressPercent.textContent = `${day.progress_percentage}%`;
+            const progressTrack = this.$root.querySelector('[data-instructor-progress-track]');
+            if (progressTrack) progressTrack.setAttribute('aria-valuenow', day.progress_percentage);
+            const progressBar = this.$root.querySelector('[data-instructor-progress-bar]');
+            if (progressBar) progressBar.style.width = `${day.progress_percentage}%`;
 
             Object.entries(day.events).forEach(([key, event]) => {
                 const time = this.$root.querySelector(`#event-${key}`);
@@ -179,6 +189,19 @@ Alpine.data('instructorWorkspace', () => ({
                 if (time) time.textContent = event?.time ?? 'Not Recorded';
                 if (status) status.textContent = event?.punctuality ?? 'Not Recorded';
                 if (detail) detail.textContent = event?.detail ?? 'Not Yet Recorded';
+                const milestone = this.$root.querySelector(`[data-instructor-milestone="${key}"]`);
+                if (milestone) {
+                    const icon = milestone.querySelector('[data-instructor-milestone-icon]');
+                    const label = milestone.querySelector('[data-instructor-milestone-label]');
+                    icon.textContent = event ? '✓' : '○';
+                    icon.classList.toggle('bg-emerald-500', Boolean(event));
+                    icon.classList.toggle('text-white', Boolean(event));
+                    icon.classList.toggle('bg-gray-200', !event);
+                    icon.classList.toggle('text-gray-500', !event);
+                    label.classList.toggle('text-emerald-700', Boolean(event));
+                    label.classList.toggle('text-gray-600', !event);
+                    milestone.classList.toggle('bg-emerald-50', day.next_period === key);
+                }
             });
 
             const stats = {
@@ -199,6 +222,130 @@ Alpine.data('instructorWorkspace', () => ({
             // Keep the last rendered server state when polling is unavailable.
         }
     },
+}));
+
+const pollingWorkspace = (render) => ({
+    refreshTimer: null,
+    requestInFlight: false,
+
+    init() {
+        this.refreshTimer = window.setInterval(() => this.refresh(), 3000);
+    },
+
+    destroy() {
+        window.clearInterval(this.refreshTimer);
+        this.refreshTimer = null;
+    },
+
+    async refresh() {
+        if (this.requestInFlight || !this.$root.dataset.realtimeUrl) return;
+        this.requestInFlight = true;
+        try {
+            const response = await fetch(this.$root.dataset.realtimeUrl, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+            if (response.ok) render(this.$root, await response.json());
+        } catch {
+            // Preserve the last rendered state while the endpoint is unavailable.
+        } finally {
+            this.requestInFlight = false;
+        }
+    },
+});
+
+Alpine.data('staffWorkspace', () => ({
+    ...pollingWorkspace((root, data) => {
+        root.querySelector('[data-staff-status]').textContent = data.today.status;
+        root.querySelector('[data-staff-next]').textContent = data.today.next_period?.replaceAll('_', ' ').replace(/\b\w/g, char => char.toUpperCase()) ?? 'Complete';
+        root.querySelector('[data-staff-progress-count]').textContent = `${data.today.completed_periods} of 4 completed`;
+        root.querySelector('[data-staff-progress-percent]').textContent = `${data.today.progress_percentage}%`;
+        const progressTrack = root.querySelector('[data-staff-progress-track]');
+        progressTrack.setAttribute('aria-valuenow', data.today.progress_percentage);
+        root.querySelector('[data-staff-progress-bar]').style.width = `${data.today.progress_percentage}%`;
+        Object.entries(data.today.events).forEach(([period, event]) => {
+            const milestone = root.querySelector(`[data-staff-milestone="${period}"]`);
+            const icon = milestone.querySelector('[data-staff-milestone-icon]');
+            const label = milestone.querySelector('[data-staff-milestone-label]');
+            icon.textContent = event ? '✓' : '○';
+            icon.classList.toggle('bg-emerald-500', Boolean(event));
+            icon.classList.toggle('text-white', Boolean(event));
+            icon.classList.toggle('bg-gray-200', !event);
+            icon.classList.toggle('text-gray-500', !event);
+            label.classList.toggle('text-emerald-700', Boolean(event));
+            label.classList.toggle('text-gray-600', !event);
+            milestone.classList.toggle('bg-emerald-50', data.today.next_period === period);
+        });
+        Object.entries(data.totals).forEach(([key, value]) => {
+            const element = root.querySelector(`[data-staff-stat="${key}"]`);
+            if (element) element.textContent = key === 'percentage' ? `${value}%` : value;
+        });
+        const recent = root.querySelector('[data-staff-recent]');
+        recent.replaceChildren(...data.recent.map(log => {
+            const article = document.createElement('article');
+            article.className = 'flex items-center gap-4 px-5 py-4';
+            const body = document.createElement('div');
+            body.className = 'min-w-0 flex-1';
+            const label = document.createElement('p'); label.className = 'text-sm font-semibold text-gray-800'; label.textContent = log.label;
+            const date = document.createElement('p'); date.className = 'text-xs text-gray-500'; date.textContent = log.date;
+            const detail = document.createElement('div'); detail.className = 'text-right';
+            const time = document.createElement('p'); time.className = 'whitespace-nowrap text-sm font-semibold tabular-nums text-gray-800'; time.textContent = log.time;
+            const status = document.createElement('p'); status.className = 'text-xs capitalize text-gray-500'; status.textContent = log.status;
+            body.append(label, date); detail.append(time, status); article.append(body, detail); return article;
+        }));
+    }),
+    qrReadyHandler: null,
+
+    init() {
+        this.refreshTimer = window.setInterval(() => this.refresh(), 3000);
+        this.qrReadyHandler = () => this.renderQrCode();
+
+        if (window.QRCode) {
+            this.renderQrCode();
+        } else {
+            window.addEventListener('qrcode:ready', this.qrReadyHandler, { once: true });
+        }
+    },
+
+    destroy() {
+        window.clearInterval(this.refreshTimer);
+        this.refreshTimer = null;
+        window.removeEventListener('qrcode:ready', this.qrReadyHandler);
+    },
+
+    renderQrCode() {
+        const target = this.$root.querySelector('#staff-qr');
+        const value = this.$root.dataset.qrValue;
+
+        if (!target) return;
+        if (!value) {
+            target.textContent = 'No QR code assigned';
+            return;
+        }
+        if (!window.QRCode) return;
+
+        target.replaceChildren();
+        new window.QRCode(target, {
+            text: value,
+            width: 160,
+            height: 160,
+            colorDark: '#0f172a',
+            colorLight: '#ffffff',
+        });
+    },
+}));
+
+Alpine.data('studentWorkspace', () => pollingWorkspace((root, data) => {
+    const statValues = root.querySelectorAll('[aria-labelledby="summary-title"] p.mt-2');
+    ['present', 'late', 'absent', 'excused'].forEach((status, index) => { if (statValues[index]) statValues[index].textContent = data.stats[status]; });
+    const section = [...root.querySelectorAll('section')].find(item => item.querySelector('h2')?.textContent.trim() === 'Recent attendance');
+    const recent = section?.querySelector('.border.border-slate-200.bg-white');
+    if (!recent) return;
+    recent.replaceChildren(...data.recent.map(log => {
+        const article = document.createElement('article'); article.className = 'border-b border-slate-100 px-4 py-4 last:border-0';
+        const heading = document.createElement('p'); heading.className = 'text-xs font-bold text-teal-800'; heading.textContent = log.code;
+        const title = document.createElement('p'); title.className = 'truncate text-sm font-medium text-slate-800'; title.textContent = log.title;
+        const status = document.createElement('p'); status.className = 'mt-1 text-xs font-semibold uppercase text-slate-600'; status.textContent = log.status;
+        const detail = document.createElement('p'); detail.className = 'mt-2 text-xs capitalize text-slate-500'; detail.textContent = `${log.date} · ${log.time} · ${log.type}`;
+        article.append(heading, title, status, detail); return article;
+    }));
 }));
 
 Alpine.data('studentQr', () => ({

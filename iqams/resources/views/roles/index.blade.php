@@ -53,6 +53,38 @@
                     </div>
                 @endforeach
             </div>
+
+            <div class="mt-8 overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-gray-200">
+                <div class="border-b border-gray-200 px-5 py-4">
+                    <h3 class="font-semibold text-gray-800">User role assignments</h3>
+                    <p class="mt-1 text-sm text-gray-500">Each account must have exactly one fixed portal role.</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50 text-left text-gray-600"><tr><th class="px-5 py-3">User</th><th class="px-5 py-3">Username</th><th class="px-5 py-3">Role</th></tr></thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @foreach ($users as $user)
+                                <tr>
+                                    <td class="px-5 py-3 font-medium text-gray-800">{{ $user->name }}</td>
+                                    <td class="px-5 py-3 text-gray-600">{{ $user->username }}</td>
+                                    <td class="px-5 py-3">
+                                        <form method="POST" action="{{ route('roles.assign', $user) }}" class="flex items-center gap-2">
+                                            @csrf @method('PATCH')
+                                            <select name="role" class="rounded-md border-gray-300 text-sm" @disabled(auth()->user()->is($user))>
+                                                @foreach (['admin', 'instructor', 'staff', 'student'] as $roleName)
+                                                    <option value="{{ $roleName }}" @selected(($user->getRoleNames()->first() ?? $user->role?->role_name) === $roleName)>{{ ucfirst($roleName) }}</option>
+                                                @endforeach
+                                            </select>
+                                            <button class="rounded-md bg-indigo-600 px-3 py-2 text-white disabled:opacity-50" @disabled(auth()->user()->is($user))>Save</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-5 py-4">{{ $users->links() }}</div>
+            </div>
         </div>
     </div>
 </x-app-layout>

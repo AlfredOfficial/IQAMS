@@ -10,11 +10,13 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, HasRoles, Notifiable;
 
     protected $fillable = [
         'role_id',
@@ -33,7 +35,17 @@ class User extends Authenticatable
 
     protected static function booted(): void
     {
-        static::saved(fn () => DashboardReferenceCache::forget());
+        static::saved(function (User $user) {
+            DashboardReferenceCache::forget();
+
+            // Compatibility bridge for legacy code that still writes users.role_id.
+            if ($user->role_id && Schema::hasTable('model_has_roles')) {
+                $role = Role::find($user->role_id);
+                if ($role && $user->roles()->whereKey($role->id)->count() !== 1) {
+                    $user->syncRoles([$role]);
+                }
+            }
+        });
         static::deleted(fn () => DashboardReferenceCache::forget());
     }
 
@@ -100,21 +112,21 @@ class User extends Authenticatable
     // Convenience helpers for role checks in middleware/blade
     public function isAdmin(): bool
     {
-        return $this->role?->role_name === 'admin';
+        return $this->hasRole('admin');
     }
 
     public function isInstructor(): bool
     {
-        return $this->role?->role_name === 'instructor';
+        return $this->hasRole('instructor');
     }
 
     public function isStaff(): bool
     {
-        return $this->role?->role_name === 'staff';
+        return $this->hasRole('staff');
     }
 
     public function isStudent(): bool
     {
-        return $this->role?->role_name === 'student';
+        return $this->hasRole('student');
     }
 }

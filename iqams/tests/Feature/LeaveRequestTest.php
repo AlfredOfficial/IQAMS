@@ -15,6 +15,12 @@ class LeaveRequestTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
+
     public function test_employee_can_submit_and_cancel_a_leave_request(): void
     {
         $user = $this->user('instructor');
@@ -55,6 +61,93 @@ class LeaveRequestTest extends TestCase
         $this->assertSame('Excused', $days->first()['punctuality']);
         $this->assertSame(0, $service->totals($days)['absentDays']);
         $this->assertSame(1, $service->totals($days)['leaveDays']);
+    }
+
+    public function test_approved_multi_day_leave_counts_every_date_and_is_not_absent(): void
+    {
+        $user = $this->user('staff');
+        LeaveRequest::create([
+            'user_id' => $user->id, 'leave_type' => 'vacation',
+            'start_date' => '2026-08-20', 'end_date' => '2026-08-22',
+            'reason' => 'Approved leave.', 'status' => 'approved',
+        ]);
+
+        $service = app(PersonnelAttendanceSummary::class);
+        $days = $service->days($user, Carbon::parse('2026-08-20'), Carbon::parse('2026-08-22'), true);
+        $totals = $service->totals($days);
+
+        $this->assertSame(3, $totals['leaveDays']);
+        $this->assertSame(0, $totals['absentDays']);
+        $this->assertSame(['On Leave', 'On Leave', 'On Leave'], $days->pluck('status')->all());
+        $this->assertSame([0, 0, 0], $days->pluck('minutes')->all());
+    }
+
+    public function test_pending_and_rejected_leave_do_not_count_as_approved_leave(): void
+    {
+        $user = $this->user('staff');
+        foreach ([['2026-08-20', 'pending'], ['2026-08-21', 'rejected']] as [$date, $status]) {
+            LeaveRequest::create([
+                'user_id' => $user->id, 'leave_type' => 'vacation',
+                'start_date' => $date, 'end_date' => $date,
+                'reason' => ucfirst($status).' request.', 'status' => $status,
+            ]);
+        }
+
+        $service = app(PersonnelAttendanceSummary::class);
+        $days = $service->days($user, Carbon::parse('2026-08-20'), Carbon::parse('2026-08-21'), true);
+
+        $this->assertSame(0, $service->totals($days)['leaveDays']);
+    }
+
+    public function test_leave_spanning_months_only_counts_dates_inside_selected_month(): void
+    {
+        $user = $this->user('staff');
+        LeaveRequest::create([
+            'user_id' => $user->id, 'leave_type' => 'vacation',
+            'start_date' => '2026-07-30', 'end_date' => '2026-08-02',
+            'reason' => 'Cross-month leave.', 'status' => 'approved',
+        ]);
+
+        $service = app(PersonnelAttendanceSummary::class);
+        $augustDays = $service->days($user, Carbon::parse('2026-08-01'), Carbon::parse('2026-08-31'), true);
+
+        $this->assertSame(2, $service->totals($augustDays)['leaveDays']);
+        $this->assertSame(['2026-08-01', '2026-08-02'], $augustDays->whereNotNull('leave')->pluck('date')->map->toDateString()->all());
+    }
+
+    public function test_staff_monthly_summary_card_and_table_show_approved_leave(): void
+    {
+        Carbon::setTestNow('2026-08-30 12:00:00');
+        $user = $this->user('staff');
+        LeaveRequest::create([
+            'user_id' => $user->id, 'leave_type' => 'vacation',
+            'start_date' => '2026-08-20', 'end_date' => '2026-08-20',
+            'reason' => 'Approved leave.', 'status' => 'approved',
+        ]);
+
+        $this->actingAs($user)->get(route('staff.attendance.summary', ['month' => 8, 'year' => 2026]))
+            ->assertOk()
+            ->assertViewHas('totals', fn (array $totals) => $totals['leaveDays'] === 1 && $totals['absentDays'] >= 0)
+            ->assertSee('Approved leave')
+            ->assertSee('Aug 20, 2026')
+            ->assertSee('On Leave');
+    }
+
+    public function test_approved_leave_later_in_current_month_is_visible_in_monthly_summary(): void
+    {
+        Carbon::setTestNow('2026-08-30 19:58:00');
+        $user = $this->user('staff');
+        LeaveRequest::create([
+            'user_id' => $user->id, 'leave_type' => 'vacation',
+            'start_date' => '2026-08-31', 'end_date' => '2026-08-31',
+            'reason' => 'Approved future date in selected month.', 'status' => 'approved',
+        ]);
+
+        $this->actingAs($user)->get(route('staff.attendance.summary', ['month' => 8, 'year' => 2026]))
+            ->assertOk()
+            ->assertViewHas('totals', fn (array $totals) => $totals['leaveDays'] === 1)
+            ->assertSee('Aug 31, 2026')
+            ->assertSee('On Leave');
     }
 
     public function test_leave_approval_is_rejected_when_attendance_exists_in_requested_dates(): void

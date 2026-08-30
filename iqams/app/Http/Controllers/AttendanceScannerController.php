@@ -56,7 +56,7 @@ class AttendanceScannerController extends Controller
 
         $terminal = $request->attributes->get('scanner_terminal');
         $user = $resolved['user']->loadMissing([
-            'role', 'student.course.department', 'instructor.department', 'nonTeachingStaff.department',
+            'role', 'student.course.department', 'instructor.department', 'nonTeachingStaff.officeUnit',
         ]);
         $credentialType = $resolved['is_legacy'] ? 'legacy' : 'random';
 
@@ -107,9 +107,8 @@ class AttendanceScannerController extends Controller
     private function person($user): array
     {
         $profile = $user->student ?? $user->instructor ?? $user->nonTeachingStaff;
-        $department = $user->student?->course?->department
-            ?? $user->instructor?->department
-            ?? $user->nonTeachingStaff?->department;
+        $department = $user->student?->course?->department ?? $user->instructor?->department;
+        $officeUnit = $user->nonTeachingStaff?->officeUnit;
         $name = $profile && method_exists($profile, 'fullName') ? $profile->fullName() : $user->name;
         $name = $name ?: $user->name;
         $name = preg_replace('/\s+/u', ' ', trim($name));
@@ -134,7 +133,7 @@ class AttendanceScannerController extends Controller
                 ['label' => 'Position', 'value' => 'Instructor'],
             ],
             default => [
-                ['label' => 'Department', 'value' => $department?->department_name ?? $department?->department_code ?? 'Not assigned'],
+                ['label' => 'Office/Unit', 'value' => $officeUnit?->name ?? 'Not assigned'],
                 ['label' => 'Employee ID', 'value' => $user->nonTeachingStaff?->employee_no ?? 'Not assigned'],
                 ['label' => 'Position', 'value' => 'Non-Teaching Staff'],
             ],
@@ -145,7 +144,8 @@ class AttendanceScannerController extends Controller
             'name' => $name,
             'identifier' => $profile?->student_no ?? $profile?->employee_no ?? $user->username,
             'role' => $role,
-            'department' => $department?->department_name ?? $department?->department_code ?? 'N/A',
+            'department' => $roleName === 'staff' ? ($officeUnit?->name ?? 'N/A') : ($department?->department_name ?? $department?->department_code ?? 'N/A'),
+            'assignment_label' => $roleName === 'staff' ? 'Office/Unit' : 'Department',
             'details' => $details,
             'avatar' => $user->avatar_url,
             'initials' => collect(explode(' ', $name))->filter()->take(2)

@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Role;
+use App\Models\User;
+use App\Services\RoleAssignmentService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class RoleController extends Controller
@@ -12,9 +15,10 @@ class RoleController extends Controller
      */
     public function index()
     {
-        $roles = Role::withCount('users')->orderBy('role_name')->get();
+        $roles = Role::withCount('users')->orderBy('name')->get();
+        $users = User::with(['role', 'roles'])->orderBy('name')->paginate(20);
 
-        return view('roles.index', compact('roles'));
+        return view('roles.index', compact('roles', 'users'));
     }
 
     /**
@@ -55,6 +59,17 @@ class RoleController extends Controller
     public function update(Request $request, Role $role)
     {
         //
+    }
+
+    public function assign(Request $request, User $user, RoleAssignmentService $assignments): RedirectResponse
+    {
+        $validated = $request->validate([
+            'role' => ['required', 'string', 'in:admin,instructor,staff,student'],
+        ]);
+
+        $assignments->assign($user, $validated['role'], $request->user());
+
+        return back()->with('success', "Role updated for {$user->name}.");
     }
 
     /**

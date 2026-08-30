@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Role;
 use App\Models\User;
+use App\Services\RoleAssignmentService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -65,6 +66,8 @@ class MakeAdmin extends Command
             'status' => 'active',
             'email_verified_at' => now(),
         ]);
+
+        app(RoleAssignmentService::class)->assign($user, 'admin');
 
         $this->info("Admin account created successfully: {$user->email}");
 

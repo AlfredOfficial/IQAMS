@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\Department;
 use App\Models\NonTeachingStaff;
+use App\Models\OfficeUnit;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,14 +20,14 @@ class NonTeachingStaffMiddleNameTest extends TestCase
         Storage::fake('public');
         $admin = $this->user('admin');
         Role::firstOrCreate(['role_name' => 'staff']);
-        $department = $this->department();
+        $officeUnit = $this->officeUnit();
 
         foreach ([
             ['employee_no' => 'STF-001', 'middle_name' => 'Santos', 'email' => 'with-middle@example.test'],
             ['employee_no' => 'STF-002', 'middle_name' => '', 'email' => 'without-middle@example.test'],
         ] as $data) {
             $this->actingAs($admin)->post(route('non-teaching-staff.store'), [
-                'department_id' => $department->id,
+                'office_unit_id' => $officeUnit->id,
                 'employee_no' => $data['employee_no'],
                 'first_name' => 'Jamie',
                 'middle_name' => $data['middle_name'],
@@ -51,10 +51,10 @@ class NonTeachingStaffMiddleNameTest extends TestCase
     {
         $admin = $this->user('admin');
         $staffUser = $this->user('staff');
-        $department = $this->department();
+        $officeUnit = $this->officeUnit();
         $staff = NonTeachingStaff::create([
             'user_id' => $staffUser->id,
-            'department_id' => $department->id,
+            'office_unit_id' => $officeUnit->id,
             'employee_no' => 'STF-003',
             'first_name' => 'Alex',
             'last_name' => 'Cruz',
@@ -62,7 +62,7 @@ class NonTeachingStaffMiddleNameTest extends TestCase
         ]);
 
         $payload = [
-            'department_id' => $department->id,
+            'office_unit_id' => $officeUnit->id,
             'first_name' => 'Alex',
             'middle_name' => 'Dela',
             'last_name' => 'Cruz',
@@ -81,6 +81,61 @@ class NonTeachingStaffMiddleNameTest extends TestCase
         $this->assertSame('Alex Cruz', $staffUser->fresh()->name);
     }
 
+    public function test_admin_can_create_and_update_staff_name_designations(): void
+    {
+        Storage::fake('public');
+        $admin = $this->user('admin');
+        Role::firstOrCreate(['role_name' => 'staff']);
+        $officeUnit = $this->officeUnit();
+
+        $this->actingAs($admin)->post(route('non-teaching-staff.store'), [
+            'office_unit_id' => $officeUnit->id,
+            'employee_no' => 'STF-004',
+            'name_prefix' => 'Engr.',
+            'first_name' => 'Juan',
+            'middle_name' => 'Dela Cruz',
+            'last_name' => 'Santos',
+            'name_suffix' => 'RN',
+            'email' => 'juan@example.test',
+            'avatar' => $this->avatar('staff-designation.png'),
+        ])->assertRedirect(route('non-teaching-staff.index'))->assertSessionHasNoErrors();
+
+        $staff = NonTeachingStaff::where('employee_no', 'STF-004')->firstOrFail();
+        $this->assertSame('Engr. Juan Dela Cruz Santos, RN', $staff->fullName());
+        $this->assertSame($staff->fullName(), $staff->user->name);
+
+        $this->actingAs($admin)->put(route('non-teaching-staff.update', $staff), [
+            'office_unit_id' => $officeUnit->id,
+            'name_prefix' => '  ',
+            'first_name' => 'Juan',
+            'middle_name' => 'Dela Cruz',
+            'last_name' => 'Santos',
+            'name_suffix' => 'CPA',
+        ])->assertRedirect(route('non-teaching-staff.index'))->assertSessionHasNoErrors();
+
+        $staff->refresh();
+        $this->assertNull($staff->name_prefix);
+        $this->assertSame('Juan Dela Cruz Santos, CPA', $staff->fullName());
+        $this->assertSame($staff->fullName(), $staff->user->fresh()->name);
+    }
+
+    public function test_full_name_omits_empty_designation_spacing_and_commas(): void
+    {
+        $staff = new NonTeachingStaff([
+            'name_prefix' => ' Dr. ',
+            'first_name' => 'Maria',
+            'last_name' => 'Santos',
+            'name_suffix' => ' ',
+        ]);
+
+        $this->assertSame('Dr. Maria Santos', $staff->fullName());
+        $this->assertSame('Juan Santos, PhD', NonTeachingStaff::formatFullName([
+            'first_name' => 'Juan',
+            'last_name' => 'Santos',
+            'name_suffix' => ', PhD,',
+        ]));
+    }
+
     private function user(string $role): User
     {
         return User::factory()->create([
@@ -89,11 +144,11 @@ class NonTeachingStaffMiddleNameTest extends TestCase
         ]);
     }
 
-    private function department(): Department
+    private function officeUnit(): OfficeUnit
     {
-        return Department::firstOrCreate(
-            ['department_code' => 'ADMIN'],
-            ['department_name' => 'Administrative Services'],
+        return OfficeUnit::firstOrCreate(
+            ['code' => 'REG'],
+            ['name' => 'Registrar', 'is_active' => true],
         );
     }
 

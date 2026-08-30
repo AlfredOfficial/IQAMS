@@ -63,7 +63,7 @@ function scannerApp() {
                 this.showResult(data.code ? data : { code: 'rejected', title: 'Attendance Not Recorded', message: data.message || 'The scanner request failed.', person: null, attendance: null });
             } catch (error) { this.showResult({ code: 'rejected', title: 'Scanner Unavailable', message: 'Unable to reach the attendance server. Please try again.', person: null, attendance: null }); }
         },
-        showResult(result) { this.result = result; this.state = 'result'; clearTimeout(this.resetTimer); this.resetTimer = setTimeout(() => this.reset(), 5000); },
+        showResult(result) { this.result = result; this.state = 'result'; clearTimeout(this.resetTimer); this.resetTimer = setTimeout(() => this.reset(), 800); },
         reset() { clearTimeout(this.resetTimer); this.qr = ''; this.result = { code: '', title: '', message: '', person: null, attendance: null }; this.busy = false; this.state = 'ready'; this.focus(); },
     };
 }

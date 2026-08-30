@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\Department;
 use App\Models\NonTeachingStaff;
+use App\Models\OfficeUnit;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -16,10 +16,7 @@ class StaffDashboardTest extends TestCase
     public function test_staff_member_can_view_the_staff_dashboard(): void
     {
         $role = Role::create(['role_name' => 'staff']);
-        $department = Department::create([
-            'department_code' => 'ADMIN',
-            'department_name' => 'Administrative Services',
-        ]);
+        $officeUnit = OfficeUnit::where('code', 'REG')->firstOrFail();
         $user = User::create([
             'role_id' => $role->id,
             'username' => 'STF001',
@@ -30,7 +27,7 @@ class StaffDashboardTest extends TestCase
         ]);
         NonTeachingStaff::create([
             'user_id' => $user->id,
-            'department_id' => $department->id,
+            'office_unit_id' => $officeUnit->id,
             'employee_no' => 'STF001',
             'first_name' => 'Jamie',
             'last_name' => 'Santos',
@@ -44,8 +41,21 @@ class StaffDashboardTest extends TestCase
             ->assertSee('Staff Portal')
             ->assertSeeText("Today's attendance")
             ->assertSee('Jamie Santos')
-            ->assertSee('Administrative Services')
+            ->assertSee('Registrar')
             ->assertSee('Non-Teaching Personnel')
+            ->assertSee('0 of 4 completed')
+            ->assertSee('0%')
+            ->assertSee('Next:')
+            ->assertSee('Morning In')
+            ->assertSee('Lunch Out')
+            ->assertSee('Afternoon In')
+            ->assertSee('Final Out')
+            ->assertSee('data-staff-progress-bar', false)
+            ->assertSee('Staff ID: STF001')
+            ->assertSee('Office/Unit: Registrar')
+            ->assertSee('data-qr-value="STF001"', false)
+            ->assertSee('id="staff-qr"', false)
+            ->assertDontSee('View my QR code')
             ->assertDontSee('My Teaching Schedule');
     }
 

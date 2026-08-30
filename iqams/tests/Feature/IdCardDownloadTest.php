@@ -6,6 +6,7 @@ use App\Models\Course;
 use App\Models\Department;
 use App\Models\Instructor;
 use App\Models\NonTeachingStaff;
+use App\Models\OfficeUnit;
 use App\Models\Role;
 use App\Models\Student;
 use App\Models\User;
@@ -87,11 +88,11 @@ class IdCardDownloadTest extends TestCase
 
     public function test_staff_payload_contains_non_teaching_fields_and_never_a_year_level(): void
     {
-        $department = Department::create(['department_code' => 'HR', 'department_name' => 'Human Resources']);
+        $officeUnit = OfficeUnit::where('code', 'HR')->firstOrFail();
         $user = $this->user('staff');
         NonTeachingStaff::create([
             'user_id' => $user->id,
-            'department_id' => $department->id,
+            'office_unit_id' => $officeUnit->id,
             'employee_no' => 'EMP002',
             'first_name' => 'Alex',
             'last_name' => 'Reyes',
@@ -105,6 +106,7 @@ class IdCardDownloadTest extends TestCase
                 'identifier_label' => 'Employee ID',
                 'identifier' => 'EMP002',
                 'department' => 'Human Resources',
+                'assignment_label' => 'Office/Unit',
                 'year_level' => null,
                 'filename' => 'STAFF-EMP002-IQAMS-ID.png',
             ]);

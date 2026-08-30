@@ -41,6 +41,7 @@ class InstructorDashboardController extends Controller
     {
         return [
             'status' => $day['status'], 'punctuality' => $day['punctuality'], 'minutes' => $day['minutes'], 'next_period' => $day['nextPeriod'],
+            'completed_periods' => $day['completedPeriods'], 'progress_percentage' => $day['progressPercentage'],
             'events' => $day['events']->map(fn ($log) => $log ? [
                 'time' => $log->scan_time->format('g:i A'),
                 'punctuality' => str($log->punctuality_status ?? 'on_time')->replace('_', ' ')->title()->toString(),

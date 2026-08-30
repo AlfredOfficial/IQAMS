@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Middleware\CheckRole;
+use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\RedirectNonAdminFromProfile;
 use App\Http\Middleware\RequireScannerTerminal;
 use App\Http\Middleware\ThrottleScannerRequests;
@@ -18,7 +18,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'redirect.non-admin.profile' => RedirectNonAdminFromProfile::class,
-            'role' => CheckRole::class,
+            'active' => EnsureAccountIsActive::class,
+            'role' => Spatie\Permission\Middleware\RoleMiddleware::class,
+            'permission' => Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'role_or_permission' => Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             'scanner.terminal' => RequireScannerTerminal::class,
             'scanner.throttle' => ThrottleScannerRequests::class,
         ]);

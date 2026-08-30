@@ -20,8 +20,7 @@ class PersonnelAttendanceSummary
             ->whereNull('schedule_id')->whereNull('school_event_id')
             ->whereBetween('scan_time', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
             ->orderBy('scan_time')->get()->groupBy(fn ($log) => $log->scan_time->toDateString());
-        $leaves = LeaveRequest::where('user_id', $user->id)->where('status', 'approved')
-            ->whereDate('start_date', '<=', $to)->whereDate('end_date', '>=', $from)->get();
+        $leavesByDate = $this->approvedLeavesByDate($user, $from, $to);
 
         $days = collect();
         if ($from->gt($to)) {
@@ -30,7 +29,7 @@ class PersonnelAttendanceSummary
         $calendar = $this->calendar->context($user, $from, $to);
         for ($date = $from->copy()->startOfDay(); $date->lte($to); $date->addDay()) {
             $dateLogs = $logs->get($date->toDateString(), collect());
-            $leave = $leaves->first(fn ($item) => $date->betweenIncluded($item->start_date, $item->end_date));
+            $leave = $leavesByDate->get($date->toDateString());
             $exclusionReason = $this->calendar->exclusionReason($date, $calendar);
 
             if ($dateLogs->isNotEmpty()) {
@@ -89,6 +88,8 @@ class PersonnelAttendanceSummary
             : self::PERIODS[($latestRecordedIndex ?? -1) + 1];
 
         return compact('date', 'events', 'status', 'minutes', 'late', 'early', 'notes', 'leave') + [
+            'completedPeriods' => $count,
+            'progressPercentage' => $count * 25,
             'isIncomplete' => $isIncomplete,
             'isExcluded' => false,
             'exclusionReason' => null,
@@ -101,21 +102,50 @@ class PersonnelAttendanceSummary
     {
         $included = $days->where('isExcluded', false);
         $working = $included->count();
-        $present = $included->whereNotIn('status', ['Absent', 'Not Started', 'On Leave', 'Sick Leave'])->count();
-        $required = $included->whereNotIn('status', ['On Leave', 'Sick Leave'])->count();
+        $present = $included->filter(fn ($day) => ! $day['leave'] && ! in_array($day['status'], ['Absent', 'Not Started'], true))->count();
+        $required = $included->whereNull('leave')->count();
 
         return [
             'workingDays' => $working, 'presentDays' => $present,
             'expectedDays' => $working,
             'excludedDays' => $days->where('isExcluded', true)->count(),
             'absentDays' => $included->where('status', 'Absent')->count(),
-            'leaveDays' => $included->whereIn('status', ['On Leave', 'Sick Leave'])->count(),
+            'leaveDays' => $included->whereNotNull('leave')->count(),
             'lateCount' => $included->where('late', true)->count(),
             'earlyOutCount' => $included->where('early', true)->count(),
             'incompleteCount' => $included->where('isIncomplete', true)->count(),
             'totalMinutes' => $included->sum('minutes'),
             'percentage' => $required ? round(($present / $required) * 100, 1) : 0,
         ];
+    }
+
+    /**
+     * Return approved leave records keyed by each calendar date they cover.
+     *
+     * Expanding date casts to date-only keys prevents application timezone or
+     * time-of-day values from shifting an approved leave to an adjacent day.
+     */
+    private function approvedLeavesByDate(User $user, Carbon $from, Carbon $to): Collection
+    {
+        $rangeStart = $from->copy()->startOfDay();
+        $rangeEnd = $to->copy()->startOfDay();
+
+        return LeaveRequest::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'approved')
+            ->whereDate('start_date', '<=', $rangeEnd->toDateString())
+            ->whereDate('end_date', '>=', $rangeStart->toDateString())
+            ->get()
+            ->reduce(function (Collection $dates, LeaveRequest $leave) use ($rangeStart, $rangeEnd) {
+                $start = Carbon::parse($leave->start_date->toDateString())->max($rangeStart);
+                $end = Carbon::parse($leave->end_date->toDateString())->min($rangeEnd);
+
+                for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+                    $dates->put($date->toDateString(), $leave);
+                }
+
+                return $dates;
+            }, collect());
     }
 
     private function excludedDay(Carbon $date, string $reason): array

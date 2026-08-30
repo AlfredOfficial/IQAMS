@@ -20,6 +20,7 @@ class QrAttendanceService
         private AccountStatusService $accountStatus,
         private ApprovedLeaveAttendanceGuard $leaveGuard,
         private SchoolEventResolver $eventResolver,
+        private PersonnelAttendanceClassifier $personnelClassifier,
     ) {}
 
     public function record(string $qrCode, ?string $location = null, ?Carbon $scannedAt = null): AttendanceLog
@@ -221,7 +222,7 @@ class QrAttendanceService
             // belong to the later period.
             $period = collect($stages)
                 ->reverse()
-                ->search(fn (array $candidate) => $this->isWithinPersonnelWindow($candidate, $scannedAt));
+                ->search(fn (array $candidate) => $this->personnelClassifier->isWithinWindow($candidate, $scannedAt));
             $period = $period === false ? null : $period;
             $stage = $period ? $stages[$period] : null;
 
@@ -237,7 +238,7 @@ class QrAttendanceService
             $stage = $period ? $stages[$period] : null;
         }
 
-        if (! $stage || ! $this->isWithinPersonnelWindow($stage, $scannedAt)) {
+        if (! $stage || ! $this->personnelClassifier->isWithinWindow($stage, $scannedAt)) {
             if (! $stage) {
                 if ($role === 'instructor') {
                     $upcomingStage = collect($stages)->first(function (array $candidate) use ($scannedAt) {
@@ -269,37 +270,10 @@ class QrAttendanceService
             'attendance_type' => $stage['type'],
             'attendance_period' => $period,
             'scan_time' => $scannedAt,
-            'status' => $this->punctuality($stage, $scannedAt) === 'late' ? 'late' : 'present',
-            'punctuality_status' => $this->punctuality($stage, $scannedAt),
+            'status' => $this->personnelClassifier->punctuality($stage, $scannedAt) === 'late' ? 'late' : 'present',
+            'punctuality_status' => $this->personnelClassifier->punctuality($stage, $scannedAt),
             'scanner_location' => $location,
         ])->load('user.role');
-    }
-
-    private function punctuality(array $stage, Carbon $scannedAt): string
-    {
-        if (($stage['type'] ?? null) === 'time_in' && isset($stage['on_time_until'])) {
-            $deadline = $scannedAt->copy()->startOfDay()->setTimeFromTimeString($stage['on_time_until']);
-
-            return $scannedAt->greaterThan($deadline) ? 'late' : 'on_time';
-        }
-
-        if (($stage['type'] ?? null) === 'time_out' && isset($stage['not_early_before'])) {
-            $minimum = $scannedAt->copy()->startOfDay()->setTimeFromTimeString($stage['not_early_before']);
-
-            return $scannedAt->lessThan($minimum) ? 'early_out' : 'on_time';
-        }
-
-        return 'on_time';
-    }
-
-    private function isWithinPersonnelWindow(array $stage, Carbon $scannedAt): bool
-    {
-        $start = $scannedAt->copy()->startOfDay()->setTimeFromTimeString($stage['start']);
-        $end = $scannedAt->copy()->startOfDay()->setTimeFromTimeString($stage['end']);
-
-        return $end->greaterThanOrEqualTo($start)
-            ? $scannedAt->betweenIncluded($start, $end)
-            : $scannedAt->greaterThanOrEqualTo($start) || $scannedAt->lessThanOrEqualTo($end);
     }
 
     private function isUniqueConstraintViolation(QueryException $exception): bool

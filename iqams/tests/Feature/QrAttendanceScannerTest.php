@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\Instructor;
 use App\Models\LeaveRequest;
 use App\Models\NonTeachingStaff;
+use App\Models\OfficeUnit;
 use App\Models\Role;
 use App\Models\ScannerTerminal;
 use App\Models\Schedule;
@@ -118,8 +119,79 @@ class QrAttendanceScannerTest extends TestCase
         $this->assertDatabaseHas('attendance_logs', [
             'user_id' => $user->id,
             'attendance_type' => 'time_in',
+            'attendance_period' => 'morning_in',
+            'punctuality_status' => 'on_time',
             'status' => 'present',
         ]);
+    }
+
+    public function test_manual_instructor_attendance_uses_qr_period_and_punctuality_rules(): void
+    {
+        $user = $this->createPersonnel('instructor', 'INS-MANUAL');
+        $admin = $this->createUser([
+            'role_id' => Role::firstOrCreate(['role_name' => 'admin'])->id,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)->post(route('attendance-logs.store'), [
+            'user_id' => $user->id,
+            'attendance_type' => 'time_in',
+            'scan_time' => '2026-08-10 08:05:00',
+        ])->assertRedirect(route('attendance-logs.index'));
+
+        $this->assertDatabaseHas('attendance_logs', [
+            'user_id' => $user->id,
+            'attendance_period' => 'morning_in',
+            'punctuality_status' => 'late',
+            'status' => 'late',
+        ]);
+
+        $day = app(PersonnelAttendanceSummary::class)->day(
+            Carbon::parse('2026-08-10'),
+            AttendanceLog::where('user_id', $user->id)->get(),
+        );
+        $this->assertNotNull($day['events']['morning_in']);
+    }
+
+    public function test_manual_personnel_duplicate_period_is_rejected(): void
+    {
+        $user = $this->createPersonnel('staff', 'STAFF-MANUAL-DUP');
+        $admin = $this->createUser([
+            'role_id' => Role::firstOrCreate(['role_name' => 'admin'])->id,
+            'status' => 'active',
+        ]);
+        $payload = ['user_id' => $user->id, 'attendance_type' => 'time_in', 'scan_time' => '2026-08-10 08:00:00'];
+
+        $this->actingAs($admin)->post(route('attendance-logs.store'), $payload)->assertRedirect();
+        $this->post(route('attendance-logs.store'), $payload)->assertSessionHasErrors('scan_time');
+        $this->assertSame(1, AttendanceLog::where('user_id', $user->id)->count());
+    }
+
+    public function test_staff_realtime_dashboard_returns_new_manual_attendance(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-10 08:05:00', 'Asia/Manila'));
+        $user = $this->createPersonnel('staff', 'STAFF-REALTIME');
+        AttendanceLog::create([
+            'user_id' => $user->id, 'attendance_type' => 'time_in', 'attendance_period' => 'morning_in',
+            'scan_time' => now(), 'status' => 'present', 'punctuality_status' => 'on_time',
+        ]);
+
+        $this->actingAs($user)->getJson(route('staff.dashboard.realtime'))
+            ->assertOk()->assertJsonPath('today.events.morning_in.time', '8:05 AM')
+            ->assertJsonPath('recent.0.label', 'Morning In');
+    }
+
+    public function test_student_realtime_dashboard_returns_subject_attendance(): void
+    {
+        [$user, $schedule] = $this->studentWithSchedule();
+        AttendanceLog::create([
+            'user_id' => $user->id, 'schedule_id' => $schedule->id,
+            'attendance_type' => 'time_in', 'scan_time' => '2026-08-10 08:05:00', 'status' => 'present',
+        ]);
+
+        $this->actingAs($user)->getJson(route('student.dashboard.realtime'))
+            ->assertOk()->assertJsonPath('stats.present', 1)
+            ->assertJsonPath('recent.0.code', $schedule->subject->subject_code);
     }
 
     public function test_admin_can_deactivate_and_reactivate_an_account(): void
@@ -604,7 +676,8 @@ class QrAttendanceScannerTest extends TestCase
             ->assertJsonPath('code', 'recorded')
             ->assertJsonPath('person.id', $staff->id)
             ->assertJsonPath('person.role', 'Non-Teaching Staff')
-            ->assertJsonPath('person.department', 'N/A')
+            ->assertJsonPath('person.department', 'Registrar')
+            ->assertJsonPath('person.details.0.label', 'Office/Unit')
             ->assertJsonPath('person.details.1.label', 'Employee ID')
             ->assertJsonPath('person.details.2.value', 'Non-Teaching Staff');
 
@@ -771,8 +844,13 @@ class QrAttendanceScannerTest extends TestCase
                 'qr_code' => $qrCode,
             ]);
         } else {
+            $officeUnit = OfficeUnit::firstOrCreate(
+                ['code' => 'REG'],
+                ['name' => 'Registrar', 'is_active' => true],
+            );
             NonTeachingStaff::create([
                 'user_id' => $user->id,
+                'office_unit_id' => $officeUnit->id,
                 'employee_no' => 'EMP-'.str_pad((string) $user->id, 3, '0', STR_PAD_LEFT),
                 'first_name' => 'Test',
                 'last_name' => 'Staff',

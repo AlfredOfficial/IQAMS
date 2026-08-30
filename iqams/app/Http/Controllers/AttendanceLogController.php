@@ -11,10 +11,12 @@ use App\Models\User;
 use App\Services\AccountStatusService;
 use App\Services\ApprovedLeaveAttendanceGuard;
 use App\Services\AttendanceScheduleValidator;
+use App\Services\PersonnelAttendanceClassifier;
 use App\Services\StudentAttendanceWindow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class AttendanceLogController extends Controller
 {
@@ -23,7 +25,7 @@ class AttendanceLogController extends Controller
      */
     public function index(Request $request)
     {
-        $query = AttendanceLog::with(['user', 'schedule.subject', 'schedule.section', 'schoolEvent']);
+        $query = AttendanceLog::with(['user.nonTeachingStaff', 'schedule.subject', 'schedule.section', 'schoolEvent']);
 
         if ($request->filled('date')) {
             $query->whereDate('scan_time', $request->date('date'));
@@ -80,7 +82,8 @@ class AttendanceLogController extends Controller
         Request $request,
         AttendanceScheduleValidator $scheduleValidator,
         AccountStatusService $accountStatus,
-        ApprovedLeaveAttendanceGuard $leaveGuard
+        ApprovedLeaveAttendanceGuard $leaveGuard,
+        PersonnelAttendanceClassifier $personnelClassifier
     ) {
         $identity = $request->validate(['user_id' => 'required|exists:users,id']);
         $user = User::with(['student', 'role'])->findOrFail($identity['user_id']);
@@ -102,6 +105,12 @@ class AttendanceLogController extends Controller
 
         if ($schedule) {
             $scheduleValidator->validate($user, $schedule, $scanTime);
+        }
+
+        if (! $user->student) {
+            $classification = $personnelClassifier->classify($user->role->role_name, $validated['attendance_type'], $scanTime);
+            $this->ensurePersonnelPeriodIsUnique($user, $scanTime, $classification['attendance_period']);
+            $validated = array_merge($validated, $classification);
         }
 
         $validated['status'] = $this->resolveStatus($validated, $schedule, $scanTime, app(StudentAttendanceWindow::class));
@@ -136,7 +145,8 @@ class AttendanceLogController extends Controller
         AttendanceLog $attendanceLog,
         AttendanceScheduleValidator $scheduleValidator,
         AccountStatusService $accountStatus,
-        ApprovedLeaveAttendanceGuard $leaveGuard
+        ApprovedLeaveAttendanceGuard $leaveGuard,
+        PersonnelAttendanceClassifier $personnelClassifier
     ) {
         $identity = $request->validate(['user_id' => 'required|exists:users,id']);
         $user = User::with(['student', 'role'])->findOrFail($identity['user_id']);
@@ -158,6 +168,15 @@ class AttendanceLogController extends Controller
 
         if ($schedule) {
             $scheduleValidator->validate($user, $schedule, $scanTime);
+        }
+
+        if (! $user->student) {
+            $classification = $personnelClassifier->classify($user->role->role_name, $validated['attendance_type'], $scanTime);
+            $this->ensurePersonnelPeriodIsUnique($user, $scanTime, $classification['attendance_period'], $attendanceLog);
+            $validated = array_merge($validated, $classification);
+        } else {
+            $validated['attendance_period'] = null;
+            $validated['punctuality_status'] = null;
         }
 
         $validated['status'] = $this->resolveStatus($validated, $schedule, $scanTime, app(StudentAttendanceWindow::class));
@@ -186,10 +205,29 @@ class AttendanceLogController extends Controller
             return $data['status_override'];
         }
 
+        if (! $schedule && ($data['punctuality_status'] ?? null) === 'late') {
+            return 'late';
+        }
+
         if ($data['attendance_type'] !== 'time_in' || ! $schedule) {
             return 'present';
         }
 
         return $window->status($schedule, $scanTime);
+    }
+
+    private function ensurePersonnelPeriodIsUnique(User $user, Carbon $scanTime, string $period, ?AttendanceLog $except = null): void
+    {
+        $exists = AttendanceLog::where('user_id', $user->id)
+            ->whereDate('scan_time', $scanTime->toDateString())
+            ->where('attendance_period', $period)
+            ->when($except, fn ($query) => $query->whereKeyNot($except->getKey()))
+            ->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages([
+                'scan_time' => str($period)->replace('_', ' ')->title().' has already been recorded for this date.',
+            ]);
+        }
     }
 }

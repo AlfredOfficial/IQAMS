@@ -84,7 +84,7 @@ class AdminDashboardData
     {
         return AttendanceLog::with([
             'user.role', 'user.student.section.course', 'user.student.course',
-            'user.instructor.department', 'user.nonTeachingStaff',
+            'user.instructor.department', 'user.nonTeachingStaff.officeUnit',
             'schedule.subject', 'schedule.section.course', 'schedule.instructor.user',
         ]);
     }
@@ -159,12 +159,13 @@ class AdminDashboardData
 
     private function weekly(Carbon $from, Carbon $to): array
     {
-        $expression = DB::getDriverName() === 'sqlite' ? "date(scan_time)" : 'DATE(scan_time)';
+        $expression = DB::getDriverName() === 'sqlite' ? 'date(scan_time)' : 'DATE(scan_time)';
         $counts = DB::table('attendance_logs')->whereBetween('scan_time', [$from, $to])
             ->selectRaw("{$expression} as bucket, COUNT(*) as aggregate")->groupBy('bucket')->pluck('aggregate', 'bucket');
 
         return collect(range(0, 6))->map(function ($offset) use ($from, $counts) {
             $day = $from->copy()->addDays($offset);
+
             return ['label' => $day->format('D'), 'value' => (int) ($counts->get($day->toDateString()) ?? 0)];
         })->all();
     }
@@ -212,17 +213,21 @@ class AdminDashboardData
         $staff = $log->user?->nonTeachingStaff;
         $section = $student?->section ?? $log->schedule?->section;
         $department = $instructor?->department?->department_name;
+        $officeUnit = $staff?->officeUnit?->name;
+        $displayName = $staff?->fullName() ?? $log->user?->name ?? 'Unknown user';
 
         return [
             'id' => $log->id, 'user_id' => $log->user_id,
             'identifier' => $student?->student_no ?? $instructor?->employee_no ?? $staff?->employee_no ?? $log->user?->username ?? '—',
-            'name' => $log->user?->name ?? 'Unknown user',
-            'initials' => collect(explode(' ', $log->user?->name ?? '?'))->filter()->take(2)->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))->implode(''),
+            'name' => $displayName,
+            'initials' => collect(explode(' ', $displayName))->filter()->take(2)->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))->implode(''),
             'avatar' => $log->user?->avatar_url, 'role_key' => $role,
-            'role' => match ($role) { 'instructor' => 'Teaching Personnel', 'staff' => 'Non-teaching Personnel', 'student' => 'Student', default => ucfirst($role) },
+            'role' => match ($role) {
+                'instructor' => 'Teaching Personnel', 'staff' => 'Non-teaching Personnel', 'student' => 'Student', default => ucfirst($role)
+            },
             'section' => $section?->section_name, 'course' => $student?->course?->course_code ?? $section?->course?->course_code,
-            'department' => $department ?? ($role === 'staff' ? 'Administration' : null),
-            'group' => $role === 'student' ? ($section?->section_name ?? 'Unassigned') : ($department ?? ($role === 'staff' ? 'Administration' : 'Unassigned')),
+            'department' => $role === 'staff' ? $officeUnit : $department,
+            'group' => $role === 'student' ? ($section?->section_name ?? 'Unassigned') : (($role === 'staff' ? $officeUnit : $department) ?? 'Unassigned'),
             'subject' => $log->schedule?->subject?->subject_name, 'subject_code' => $log->schedule?->subject?->subject_code,
             'instructor' => $log->schedule?->instructor?->user?->name,
             'date' => $log->scan_time->format('M d, Y'), 'date_iso' => $log->scan_time->format('Y-m-d'),

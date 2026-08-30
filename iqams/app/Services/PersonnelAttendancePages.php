@@ -32,8 +32,8 @@ class PersonnelAttendancePages
     {
         $month = max(1, min(12, $requestedMonth));
         $year = max(2000, min(2100, $requestedYear));
-        $from = Carbon::create($year, $month, 1);
-        $to = $from->isFuture() ? $from->copy()->subDay() : $from->copy()->endOfMonth()->min(today());
+        $from = Carbon::create($year, $month, 1)->startOfDay();
+        $to = $from->copy()->endOfMonth();
         $days = $this->summary->days($user, $from, $to, true);
         $totals = $this->summary->totals($days);
 

@@ -85,6 +85,25 @@ class PersonnelAttendanceCalculationTest extends TestCase
         $this->assertSame('Employee inactive', $day['exclusionReason']);
     }
 
+    public function test_daily_progress_uses_only_recorded_attendance_periods(): void
+    {
+        $service = app(PersonnelAttendanceSummary::class);
+
+        foreach (range(0, 4) as $completed) {
+            $logs = collect(PersonnelAttendanceSummary::PERIODS)
+                ->take($completed)
+                ->values()
+                ->map(fn ($period, $index) => new AttendanceLog([
+                    'attendance_period' => $period,
+                    'scan_time' => today()->copy()->addHours(8 + $index),
+                ]));
+            $day = $service->day(today(), $logs);
+
+            $this->assertSame($completed, $day['completedPeriods']);
+            $this->assertSame($completed * 25, $day['progressPercentage']);
+        }
+    }
+
     public function test_instructor_expected_days_follow_existing_teaching_schedule(): void
     {
         Carbon::setTestNow('2026-08-01 09:00:00');

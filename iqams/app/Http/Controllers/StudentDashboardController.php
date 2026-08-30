@@ -41,4 +41,23 @@ class StudentDashboardController extends Controller
 
         return view('student.dashboard', compact('student', 'schedules', 'scheduleByDay', 'dayOrder', 'myAttendance', 'stats', 'subjectAbsenceWarnings'));
     }
+
+    public function realtime(Request $request)
+    {
+        abort_unless($request->user()->student, 403);
+        $query = AttendanceLog::where('user_id', $request->user()->id);
+        $logs = (clone $query)->with(['schedule.subject', 'schoolEvent'])->latest('scan_time')->take(10)->get();
+
+        return response()->json([
+            'stats' => collect(['present', 'late', 'absent', 'excused'])
+                ->mapWithKeys(fn ($status) => [$status => (clone $query)->where('status', $status)->count()]),
+            'recent' => $logs->map(fn ($log) => [
+                'code' => $log->schoolEvent ? 'SCHOOL EVENT' : ($log->schedule?->subject?->subject_code ?? '—'),
+                'title' => $log->schoolEvent?->title ?? $log->schedule?->subject?->subject_name ?? 'Attendance record',
+                'status' => $log->status, 'date' => $log->scan_time->format('F j, Y'),
+                'time' => $log->scan_time->format('g:i A'),
+                'type' => str_replace('_', ' ', $log->attendance_type),
+            ])->values(),
+        ]);
+    }
 }

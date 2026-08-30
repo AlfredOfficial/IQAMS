@@ -15,7 +15,7 @@ class IdCardController extends Controller
             'role',
             'student.course.department',
             'instructor.department',
-            'nonTeachingStaff.department',
+            'nonTeachingStaff.officeUnit',
         ]);
 
         $card = match ($user->role?->role_name) {
@@ -39,7 +39,8 @@ class IdCardController extends Controller
             'role' => $card['role'],
             'identifier_label' => $card['identifier_label'],
             'identifier' => $card['identifier'],
-            'department' => $card['department'] ?: 'Department not assigned',
+            'department' => $card['department'] ?: $card['assignment_label'].' not assigned',
+            'assignment_label' => $card['assignment_label'],
             'year_level' => $card['year_level'],
             'qr_code' => $qrCode,
             'avatar_url' => $user->avatar_url ?: asset('images/default-avatar.svg'),
@@ -58,6 +59,7 @@ class IdCardController extends Controller
             'identifier_label' => 'Student ID',
             'identifier' => $identifier,
             'department' => $student?->course?->department?->department_name,
+            'assignment_label' => 'Department',
             'year_level' => $student?->year_level ? $this->yearLevel($student->year_level) : null,
             'filename' => $this->filename('STUDENT', $identifier),
         ];
@@ -73,6 +75,7 @@ class IdCardController extends Controller
             'identifier_label' => 'Employee ID',
             'identifier' => $identifier,
             'department' => $instructor?->department?->department_name,
+            'assignment_label' => 'Department',
             'year_level' => null,
             'filename' => $this->filename('INSTRUCTOR', $identifier),
         ];
@@ -87,7 +90,8 @@ class IdCardController extends Controller
             'role' => 'Non-Teaching Personnel',
             'identifier_label' => 'Employee ID',
             'identifier' => $identifier,
-            'department' => $staff?->department?->department_name,
+            'department' => $staff?->officeUnit?->name,
+            'assignment_label' => 'Office/Unit',
             'year_level' => null,
             'filename' => $this->filename('STAFF', $identifier),
         ];
