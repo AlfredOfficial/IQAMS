@@ -53,6 +53,7 @@ class PersonnelAttendanceSummary
         $events = collect(self::PERIODS)->mapWithKeys(fn ($period) => [$period => $logs->firstWhere('attendance_period', $period)]);
         $count = $events->filter()->count();
         $isPast = $date->isBefore(today());
+        $isToday = $date->isToday();
         $latestRecordedIndex = collect(self::PERIODS)
             ->keys()
             ->filter(fn ($index) => $events[self::PERIODS[$index]])
@@ -61,16 +62,15 @@ class PersonnelAttendanceSummary
             && collect(self::PERIODS)
                 ->take($latestRecordedIndex + 1)
                 ->contains(fn ($period) => ! $events[$period]);
-        $isIncomplete = ! $leave && $count > 0 && ($hasSkippedPeriod || ($isPast && $count < count(self::PERIODS)));
-        $late = $events->contains(fn ($log) => $log?->punctuality_status === 'late');
-        $early = $events->contains(fn ($log) => $log?->punctuality_status === 'early_out');
+        $isIncomplete = ! $leave && $isPast && $count > 0 && $count < count(self::PERIODS);
+        $isInProgress = ! $leave && $isToday && $count > 0 && $count < count(self::PERIODS);
+        $late = $events['morning_in']?->punctuality_status === 'late';
+        $early = $events['final_out']?->punctuality_status === 'early_out';
         $status = match (true) {
             $count === 0 => $isPast ? 'Absent' : 'Not Started',
-            $count === count(self::PERIODS) => 'Completed',
-            (bool) $events['final_out'] => 'Final Out Recorded',
-            (bool) $events['afternoon_in'] => 'Afternoon In Recorded',
-            (bool) $events['lunch_out'] => 'Morning Complete',
-            default => 'Morning In Recorded',
+            $count === count(self::PERIODS) => 'Present',
+            $isIncomplete => 'Incomplete',
+            default => 'In Progress',
         };
         if ($leave) {
             $status = $leave->leave_type === 'sick' ? 'Sick Leave' : 'On Leave';
@@ -91,6 +91,7 @@ class PersonnelAttendanceSummary
             'completedPeriods' => $count,
             'progressPercentage' => $count * 25,
             'isIncomplete' => $isIncomplete,
+            'isInProgress' => $isInProgress,
             'isExcluded' => false,
             'exclusionReason' => null,
             'nextPeriod' => $nextPeriod,
@@ -102,20 +103,22 @@ class PersonnelAttendanceSummary
     {
         $included = $days->where('isExcluded', false);
         $working = $included->count();
-        $present = $included->filter(fn ($day) => ! $day['leave'] && ! in_array($day['status'], ['Absent', 'Not Started'], true))->count();
-        $required = $included->whereNull('leave')->count();
+        $present = $included->where('status', 'Present')->count();
+        $absent = $included->where('status', 'Absent')->count();
+        $ratedDays = $present + $absent;
 
         return [
             'workingDays' => $working, 'presentDays' => $present,
             'expectedDays' => $working,
             'excludedDays' => $days->where('isExcluded', true)->count(),
-            'absentDays' => $included->where('status', 'Absent')->count(),
+            'absentDays' => $absent,
             'leaveDays' => $included->whereNotNull('leave')->count(),
             'lateCount' => $included->where('late', true)->count(),
             'earlyOutCount' => $included->where('early', true)->count(),
             'incompleteCount' => $included->where('isIncomplete', true)->count(),
+            'inProgressCount' => $included->where('isInProgress', true)->count(),
             'totalMinutes' => $included->sum('minutes'),
-            'percentage' => $required ? round(($present / $required) * 100, 1) : 0,
+            'percentage' => $ratedDays ? round(($present / $ratedDays) * 100, 2) : 0,
         ];
     }
 

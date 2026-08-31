@@ -1,5 +1,5 @@
 <x-instructor-layout title="My Teaching Schedule">
-<div x-data="classAttendanceBrowser()" class="mx-auto max-w-[1500px] space-y-5">
+<div x-data="classAttendanceBrowser()" data-today="{{ now()->toDateString() }}" data-attendance-endpoint="{{ url('/instructor/schedule/__SCHEDULE__/attendance') }}" class="mx-auto max-w-[1500px] space-y-5">
     <div>
         <h2 class="text-xl font-extrabold text-[#10294b]">My Teaching Schedule</h2>
         <p class="mt-1 text-sm text-slate-500">Select a class, weekday, and actual date to review student attendance.</p>
@@ -15,16 +15,22 @@
             @foreach($scheduleGroups as $group)
                 <button type="button" @click="openGroup(@js($group))"
                     :class="selectedGroup?.key === @js($group['key']) ? 'border-blue-500 ring-2 ring-blue-100' : 'border-slate-200 hover:border-blue-300'"
-                    class="rounded-2xl border bg-white p-5 text-left shadow-sm transition">
+                    class="flex h-full flex-col rounded-2xl border bg-white p-5 text-left shadow-sm transition">
                     <div class="flex items-start justify-between gap-4">
                         <div><p class="text-lg font-extrabold text-[#10294b]">{{ $group['subject_code'] }}</p><p class="mt-1 text-sm font-semibold text-slate-700">{{ $group['subject_name'] }}</p></div>
                         <span class="rounded-lg bg-blue-50 px-3 py-1.5 text-sm font-extrabold text-blue-700">{{ $group['days_label'] }}</span>
                     </div>
-                    <div class="mt-5 space-y-2 border-t border-slate-100 pt-4 text-sm text-slate-600">
+                    <div class="mt-5 flex-1 space-y-2 border-t border-slate-100 pt-4 text-sm text-slate-600">
                         <p class="font-semibold text-slate-800">{{ $group['start_time'] }} - {{ $group['end_time'] }}</p>
                         <p>{{ $group['section'] }} <span class="mx-2 text-slate-300">•</span> Room {{ $group['room'] }}</p>
                         <p class="text-xs text-slate-400">{{ collect($group['days'])->pluck('label')->implode(' · ') }}</p>
                     </div>
+                    <span
+                        :class="selectedGroup?.key === @js($group['key']) ? 'bg-blue-700' : 'bg-blue-600'"
+                        class="mt-5 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700">
+                        <x-heroicon-o-user-group class="h-5 w-5" />
+                        <span x-text="selectedGroup?.key === @js($group['key']) ? 'Viewing Student Attendance' : 'View Student Attendance'">View Student Attendance</span>
+                    </span>
                 </button>
             @endforeach
         </div>
@@ -79,48 +85,4 @@
     @endif
 </div>
 
-@if($scheduleGroups->isNotEmpty())
-<script>
-function classAttendanceBrowser() {
-    return {
-        selectedGroup: null, selectedDay: null, selectedDate: '', availableDates: [], attendance: null, loading: false, error: '',
-        today: @js(now()->toDateString()),
-        endpoint: @js(url('/instructor/schedule/__SCHEDULE__/attendance')),
-        get monthLabel() { return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(this.today + 'T00:00:00Z')); },
-        openGroup(group) {
-            this.selectedGroup = group; this.attendance = null; this.error = '';
-            const todayName = new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: 'UTC' }).format(new Date(this.today + 'T00:00:00Z')).toLowerCase();
-            this.selectDay(group.days.find(day => day.name === todayName) || group.days[0]);
-            this.$nextTick(() => this.$root.querySelector('section[x-show="selectedGroup"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-        },
-        selectDay(day) {
-            this.selectedDay = day; this.attendance = null; this.error = '';
-            const base = new Date(this.today + 'T00:00:00Z'); const year = base.getUTCFullYear(); const month = base.getUTCMonth();
-            this.availableDates = [];
-            for (let number = 1; number <= new Date(Date.UTC(year, month + 1, 0)).getUTCDate(); number++) {
-                const candidate = new Date(Date.UTC(year, month, number));
-                const name = new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: 'UTC' }).format(candidate).toLowerCase();
-                if (name === day.name) this.availableDates.push({ value: candidate.toISOString().slice(0, 10), shortDay: day.label.slice(0, 3), dayNumber: number });
-            }
-            const defaultDate = [...this.availableDates].reverse().find(date => date.value <= this.today) || this.availableDates[0];
-            if (defaultDate) this.selectDate(defaultDate.value);
-        },
-        async selectDate(date) {
-            this.selectedDate = date; this.loading = true; this.error = ''; this.attendance = null;
-            try {
-                const url = this.endpoint.replace('__SCHEDULE__', this.selectedDay.schedule_id) + '?date=' + encodeURIComponent(date);
-                const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
-                const data = await response.json().catch(() => ({}));
-                if (!response.ok) throw new Error(Object.values(data.errors || {}).flat()[0] || data.message || 'Attendance could not be loaded.');
-                this.attendance = data;
-            } catch (error) { this.error = error.message || 'Attendance could not be loaded.'; }
-            finally { this.loading = false; }
-        },
-        statusClass(status) {
-            return { present: 'bg-emerald-100 text-emerald-700', late: 'bg-orange-100 text-orange-700', absent: 'bg-rose-100 text-rose-700', excused: 'bg-violet-100 text-violet-700', pending: 'bg-amber-100 text-amber-700' }[status] || 'bg-slate-100 text-slate-600';
-        },
-    };
-}
-</script>
-@endif
 </x-instructor-layout>

@@ -13,6 +13,7 @@ class Schedule extends Model
 
     protected $fillable = [
         'subject_id',
+        'recurring_schedule_group_id',
         'instructor_id',
         'section_id',
         'day',
@@ -39,5 +40,10 @@ class Schedule extends Model
     public function attendanceLogs(): HasMany
     {
         return $this->hasMany(AttendanceLog::class);
+    }
+
+    public function recurringSchedules(): HasMany
+    {
+        return $this->hasMany(self::class, 'recurring_schedule_group_id', 'recurring_schedule_group_id');
     }
 }

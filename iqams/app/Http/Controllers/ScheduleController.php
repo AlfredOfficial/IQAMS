@@ -8,6 +8,7 @@ use App\Models\Section;
 use App\Models\Subject;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ScheduleController extends Controller
@@ -17,7 +18,17 @@ class ScheduleController extends Controller
      */
     public function index()
     {
-        $schedules = Schedule::with(['subject', 'instructor', 'section'])->latest()->paginate(10);
+        $schedules = Schedule::with(['subject', 'instructor', 'section', 'recurringSchedules:id,recurring_schedule_group_id,day'])
+            ->latest()->paginate(10);
+
+        $dayOrder = array_flip(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']);
+        $schedules->getCollection()->each(function (Schedule $schedule) use ($dayOrder) {
+            $days = ($schedule->recurring_schedule_group_id
+                ? $schedule->recurringSchedules->pluck('day')
+                : collect([$schedule->day]))->unique()
+                ->sortBy(fn (string $day) => $dayOrder[$day])->values();
+            $schedule->setAttribute('recurring_days', $days->all());
+        });
 
         $subjects = Subject::orderBy('subject_name')->get();
 
@@ -45,9 +56,10 @@ class ScheduleController extends Controller
 
         DB::transaction(function () use ($validated) {
             $this->ensureNoDuplicates($validated);
+            $groupId = (string) Str::uuid();
 
             foreach ($validated['days'] as $day) {
-                Schedule::create($this->attributesForDay($validated, $day));
+                Schedule::create($this->attributesForDay($validated, $day, $groupId));
             }
         });
 
@@ -81,13 +93,37 @@ class ScheduleController extends Controller
         $validated = $this->validateSchedule($request);
 
         DB::transaction(function () use ($validated, $schedule) {
-            $this->ensureNoDuplicates($validated, $schedule);
+            $schedule = Schedule::query()->lockForUpdate()->findOrFail($schedule->getKey());
+            $group = $schedule->recurring_schedule_group_id
+                ? Schedule::query()
+                    ->where('recurring_schedule_group_id', $schedule->recurring_schedule_group_id)
+                    ->lockForUpdate()->get()
+                : collect([$schedule]);
+            $applyToRecurring = ($validated['apply_to_recurring'] ?? false) && $group->count() > 1;
+
+            if ($applyToRecurring) {
+                $validated['days'] = $group->pluck('day')->all();
+                $this->ensureNoDuplicates($validated, $group->modelKeys());
+
+                foreach ($group as $groupSchedule) {
+                    $groupSchedule->update($this->attributesForDay(
+                        $validated,
+                        $groupSchedule->day,
+                        $schedule->recurring_schedule_group_id,
+                    ));
+                }
+
+                return;
+            }
+
+            $this->ensureNoDuplicates($validated, [$schedule->getKey()]);
+            $newGroupId = (string) Str::uuid();
 
             $days = $validated['days'];
-            $schedule->update($this->attributesForDay($validated, array_shift($days)));
+            $schedule->update($this->attributesForDay($validated, array_shift($days), $newGroupId));
 
             foreach ($days as $day) {
-                Schedule::create($this->attributesForDay($validated, $day));
+                Schedule::create($this->attributesForDay($validated, $day, $newGroupId));
             }
         });
 
@@ -115,6 +151,7 @@ class ScheduleController extends Controller
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
             'room' => ['required', 'string', 'max:50'],
+            'apply_to_recurring' => ['sometimes', 'boolean'],
         ], [
             'days.required' => 'Select at least one day.',
             'days.min' => 'Select at least one day.',
@@ -122,7 +159,7 @@ class ScheduleController extends Controller
         ]);
     }
 
-    private function ensureNoDuplicates(array $data, ?Schedule $except = null): void
+    private function ensureNoDuplicates(array $data, array $exceptIds = []): void
     {
         $duplicates = Schedule::query()
             ->where('subject_id', $data['subject_id'])
@@ -131,7 +168,8 @@ class ScheduleController extends Controller
             ->whereIn('day', $data['days'])
             ->whereTime('start_time', $data['start_time'])
             ->whereTime('end_time', $data['end_time'])
-            ->when($except, fn ($query) => $query->whereKeyNot($except->getKey()))
+            ->where('room', $data['room'])
+            ->when($exceptIds !== [], fn ($query) => $query->whereKeyNot($exceptIds))
             ->pluck('day')
             ->map(fn ($day) => ucfirst($day))
             ->all();
@@ -143,10 +181,11 @@ class ScheduleController extends Controller
         }
     }
 
-    private function attributesForDay(array $data, string $day): array
+    private function attributesForDay(array $data, string $day, string $groupId): array
     {
         return [
             'subject_id' => $data['subject_id'],
+            'recurring_schedule_group_id' => $groupId,
             'instructor_id' => $data['instructor_id'],
             'section_id' => $data['section_id'],
             'day' => $day,

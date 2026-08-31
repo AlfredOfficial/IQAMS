@@ -16,6 +16,9 @@
                 instructor_id: @js(old('_form') === 'edit' ? old('instructor_id', '') : ''),
                 section_id: @js(old('_form') === 'edit' ? old('section_id', '') : ''),
                 days: @js(old('_form') === 'edit' ? old('days', []) : []),
+                original_day: @js(old('_form') === 'edit' ? old('_original_day', '') : ''),
+                recurring_days: @js(old('_form') === 'edit' ? old('_recurring_days', []) : []),
+                apply_to_recurring: @js(old('_form') === 'edit' ? (bool) old('apply_to_recurring', false) : false),
                 start_time: @js(old('_form') === 'edit' ? old('start_time', '') : ''),
                 end_time: @js(old('_form') === 'edit' ? old('end_time', '') : ''),
                 room: @js(old('_form') === 'edit' ? old('room', '') : '')
@@ -29,7 +32,16 @@
                 };
                 if (presets[preset]) days.splice(0, days.length, ...presets[preset]);
             },
-            selectedDayNames(days) { return days.map(day => this.dayNames[day]).join(', '); }
+            selectedDayNames(days) { return days.map(day => this.dayNames[day]).join(', '); },
+            dayPattern(days) {
+                const labels = { monday: 'M', tuesday: 'T', wednesday: 'W', thursday: 'Th', friday: 'F', saturday: 'Sa', sunday: 'Su' };
+                return days.map(day => labels[day]).join('');
+            },
+            toggleRecurringEdit() {
+                this.editModal.days = this.editModal.apply_to_recurring
+                    ? [...this.editModal.recurring_days]
+                    : [this.editModal.original_day];
+            }
         }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
@@ -75,7 +87,10 @@
                                             subject_id: '{{ $schedule->subject_id }}',
                                             instructor_id: '{{ $schedule->instructor_id }}',
                                             section_id: '{{ $schedule->section_id }}',
-                                            days: ['{{ $schedule->day }}'],
+                                            days: @js(count($schedule->recurring_days) > 1 ? $schedule->recurring_days : [$schedule->day]),
+                                            original_day: @js($schedule->day),
+                                            recurring_days: @js($schedule->recurring_days),
+                                            apply_to_recurring: @js(count($schedule->recurring_days) > 1),
                                             start_time: '{{ \Illuminate\Support\Carbon::parse($schedule->start_time)->format('H:i') }}',
                                             end_time: '{{ \Illuminate\Support\Carbon::parse($schedule->end_time)->format('H:i') }}',
                                             room: '{{ addslashes($schedule->room) }}'
@@ -222,12 +237,12 @@
                         @enderror
                     </div>
 
-                    <div class="sticky bottom-0 flex items-center gap-3 border-t border-gray-100 bg-white py-4 md:col-span-2">
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
-                            Save Schedule
-                        </button>
+                    <div class="sticky bottom-0 flex items-center justify-end gap-3 border-t border-gray-100 bg-white py-4 md:col-span-2">
                         <button type="button" @click="showCreateModal = false" class="text-sm text-gray-500 hover:text-gray-700">
                             Cancel
+                        </button>
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
+                            Save Schedule
                         </button>
                     </div>
                 </form>
@@ -236,24 +251,29 @@
 
         {{-- Edit Schedule Modal --}}
         <div x-show="editModal.show" x-cloak
-             class="fixed inset-y-0 right-0 left-0 z-50 flex items-center justify-center p-4 lg:left-[260px]"
+             class="fixed inset-y-0 right-0 left-0 z-50 overflow-y-auto px-4 py-4 sm:px-6 lg:left-[260px]"
              :class="sidebarCollapsed ? 'lg:!left-[80px]' : 'lg:!left-[260px]'"
              style="background: rgba(0,0,0,0.4);">
+            <div class="flex min-h-full items-center justify-center">
             <div @click.outside="editModal.show = false"
-                 class="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
+                 class="w-full max-w-2xl rounded-lg bg-white p-4 shadow-xl sm:p-5">
 
-                <div class="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
+                <div class="mb-3 flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-gray-800">Edit Schedule</h3>
                     <button type="button" @click="editModal.show = false" class="text-gray-400 hover:text-gray-600">
                         <x-heroicon-o-x-mark class="w-5 h-5" />
                     </button>
                 </div>
 
-                <form method="POST" :action="'{{ url('schedules') }}/' + editModal.id" class="grid min-h-0 gap-x-4 overflow-y-auto px-6 py-5 md:grid-cols-2">
+                <form method="POST" :action="'{{ url('schedules') }}/' + editModal.id" class="grid gap-x-4 md:grid-cols-2">
                     @csrf
                     @method('PUT')
                     <input type="hidden" name="_form" value="edit">
                     <input type="hidden" name="_schedule_id" :value="editModal.id">
+                    <input type="hidden" name="_original_day" :value="editModal.original_day">
+                    <template x-for="day in editModal.recurring_days" :key="'recurring-' + day">
+                        <input type="hidden" name="_recurring_days[]" :value="day">
+                    </template>
 
                     @if ($errors->any() && old('_form') === 'edit')
                         <div class="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 md:col-span-2">
@@ -297,9 +317,25 @@
                         @if (old('_form') === 'edit') @error('section_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror @endif
                     </div>
 
+                    <div x-show="editModal.recurring_days.length > 1" class="mb-3 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2.5 md:col-span-2">
+                        <label class="flex cursor-pointer items-start gap-2.5">
+                            <input type="hidden" name="apply_to_recurring" value="0">
+                            <input type="checkbox" name="apply_to_recurring" value="1" x-model="editModal.apply_to_recurring" @change="toggleRecurringEdit()"
+                                   class="mt-0.5 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
+                            <span>
+                                <span class="block text-sm font-semibold text-indigo-900">Apply changes to all recurring schedules</span>
+                                <span class="mt-1 block text-xs leading-5 text-indigo-700">
+                                    This schedule is part of <strong x-text="dayPattern(editModal.recurring_days)"></strong>.
+                                    <span x-show="editModal.apply_to_recurring">Changes will apply to <span x-text="selectedDayNames(editModal.recurring_days)"></span>.</span>
+                                    <span x-show="!editModal.apply_to_recurring">Only <span x-text="dayNames[editModal.original_day]"></span> will be changed.</span>
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+
                     <div class="mb-4 md:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Days</label>
-                        <div class="mb-2 flex flex-wrap gap-2">
+                        <div x-show="!editModal.apply_to_recurring" class="mb-2 flex flex-wrap gap-2">
                             <button type="button" @click="applyPreset(editModal.days, 'mwf')" class="rounded-md border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">MWF</button>
                             <button type="button" @click="applyPreset(editModal.days, 'tth')" class="rounded-md border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">TTH</button>
                             <button type="button" @click="applyPreset(editModal.days, 'weekdays')" class="rounded-md border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">MON-FRI</button>
@@ -307,13 +343,21 @@
                         </div>
                         <div class="grid grid-cols-4 gap-2 sm:grid-cols-7">
                             @foreach (['monday' => 'MON','tuesday' => 'TUE','wednesday' => 'WED','thursday' => 'THU','friday' => 'FRI','saturday' => 'SAT','sunday' => 'SUN'] as $day => $short)
-                                <label class="cursor-pointer rounded-md border px-2 py-2 text-center text-xs font-semibold transition"
-                                       :class="editModal.days.includes('{{ $day }}') ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-gray-600 hover:border-indigo-300'">
-                                    <input type="checkbox" name="days[]" value="{{ $day }}" x-model="editModal.days" class="sr-only">
+                                <label class="rounded-md border px-2 py-2 text-center text-xs font-semibold transition"
+                                       :class="[
+                                           editModal.days.includes('{{ $day }}') ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-gray-600 hover:border-indigo-300',
+                                           editModal.apply_to_recurring ? 'cursor-default opacity-80' : 'cursor-pointer'
+                                       ]">
+                                    <input type="checkbox" name="days[]" value="{{ $day }}" x-model="editModal.days" :disabled="editModal.apply_to_recurring" class="sr-only">
                                     {{ $short }}
                                 </label>
                             @endforeach
                         </div>
+                        <template x-if="editModal.apply_to_recurring">
+                            <div>
+                                <template x-for="day in editModal.days" :key="'day-' + day"><input type="hidden" name="days[]" :value="day"></template>
+                            </div>
+                        </template>
                         <p class="mt-2 text-xs text-gray-500">Selected days: <span x-text="selectedDayNames(editModal.days) || 'None'"></span></p>
                         @if (old('_form') === 'edit')
                             @error('days')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
@@ -343,15 +387,16 @@
                         @if (old('_form') === 'edit') @error('room')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror @endif
                     </div>
 
-                    <div class="sticky bottom-0 flex items-center gap-3 border-t border-gray-100 bg-white py-4 md:col-span-2">
+                    <div class="mt-2 flex items-center justify-end gap-3 pt-2 md:col-span-2">
+                        <button type="button" @click="editModal.show = false" class="rounded px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700">
+                            Cancel
+                        </button>
                         <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
                             Update Schedule
                         </button>
-                        <button type="button" @click="editModal.show = false" class="text-sm text-gray-500 hover:text-gray-700">
-                            Cancel
-                        </button>
                     </div>
                 </form>
+            </div>
             </div>
         </div>
 
@@ -372,12 +417,12 @@
                     @csrf
                     @method('DELETE')
 
-                    <div class="flex items-center gap-3">
-                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded">
-                            Delete
-                        </button>
+                    <div class="flex items-center justify-end gap-3">
                         <button type="button" @click="deleteModal.show = false" class="text-sm text-gray-500 hover:text-gray-700">
                             Cancel
+                        </button>
+                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded">
+                            Delete
                         </button>
                     </div>
                 </form>

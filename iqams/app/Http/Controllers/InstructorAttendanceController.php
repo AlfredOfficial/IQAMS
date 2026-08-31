@@ -42,9 +42,11 @@ class InstructorAttendanceController extends Controller
         $dayOrder = collect(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']);
         $scheduleGroups = $instructor->schedules()->with(['subject', 'section'])
             ->orderBy('start_time')->get()
-            ->groupBy(fn (Schedule $schedule) => implode('|', [
+            ->groupBy(fn (Schedule $schedule) => $schedule->recurring_schedule_group_id ?? implode('|', [
+                'legacy',
                 $schedule->subject_id,
                 $schedule->section_id,
+                $schedule->instructor_id,
                 substr((string) $schedule->start_time, 0, 5),
                 substr((string) $schedule->end_time, 0, 5),
                 $schedule->room,

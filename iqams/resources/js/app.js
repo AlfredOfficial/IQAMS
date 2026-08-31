@@ -91,14 +91,11 @@ Alpine.data('toastNotifications', (initialNotifications = []) => ({
 }));
 
 Alpine.data('instructorWorkspace', () => ({
-    clockTimer: null,
     refreshTimer: null,
     qrReadyHandler: null,
     downloadingIdCard: false,
 
     init() {
-        this.updateClock();
-        this.clockTimer = window.setInterval(() => this.updateClock(), 1000);
         this.refreshTimer = window.setInterval(() => this.refresh(), 3000);
 
         this.qrReadyHandler = () => this.renderQrCode();
@@ -111,7 +108,6 @@ Alpine.data('instructorWorkspace', () => ({
     },
 
     destroy() {
-        window.clearInterval(this.clockTimer);
         window.clearInterval(this.refreshTimer);
         window.removeEventListener('qrcode:ready', this.qrReadyHandler);
     },
@@ -149,13 +145,6 @@ Alpine.data('instructorWorkspace', () => ({
             window.alert(error.message || 'The ID card could not be downloaded.');
         } finally {
             this.downloadingIdCard = false;
-        }
-    },
-
-    updateClock() {
-        const clock = document.getElementById('live-clock');
-        if (clock) {
-            clock.textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         }
     },
 
@@ -212,6 +201,7 @@ Alpine.data('instructorWorkspace', () => ({
                 late: `${data.totals.lateCount} days`,
                 early: `${data.totals.earlyOutCount} days`,
                 incomplete: `${data.totals.incompleteCount} days`,
+                in_progress: `${data.totals.inProgressCount} ${data.totals.inProgressCount === 1 ? 'day' : 'days'}`,
             };
 
             Object.entries(stats).forEach(([key, value]) => {
@@ -397,21 +387,108 @@ Alpine.data('studentQr', () => ({
     },
 }));
 
+Alpine.data('classAttendanceBrowser', () => ({
+    selectedGroup: null,
+    selectedDay: null,
+    selectedDate: '',
+    availableDates: [],
+    attendance: null,
+    loading: false,
+    error: '',
+    today: '',
+    endpoint: '',
+
+    init() {
+        this.today = this.$root.dataset.today;
+        this.endpoint = this.$root.dataset.attendanceEndpoint;
+    },
+
+    get monthLabel() {
+        return new Intl.DateTimeFormat('en-US', {
+            month: 'long',
+            year: 'numeric',
+            timeZone: 'UTC',
+        }).format(new Date(`${this.today}T00:00:00Z`));
+    },
+
+    openGroup(group) {
+        this.selectedGroup = group;
+        this.attendance = null;
+        this.error = '';
+        const todayName = new Intl.DateTimeFormat('en-US', {
+            weekday: 'long',
+            timeZone: 'UTC',
+        }).format(new Date(`${this.today}T00:00:00Z`)).toLowerCase();
+        this.selectDay(group.days.find((day) => day.name === todayName) || group.days[0]);
+        this.$nextTick(() => this.$root.querySelector('section[x-show="selectedGroup"]')?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+        }));
+    },
+
+    selectDay(day) {
+        this.selectedDay = day;
+        this.attendance = null;
+        this.error = '';
+        const base = new Date(`${this.today}T00:00:00Z`);
+        const year = base.getUTCFullYear();
+        const month = base.getUTCMonth();
+        this.availableDates = [];
+
+        for (let number = 1; number <= new Date(Date.UTC(year, month + 1, 0)).getUTCDate(); number++) {
+            const candidate = new Date(Date.UTC(year, month, number));
+            const name = new Intl.DateTimeFormat('en-US', {
+                weekday: 'long',
+                timeZone: 'UTC',
+            }).format(candidate).toLowerCase();
+
+            if (name === day.name) {
+                this.availableDates.push({
+                    value: candidate.toISOString().slice(0, 10),
+                    shortDay: day.label.slice(0, 3),
+                    dayNumber: number,
+                });
+            }
+        }
+
+        const defaultDate = [...this.availableDates].reverse().find((date) => date.value <= this.today)
+            || this.availableDates[0];
+        if (defaultDate) this.selectDate(defaultDate.value);
+    },
+
+    async selectDate(date) {
+        this.selectedDate = date;
+        this.loading = true;
+        this.error = '';
+        this.attendance = null;
+
+        try {
+            const url = `${this.endpoint.replace('__SCHEDULE__', this.selectedDay.schedule_id)}?date=${encodeURIComponent(date)}`;
+            const response = await fetch(url, { headers: { Accept: 'application/json' } });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(Object.values(data.errors || {}).flat()[0] || data.message || 'Attendance could not be loaded.');
+            }
+            this.attendance = data;
+        } catch (error) {
+            this.error = error.message || 'Attendance could not be loaded.';
+        } finally {
+            this.loading = false;
+        }
+    },
+
+    statusClass(status) {
+        return {
+            present: 'bg-emerald-100 text-emerald-700',
+            late: 'bg-orange-100 text-orange-700',
+            absent: 'bg-rose-100 text-rose-700',
+            excused: 'bg-violet-100 text-violet-700',
+            pending: 'bg-amber-100 text-amber-700',
+        }[status] || 'bg-slate-100 text-slate-600';
+    },
+}));
+
 Alpine.start();
-
-const updateLiveClock = () => {
-    const clock = document.getElementById('live-clock');
-    if (clock) {
-        clock.textContent = new Date().toLocaleTimeString([], {
-            hour: 'numeric',
-            minute: '2-digit',
-            second: '2-digit',
-        });
-    }
-};
-
-updateLiveClock();
-window.setInterval(updateLiveClock, 1000);
 
 /**
  * A single delayed loading state for full-page requests and in-app navigation.

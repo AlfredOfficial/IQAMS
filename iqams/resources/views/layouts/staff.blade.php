@@ -53,9 +53,8 @@
                 <button type="button" @click="sidebarOpen=true" class="mr-4 rounded-lg bg-slate-50 p-2.5 text-[#15355e] hover:bg-slate-100 lg:hidden" aria-label="Open navigation"><x-heroicon-o-bars-3 class="h-6 w-6" /></button>
                 <div class="min-w-0"><h1 class="truncate text-lg font-extrabold text-slate-950 sm:text-xl">{{ $title === 'Dashboard' ? $portalGreeting.', '.$portalName.'!' : $title }}</h1><p class="mt-1 text-xs text-slate-500 sm:text-sm">Non-Teaching Personnel <span class="mx-2">•</span> {{ $portalStaff?->officeUnit?->name ?? 'Office/unit not assigned' }}</p></div>
                 <div class="ml-auto flex items-center gap-4 sm:gap-6">
-                    <div class="hidden min-w-[220px] rounded-xl bg-slate-50 px-4 py-2.5 text-sm text-[#17345c] ring-1 ring-slate-200/80 md:block">
+                    <div class="hidden rounded-xl bg-slate-50 px-4 py-2.5 text-sm text-[#17345c] ring-1 ring-slate-200/80 md:block">
                         <p class="flex items-center gap-2 font-semibold"><x-heroicon-o-calendar-days class="h-4 w-4 text-blue-600" />{{ now()->format('l, F j, Y') }}</p>
-                        <p class="mt-1.5 flex items-center gap-2 font-medium tabular-nums"><x-heroicon-o-clock class="h-4 w-4 text-blue-600" /><span id="live-clock">{{ now()->format('g:i:s A') }}</span></p>
                     </div>
                     <x-leave-notification-bell />
                     <a href="{{ route('staff.profile.edit') }}" class="relative h-12 w-12 overflow-hidden rounded-full bg-blue-100 text-blue-800 ring-1 ring-slate-200" aria-label="Open profile">@if($portalUser->avatar_url)<img src="{{ $portalUser->avatar_url }}" class="h-full w-full object-cover" alt="{{ $portalName }}">@else<span class="grid h-full place-items-center font-bold">{{ $initials }}</span>@endif</a>

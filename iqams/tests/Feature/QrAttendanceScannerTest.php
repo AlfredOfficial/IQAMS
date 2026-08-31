@@ -430,12 +430,13 @@ class QrAttendanceScannerTest extends TestCase
         $logs = AttendanceLog::where('user_id', $user->id)->orderBy('scan_time')->get();
         $day = app(PersonnelAttendanceSummary::class)->day(today(), $logs);
 
-        $this->assertTrue($day['isIncomplete']);
+        $this->assertFalse($day['isIncomplete']);
+        $this->assertTrue($day['isInProgress']);
         $this->assertNull($day['events']['lunch_out']);
-        $this->assertSame('Afternoon In Recorded', $day['status']);
+        $this->assertSame('In Progress', $day['status']);
         $this->assertSame('final_out', $day['nextPeriod']);
         $this->assertSame(0, $day['minutes']);
-        $this->assertSame('Incomplete', $day['punctuality']);
+        $this->assertSame('In Progress', $day['punctuality']);
     }
 
     public function test_personnel_qr_scan_is_rejected_during_approved_leave(): void

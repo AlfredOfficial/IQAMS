@@ -43,6 +43,19 @@ class InstructorClassAttendanceTest extends TestCase
         });
     }
 
+    public function test_page_uses_the_centrally_registered_alpine_component(): void
+    {
+        Carbon::setTestNow('2026-08-28 12:00:00');
+        [$instructorUser] = $this->classroom();
+
+        $this->actingAs($instructorUser)->get(route('instructor.schedule'))
+            ->assertOk()
+            ->assertSee('x-data="classAttendanceBrowser()"', false)
+            ->assertSee('data-today="2026-08-28"', false)
+            ->assertSee('data-attendance-endpoint=', false)
+            ->assertDontSee('function classAttendanceBrowser()', false);
+    }
+
     public function test_attendance_is_filtered_by_schedule_section_and_actual_date(): void
     {
         Carbon::setTestNow('2026-08-28 12:00:00');

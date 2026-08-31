@@ -6,7 +6,9 @@
         'final_out' => 'Final Out',
     ];
     $statusClasses = [
-        'Completed' => 'bg-emerald-100 text-emerald-700',
+        'Present' => 'bg-emerald-100 text-emerald-700',
+        'In Progress' => 'bg-amber-100 text-amber-700',
+        'Incomplete' => 'bg-amber-100 text-amber-700',
         'Absent' => 'bg-red-100 text-red-700',
         'Not Started' => 'bg-slate-100 text-slate-600',
         'On Leave' => 'bg-sky-100 text-sky-700',
@@ -52,8 +54,8 @@
                 <div class="space-y-6">
                     <section class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
                         <div class="border-b border-gray-100 px-5 py-4"><h2 class="font-semibold text-gray-900">Monthly summary</h2><p class="text-xs text-gray-500">{{ now()->format('F Y') }}</p></div>
-                        <div class="grid grid-cols-2 divide-x divide-y divide-gray-100 sm:grid-cols-4 sm:divide-y-0">
-                            @foreach ([['percentage', 'Attendance rate', $totals['percentage'].'%'], ['presentDays', 'Present', $totals['presentDays']], ['lateCount', 'Late', $totals['lateCount']], ['incompleteCount', 'Incomplete', $totals['incompleteCount']]] as [$key, $label, $value])
+                        <div class="grid grid-cols-2 divide-x divide-y divide-gray-100 sm:grid-cols-3 xl:grid-cols-4">
+                            @foreach ([['percentage', 'Attendance rate', $totals['percentage'].'%'], ['presentDays', 'Present', $totals['presentDays']], ['absentDays', 'Absent', $totals['absentDays']], ['inProgressCount', 'In Progress', $totals['inProgressCount']], ['incompleteCount', 'Incomplete', $totals['incompleteCount']], ['lateCount', 'Late', $totals['lateCount']], ['earlyOutCount', 'Early Out', $totals['earlyOutCount']]] as [$key, $label, $value])
                                 <div class="px-5 py-5"><p class="text-xs font-medium uppercase tracking-wide text-gray-500">{{ $label }}</p><p data-staff-stat="{{ $key }}" class="mt-2 text-2xl font-bold text-gray-900">{{ $value }}</p></div>
                             @endforeach
                         </div>
