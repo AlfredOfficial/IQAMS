@@ -76,9 +76,6 @@
     @endif
 
     @if (Auth::user()->role?->role_name === 'admin')
-        <x-sidebar-link :href="route('admin.leave-requests.index')" :active="request()->routeIs('admin.leave-requests.*')" :collapsible="$collapsible" label="Leave Requests">
-            <x-slot name="icon"><x-heroicon-o-bookmark class="w-5 h-5" /></x-slot>
-        </x-sidebar-link>
         <x-sidebar-link
             :href="route('attendance-scanner.index')"
             :active="request()->routeIs('attendance-scanner.*')"
@@ -103,11 +100,11 @@
                 <x-heroicon-o-check-badge class="w-5 h-5 shrink-0" aria-hidden="true" />
             </x-slot>
         </x-sidebar-link>
+        <div class="px-3 pt-5 pb-2" @if($collapsible) x-show="!sidebarCollapsed" x-cloak @endif>
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Security Management</p>
+        </div>
         <x-sidebar-link :href="route('scanner-security.index')" :active="request()->routeIs('scanner-security.*')" :collapsible="$collapsible" label="Scanner Security">
             <x-slot name="icon"><x-heroicon-o-shield-check class="h-5 w-5" /></x-slot>
-        </x-sidebar-link>
-        <x-sidebar-link :href="route('school-events.index')" :active="request()->routeIs('school-events.*')" :collapsible="$collapsible" label="School Events">
-            <x-slot name="icon"><x-heroicon-o-calendar-days class="h-5 w-5" /></x-slot>
         </x-sidebar-link>
 
         <div class="px-3 pb-2 pt-5" @if($collapsible) x-show="!sidebarCollapsed" x-cloak @endif>
@@ -156,14 +153,6 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-8.13a4 4 0 110 8 4 4 0 010-8zM17 8a3 3 0 110 6" />
                 </svg>
             </x-slot>
-        </x-sidebar-link>
-        <x-sidebar-link
-            :href="route('office-units.index')"
-            :active="request()->routeIs('office-units.*')"
-            :collapsible="$collapsible"
-            label="Manage Offices"
-        >
-            <x-slot name="icon"><x-heroicon-o-building-office class="h-5 w-5" /></x-slot>
         </x-sidebar-link>
 
         <div class="px-3 pt-5 pb-2" @if($collapsible) x-show="!sidebarCollapsed" x-cloak @endif>
@@ -218,6 +207,23 @@
             <x-slot name="icon">
                 <x-heroicon-o-view-columns class="w-5 h-5 shrink-0" aria-hidden="true" />
             </x-slot>
+        </x-sidebar-link>
+        <div class="px-3 pt-5 pb-2" @if($collapsible) x-show="!sidebarCollapsed" x-cloak @endif>
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Administrative Management</p>
+        </div>
+        <x-sidebar-link :href="route('admin.leave-requests.index')" :active="request()->routeIs('admin.leave-requests.*')" :collapsible="$collapsible" label="Leave Requests">
+            <x-slot name="icon"><x-heroicon-o-bookmark class="w-5 h-5" /></x-slot>
+        </x-sidebar-link>
+        <x-sidebar-link :href="route('school-events.index')" :active="request()->routeIs('school-events.*')" :collapsible="$collapsible" label="School Events">
+            <x-slot name="icon"><x-heroicon-o-calendar-days class="h-5 w-5" /></x-slot>
+        </x-sidebar-link>
+        <x-sidebar-link
+            :href="route('office-units.index')"
+            :active="request()->routeIs('office-units.*')"
+            :collapsible="$collapsible"
+            label="Manage Offices"
+        >
+            <x-slot name="icon"><x-heroicon-o-building-office class="h-5 w-5" /></x-slot>
         </x-sidebar-link>
         <x-sidebar-link
             :href="route('roles.index')"
