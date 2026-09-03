@@ -26,7 +26,7 @@ class NonTeachingStaffMiddleNameTest extends TestCase
             ['employee_no' => 'STF-001', 'middle_name' => 'Santos', 'email' => 'with-middle@example.test'],
             ['employee_no' => 'STF-002', 'middle_name' => '', 'email' => 'without-middle@example.test'],
         ] as $data) {
-            $this->actingAs($admin)->post(route('non-teaching-staff.store'), [
+            $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])->post(route('non-teaching-staff.store'), [
                 'office_unit_id' => $officeUnit->id,
                 'employee_no' => $data['employee_no'],
                 'first_name' => 'Jamie',
@@ -68,13 +68,13 @@ class NonTeachingStaffMiddleNameTest extends TestCase
             'last_name' => 'Cruz',
         ];
 
-        $this->actingAs($admin)->put(route('non-teaching-staff.update', $staff), $payload)
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])->put(route('non-teaching-staff.update', $staff), $payload)
             ->assertRedirect(route('non-teaching-staff.index'))->assertSessionHasNoErrors();
         $this->assertSame('Alex Dela Cruz', $staff->fresh()->fullName());
         $this->assertSame('Alex Dela Cruz', $staffUser->fresh()->name);
 
         $payload['middle_name'] = '';
-        $this->actingAs($admin)->put(route('non-teaching-staff.update', $staff), $payload)
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])->put(route('non-teaching-staff.update', $staff), $payload)
             ->assertRedirect(route('non-teaching-staff.index'))->assertSessionHasNoErrors();
         $this->assertNull($staff->fresh()->middle_name);
         $this->assertSame('Alex Cruz', $staff->fresh()->fullName());
@@ -88,7 +88,7 @@ class NonTeachingStaffMiddleNameTest extends TestCase
         Role::firstOrCreate(['role_name' => 'staff']);
         $officeUnit = $this->officeUnit();
 
-        $this->actingAs($admin)->post(route('non-teaching-staff.store'), [
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])->post(route('non-teaching-staff.store'), [
             'office_unit_id' => $officeUnit->id,
             'employee_no' => 'STF-004',
             'name_prefix' => 'Engr.',
@@ -104,7 +104,7 @@ class NonTeachingStaffMiddleNameTest extends TestCase
         $this->assertSame('Engr. Juan Dela Cruz Santos, RN', $staff->fullName());
         $this->assertSame($staff->fullName(), $staff->user->name);
 
-        $this->actingAs($admin)->put(route('non-teaching-staff.update', $staff), [
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])->put(route('non-teaching-staff.update', $staff), [
             'office_unit_id' => $officeUnit->id,
             'name_prefix' => '  ',
             'first_name' => 'Juan',

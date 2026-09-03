@@ -18,7 +18,7 @@ class QrIdentityResolver
 
     public function resolveWithMetadata(string $qrCode): array
     {
-        $credential = QrCredential::with('user.role')->where('code_hash', hash('sha256', $qrCode))->first();
+        $credential = QrCredential::with('user.roles')->where('code_hash', hash('sha256', $qrCode))->first();
 
         if ($credential) {
             if ($credential->status !== 'active') {
@@ -37,9 +37,9 @@ class QrIdentityResolver
         }
 
         $profiles = collect([
-            Student::with(['user.role', 'user.student'])->where('qr_code', $qrCode)->first(),
-            Instructor::with(['user.role', 'user.instructor'])->where('qr_code', $qrCode)->first(),
-            NonTeachingStaff::with(['user.role', 'user.nonTeachingStaff'])->where('qr_code', $qrCode)->first(),
+            Student::with(['user.roles', 'user.student'])->where('qr_code', $qrCode)->first(),
+            Instructor::with(['user.roles', 'user.instructor'])->where('qr_code', $qrCode)->first(),
+            NonTeachingStaff::with(['user.roles', 'user.nonTeachingStaff'])->where('qr_code', $qrCode)->first(),
         ])->filter();
 
         if ($profiles->isEmpty()) {
@@ -69,7 +69,7 @@ class QrIdentityResolver
             $profile instanceof NonTeachingStaff => 'staff',
         };
 
-        if ($user->role?->role_name !== $expectedRole) {
+        if ($user->primaryRoleName() !== $expectedRole) {
             throw ValidationException::withMessages([
                 'qr_code' => 'Attendance is denied because this user has an invalid or mismatched role.',
             ]);

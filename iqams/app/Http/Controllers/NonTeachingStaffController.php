@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\NonTeachingStaff;
 use App\Models\OfficeUnit;
-use App\Models\Role;
 use App\Models\User;
+use App\Services\AdminAccountProtectionService;
+use App\Services\AuditLogger;
 use App\Services\QrCredentialService;
+use App\Services\RoleAssignmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -57,13 +59,11 @@ class NonTeachingStaffController extends Controller
         $avatarPath = $request->file('avatar')->store('avatars', 'public');
 
         $plainPassword = 'Staff@'.$validated['employee_no'];
+        $administrator = $request->user();
 
         try {
-            DB::transaction(function () use ($validated, $plainPassword, $avatarPath) {
-                $staffRole = Role::where('role_name', 'staff')->firstOrFail();
-
+            $user = DB::transaction(function () use ($validated, $plainPassword, $administrator, $avatarPath) {
                 $user = User::create([
-                    'role_id' => $staffRole->id,
                     'username' => $validated['employee_no'],
                     'name' => NonTeachingStaff::formatFullName($validated),
                     'email' => $validated['email'],
@@ -72,6 +72,12 @@ class NonTeachingStaffController extends Controller
                     'status' => 'active',
                     'email_verified_at' => now(),
                 ]);
+
+                $user->forceFill([
+                    'must_change_password' => true,
+                    'password_changed_at' => null,
+                ])->saveQuietly();
+                app(RoleAssignmentService::class)->assign($user, 'staff', $administrator);
 
                 NonTeachingStaff::create([
                     'user_id' => $user->id,
@@ -82,16 +88,23 @@ class NonTeachingStaffController extends Controller
                     'middle_name' => $validated['middle_name'],
                     'last_name' => $validated['last_name'],
                     'name_suffix' => $validated['name_suffix'],
-                    'qr_code' => $validated['employee_no'],
+                    'qr_code' => null,
                 ]);
-                app(QrCredentialService::class)->issue($user);
+                app(QrCredentialService::class)->issue($user, $administrator);
+
+                return $user;
             });
         } catch (\Throwable $exception) {
             Storage::disk('public')->delete($avatarPath);
             throw $exception;
         }
 
-        return redirect()->route('non-teaching-staff.index')->with('success', 'Staff member created successfully.')->with('generated_username', $validated['employee_no'])->with('generated_password', $plainPassword);
+        app(AuditLogger::class)->record('account.created', $user, ['role' => 'staff'], $administrator, $request);
+
+        return redirect()->route('non-teaching-staff.index')
+            ->with('success', 'Staff member created successfully. Share the temporary credentials below and require a password change on first login.')
+            ->with('generated_username', $validated['employee_no'])
+            ->with('generated_password', $plainPassword);
 
     }
 
@@ -150,6 +163,11 @@ class NonTeachingStaffController extends Controller
             Storage::disk('public')->delete($oldAvatarPath);
         }
 
+        app(AuditLogger::class)->record('account.profile_updated', $nonTeachingStaff->user, [
+            'profile' => 'staff',
+            'profile_id' => $nonTeachingStaff->id,
+        ], $request->user(), $request);
+
         return redirect()->route('non-teaching-staff.index')->with('success', 'Staff member updated successfully.');
     }
 
@@ -166,13 +184,22 @@ class NonTeachingStaffController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(NonTeachingStaff $nonTeachingStaff)
+    public function destroy(Request $request, NonTeachingStaff $nonTeachingStaff)
     {
-        DB::transaction(function () use ($nonTeachingStaff) {
-            $nonTeachingStaff->delete();
-            $nonTeachingStaff->user()->delete();
+        $user = $nonTeachingStaff->user;
+
+        DB::transaction(function () use ($nonTeachingStaff, $user, $request) {
+            $lockedUser = app(AdminAccountProtectionService::class)->assertCanChangeStatus($user, 'inactive');
+            $oldStatus = $lockedUser->status;
+            $lockedUser->update(['status' => 'inactive']);
+            app(AuditLogger::class)->record('account.status_changed', $lockedUser, [
+                'from' => $oldStatus,
+                'to' => 'inactive',
+                'record' => 'staff_account',
+                'profile_id' => $nonTeachingStaff->id,
+            ], $request->user(), $request);
         });
 
-        return redirect()->route('non-teaching-staff.index')->with('success', 'Staff member deleted successfully.');
+        return redirect()->route('non-teaching-staff.index')->with('success', 'Staff account deactivated successfully.');
     }
 }

@@ -44,7 +44,7 @@ class LeaveRequestTest extends TestCase
         $leave = LeaveRequest::create(['user_id' => $owner->id, 'leave_type' => 'vacation', 'start_date' => '2026-08-17', 'end_date' => '2026-08-17', 'reason' => 'Personal appointment.']);
 
         $this->actingAs($other)->patch(route('leave-requests.cancel', $leave))->assertForbidden();
-        $this->actingAs($admin)->patch(route('admin.leave-requests.update', $leave), ['status' => 'approved', 'review_notes' => 'Approved.'])->assertRedirect();
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])->patch(route('admin.leave-requests.update', $leave), ['status' => 'approved', 'review_notes' => 'Approved.'])->assertRedirect();
         $leave->refresh();
         $this->assertSame('approved', $leave->status);
         $this->assertSame($admin->id, $leave->reviewed_by);
@@ -57,7 +57,8 @@ class LeaveRequestTest extends TestCase
         $service = app(PersonnelAttendanceSummary::class);
         $days = $service->days($user, Carbon::parse('2026-08-17'), Carbon::parse('2026-08-17'), true);
 
-        $this->assertSame('Sick Leave', $days->first()['status']);
+        $this->assertSame('On Leave', $days->first()['status']);
+        $this->assertSame('On Leave', $days->first()['summaryStatus']);
         $this->assertSame('Excused', $days->first()['punctuality']);
         $this->assertSame(0, $service->totals($days)['absentDays']);
         $this->assertSame(1, $service->totals($days)['leaveDays']);
@@ -168,7 +169,7 @@ class LeaveRequestTest extends TestCase
             'reason' => 'Personal appointment.',
         ]);
 
-        $this->actingAs($admin)
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])
             ->patch(route('admin.leave-requests.update', $leave), ['status' => 'approved'])
             ->assertSessionHasErrors(['status']);
 

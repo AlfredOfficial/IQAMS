@@ -2,14 +2,16 @@
 
 namespace App\Services;
 
-use App\Models\AttendanceLog;
 use App\Models\SchoolEvent;
 use App\Models\Student;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class SchoolEventAttendanceService
 {
-    public function __construct(private SchoolEventResolver $resolver) {}
+    public function __construct(
+        private AttendanceAbsenceWriter $writer,
+    ) {}
 
     public function markDue(?Carbon $at = null): int
     {
@@ -22,22 +24,18 @@ class SchoolEventAttendanceService
             ->where('ends_at', '<', $at)
             ->whereNull('attendance_finalized_at')
             ->each(function (SchoolEvent $event) use ($at, &$created): void {
-                $this->studentsFor($event)->chunkById(200, function ($students) use ($event, &$created): void {
-                    foreach ($students as $student) {
-                        $created += AttendanceLog::insertOrIgnore([
-                            'user_id' => $student->user_id,
-                            'schedule_id' => null,
-                            'school_event_id' => $event->id,
-                            'attendance_type' => 'time_in',
-                            'scan_time' => $event->ends_at->copy()->addSecond(),
-                            'scan_key' => "event:{$student->user_id}:{$event->id}",
-                            'status' => 'absent',
-                            'remarks' => 'Required school event attendance was missed.',
-                            'created_at' => now(), 'updated_at' => now(),
-                        ]);
+                $created += DB::transaction(function () use ($event, $at): int {
+                    $locked = SchoolEvent::query()->with('targets.schedule')->lockForUpdate()->find($event->id);
+
+                    if (! $locked || $locked->attendance_finalized_at || $locked->ends_at->gte($at)) {
+                        return 0;
                     }
+
+                    $created = $this->writer->forEvent($locked, $this->studentsFor($locked));
+                    $locked->update(['attendance_finalized_at' => $at]);
+
+                    return $created;
                 });
-                $event->update(['attendance_finalized_at' => $at]);
             });
 
         return $created;

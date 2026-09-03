@@ -7,12 +7,17 @@ use App\Models\Department;
 use App\Models\Instructor;
 use App\Models\NonTeachingStaff;
 use App\Models\OfficeUnit;
+use App\Models\ReportExport;
 use App\Models\Role;
 use App\Models\User;
+use App\Jobs\GenerateDailyPersonnelExport;
 use App\Services\PersonnelAttendanceReportService;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Tests\TestCase;
 
@@ -81,10 +86,10 @@ class DailyPersonnelAttendanceReportTest extends TestCase
     {
         $date = Carbon::parse('2026-08-30');
         $staff = $this->staff('Legacy', 'Duplicate');
-        $this->log($staff->user, 'morning_in', 'time_in', $date->copy()->setTime(8, 5));
-        $this->log($staff->user, 'morning_in', 'time_in', $date->copy()->setTime(7, 55));
-        $this->log($staff->user, 'lunch_out', 'time_out', $date->copy()->setTime(11, 58));
-        $this->log($staff->user, 'lunch_out', 'time_out', $date->copy()->setTime(12, 4));
+        $this->legacyLog($staff->user, 'morning_in', 'time_in', $date->copy()->setTime(8, 5));
+        $this->legacyLog($staff->user, 'morning_in', 'time_in', $date->copy()->setTime(7, 55));
+        $this->legacyLog($staff->user, 'lunch_out', 'time_out', $date->copy()->setTime(11, 58));
+        $this->legacyLog($staff->user, 'lunch_out', 'time_out', $date->copy()->setTime(12, 4));
 
         $row = app(PersonnelAttendanceReportService::class)->getDailyReport($date)['rows']->firstWhere('user_id', $staff->user_id);
 
@@ -137,20 +142,48 @@ class DailyPersonnelAttendanceReportTest extends TestCase
             ->assertSessionHasErrors('office_unit_id');
     }
 
-    public function test_pdf_and_excel_exports_use_the_same_report_structure(): void
+    public function test_pdf_and_excel_exports_are_queued_and_use_the_same_report_structure(): void
     {
         $admin = $this->user('admin');
         $staff = $this->staff('Export', 'Person');
         $query = ['date' => '2026-08-30'];
+        Queue::fake();
+        Storage::fake('local');
 
-        $pdf = $this->actingAs($admin)->get(route('admin.reports.daily-personnel.pdf', $query));
-        $pdf->assertOk()->assertHeader('content-type', 'application/pdf');
-        $this->assertStringContainsString('daily-personnel-attendance-2026-08-30.pdf', $pdf->headers->get('content-disposition'));
-        $this->assertStringStartsWith('%PDF', $pdf->getContent());
+        $pdf = $this->actingAs($admin)->postJson(route('admin.reports.daily-personnel.exports.store'), $query + ['format' => 'pdf']);
+        $pdf->assertStatus(202)->assertJsonPath('status', ReportExport::STATUS_PENDING);
+        $pdfExport = ReportExport::findOrFail($pdf->json('id'));
 
-        $excel = $this->actingAs($admin)->get(route('admin.reports.daily-personnel.excel', $query));
-        $excel->assertOk()->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        $content = $excel->streamedContent();
+        $excel = $this->actingAs($admin)->postJson(route('admin.reports.daily-personnel.exports.store'), $query + ['format' => 'xlsx']);
+        $excel->assertStatus(202)->assertJsonPath('status', ReportExport::STATUS_PENDING);
+        $excelExport = ReportExport::findOrFail($excel->json('id'));
+
+        Queue::assertPushed(GenerateDailyPersonnelExport::class, 2);
+
+        app(GenerateDailyPersonnelExport::class, ['exportId' => $pdfExport->id])->handle(
+            app(PersonnelAttendanceReportService::class),
+            app(\App\Services\DailyPersonnelAttendanceExportService::class),
+        );
+        app(GenerateDailyPersonnelExport::class, ['exportId' => $excelExport->id])->handle(
+            app(PersonnelAttendanceReportService::class),
+            app(\App\Services\DailyPersonnelAttendanceExportService::class),
+        );
+
+        $pdfExport->refresh();
+        $excelExport->refresh();
+        $this->assertSame(ReportExport::STATUS_COMPLETED, $pdfExport->status);
+        $this->assertSame(ReportExport::STATUS_COMPLETED, $excelExport->status);
+        Storage::disk('local')->assertExists($pdfExport->path);
+        Storage::disk('local')->assertExists($excelExport->path);
+        $this->actingAs($this->user('admin'))
+            ->getJson(route('admin.report-exports.show', $pdfExport))
+            ->assertForbidden();
+        $this->actingAs($admin)
+            ->get(route('admin.report-exports.download', $pdfExport))
+            ->assertOk();
+        $this->assertStringStartsWith('%PDF', Storage::disk('local')->get($pdfExport->path));
+
+        $content = Storage::disk('local')->get($excelExport->path);
         $path = tempnam(sys_get_temp_dir(), 'iqams-report-').'.xlsx';
         file_put_contents($path, $content);
         $sheet = IOFactory::load($path)->getActiveSheet();
@@ -215,6 +248,21 @@ class DailyPersonnelAttendanceReportTest extends TestCase
             'scan_time' => $at,
             'status' => $punctuality === 'late' ? 'late' : 'present',
             'punctuality_status' => $punctuality,
+        ]);
+    }
+
+    private function legacyLog(User $user, string $period, string $type, Carbon $at): void
+    {
+        DB::table('attendance_logs')->insert([
+            'user_id' => $user->id,
+            'attendance_type' => $type,
+            'attendance_period' => $period,
+            'scan_time' => $at,
+            'status' => 'present',
+            'punctuality_status' => 'on_time',
+            'record_state' => 'canonical',
+            'created_at' => $at,
+            'updated_at' => $at,
         ]);
     }
 }

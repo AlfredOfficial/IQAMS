@@ -15,15 +15,18 @@ class PersonnelAttendanceReportService
     public function getDailyReport(Carbon $date, array $filters = []): array
     {
         $personnel = $this->personnel($filters);
-        $logs = AttendanceLog::query()
+        $logs = collect();
+        AttendanceLog::canonical()
             ->whereIn('user_id', $personnel->pluck('user_id'))
             ->whereNull('schedule_id')
             ->whereNull('school_event_id')
             ->whereBetween('scan_time', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])
             ->whereIn('attendance_period', PersonnelAttendanceSummary::PERIODS)
             ->orderBy('scan_time')
-            ->get()
-            ->groupBy('user_id');
+            ->chunkById(500, function (Collection $chunk) use (&$logs): void {
+                $logs = $logs->concat($chunk);
+            }, 'attendance_logs.id', 'id');
+        $logs = $logs->groupBy('user_id');
 
         $rows = $personnel->map(function (array $person) use ($logs): array {
             $personLogs = $logs->get($person['user_id'], collect())->groupBy('attendance_period');
@@ -42,7 +45,7 @@ class PersonnelAttendanceReportService
     public function filterOptions(): array
     {
         return [
-            'departments' => Department::orderBy('department_name')->get(['id', 'department_code', 'department_name']),
+            'departments' => Department::active()->orderBy('department_name')->get(['id', 'department_code', 'department_name']),
             'officeUnits' => OfficeUnit::where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
             'personnel' => $this->personnel([])->map(fn (array $person) => [
                 'user_id' => $person['user_id'],
@@ -61,12 +64,15 @@ class PersonnelAttendanceReportService
         $people = collect();
 
         if ((! $type || $type === 'instructor') && ! $officeUnitId) {
-            $instructors = Instructor::query()
+            $instructors = collect();
+            Instructor::query()
                 ->with('user:id,status')
                 ->whereHas('user', fn ($query) => $query->where('status', 'active'))
                 ->when($departmentId, fn ($query) => $query->where('department_id', $departmentId))
                 ->when($personnelId, fn ($query) => $query->where('user_id', $personnelId))
-                ->get();
+                ->chunkById(500, function (Collection $chunk) use (&$instructors): void {
+                    $instructors = $instructors->concat($chunk);
+                });
 
             $people = $people->concat($instructors->map(fn (Instructor $instructor) => [
                 'name' => $instructor->fullName(),
@@ -77,12 +83,15 @@ class PersonnelAttendanceReportService
         }
 
         if ((! $type || $type === 'staff') && ! $departmentId) {
-            $staff = NonTeachingStaff::query()
+            $staff = collect();
+            NonTeachingStaff::query()
                 ->with('user:id,status')
                 ->whereHas('user', fn ($query) => $query->where('status', 'active'))
                 ->when($officeUnitId, fn ($query) => $query->where('office_unit_id', $officeUnitId))
                 ->when($personnelId, fn ($query) => $query->where('user_id', $personnelId))
-                ->get();
+                ->chunkById(500, function (Collection $chunk) use (&$staff): void {
+                    $staff = $staff->concat($chunk);
+                });
 
             $people = $people->concat($staff->map(fn (NonTeachingStaff $staffMember) => [
                 'name' => $staffMember->fullName(),

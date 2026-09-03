@@ -15,25 +15,19 @@
             editModal: { show: false, id: null, department_id: '', name_prefix: '', first_name: '', middle_name: '', last_name: '', professional_credentials: '', avatar_url: '' },
             deleteModal: { show: false, id: null, name: '' },
             statusModal: { show: false, userId: null, name: '', status: '' },
-            qrModal: { show: false, value: '', label: '' }
+            qrModal: { show: false, value: '', label: '' },
+            selectedIds: []
          }"
          @keydown.escape.window="showCreateModal = false; editModal.show = false; deleteModal.show = false; statusModal.show = false; qrModal.show = false">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            @if (session('generated_username'))
-                <div class="mb-4 rounded border border-indigo-200 bg-indigo-50 px-4 py-3 text-indigo-800">
-                    <p class="font-medium">Login credentials for this instructor (shown once — share them now):</p>
-                    <p class="mt-1 text-sm">Username: <span class="font-mono font-semibold">{{ session('generated_username') }}</span></p>
-                    <p class="text-sm">Password: <span class="font-mono font-semibold">{{ session('generated_password') }}</span></p>
-                </div>
-            @endif
-
+            <x-temporary-credentials-alert role="instructor" />
             <div class="overflow-hidden rounded-lg bg-white shadow-sm">
                 <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
                     <span class="text-sm text-gray-500">{{ $instructors->total() }} total</span>
-                    <button type="button" @click="showCreateModal = true"
+                    <div class="flex items-center gap-2"><button type="button" @click="window.printIqamsIdCards(selectedIds.map(id => '{{ url('admin/id-cards') }}/' + id)).catch(error => window.alert(error.message))" :disabled="selectedIds.length === 0" class="rounded border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">Print selected ID cards</button><button type="button" @click="showCreateModal = true"
                             class="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
                         + Add Instructor
-                    </button>
+                    </button></div>
                 </div>
 
                 <div class="overflow-x-auto">
@@ -41,7 +35,7 @@
                         <colgroup><col class="w-40"><col class="w-20"><col class="w-44"><col class="w-48"><col class="w-52"><col class="w-28"><col class="w-20"></colgroup>
                         <thead class="bg-gray-50 text-xs uppercase text-gray-500">
                             <tr>
-                                <th class="px-6 py-3">Instructor ID</th> {{-- keep the employee no in the data base nevermind the table --}}
+                                <th class="px-6 py-3">Select</th><th class="px-6 py-3">Instructor ID</th> {{-- keep the employee no in the data base nevermind the table --}}
                                 <th class="px-6 py-3">Profile</th>
                                 <th class="px-6 py-3">Name</th>
                                 <th class="px-6 py-3">Department</th>
@@ -53,12 +47,17 @@
                         <tbody class="divide-y divide-gray-100">
                             @forelse ($instructors as $instructor)
                                 <tr class="transition-colors hover:bg-gray-50/80">
-                                    <td class="whitespace-nowrap px-6 py-3 font-medium text-gray-800">{{ $instructor->employee_no }}</td>
+                                    <td class="px-6 py-3"><input type="checkbox" value="{{ $instructor->user_id }}" @change="selectedIds = $event.target.checked ? [...selectedIds, {{ $instructor->user_id }}] : selectedIds.filter(id => id !== {{ $instructor->user_id }})" class="rounded border-gray-300 text-indigo-600"></td><td class="whitespace-nowrap px-6 py-3 font-medium text-gray-800">{{ $instructor->employee_no }}</td>
                                     <td class="px-6 py-3"><img src="{{ $instructor->user->avatar_url ?? asset('images/default-avatar.svg') }}" alt="Profile photo" class="h-10 w-10 rounded-full object-cover"></td>
                                     <td class="break-words px-6 py-3 text-gray-600">{{ $instructor->fullName() }}</td>
                                     <td class="break-words px-6 py-3 text-gray-600">{{ $instructor->department->department_name ?? '—' }}</td>
                                     <td class="px-6 py-3 text-gray-600">{{ $instructor->user->email ?? '—' }}</td>
-                                    <td class="px-6 py-3"><span class="rounded px-2 py-1 text-xs font-medium {{ $instructor->user->isAccountActive() ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700' }}">{{ ucfirst($instructor->user->status) }}</span></td>
+                                    <td class="px-6 py-3">
+                                        <span class="rounded px-2 py-1 text-xs font-medium {{ $instructor->user->isAccountActive() ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700' }}">{{ ucfirst($instructor->user->status) }}</span>
+                                        @if ($instructor->user->must_change_password)
+                                            <span class="mt-1 block text-xs font-medium text-amber-700">Initial password</span>
+                                        @endif
+                                    </td>
                                     <td class="px-6 py-3 text-right">
                                         <x-action-menu
                                             :delete-action="route('instructors.destroy', $instructor)"
@@ -66,14 +65,20 @@
                                             :next-status="$instructor->user->isAccountActive() ? 'inactive' : 'active'"
                                             :is-active="$instructor->user->isAccountActive()"
                                             :delete-name="$instructor->fullName()">
+                                            <x-slot:reset>
+                                                <form method="POST" action="{{ route('users.password.reset', $instructor->user) }}" onsubmit="return confirm('Reset this account to its temporary password?')">
+                                                    @csrf
+                                                    <button type="submit">Reset temporary password</button>
+                                                </form>
+                                            </x-slot:reset>
+                                            <x-slot:qr><button type="button" @click="fetch('{{ url('admin/id-cards') }}/{{ $instructor->user_id }}', { headers: { Accept: 'application/json' }, credentials: 'same-origin' }).then(response => response.json().then(data => { if (!response.ok) throw new Error(data.message || 'QR unavailable.'); qrModal = { show: true, value: data.qr_code, label: data.name }; })).catch(error => window.alert(error.message))">View QR</button><button type="button" @click="window.printIqamsIdCard('{{ url('admin/id-cards') }}/{{ $instructor->user_id }}').catch(error => window.alert(error.message))">Print ID Card</button></x-slot:qr>
                                             <x-slot:edit><button type="button" @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $instructor->id, 'department_id' => (string) $instructor->department_id, 'name_prefix' => $instructor->name_prefix ?? '', 'first_name' => $instructor->first_name, 'middle_name' => $instructor->middle_name ?? '', 'last_name' => $instructor->last_name, 'professional_credentials' => $instructor->professional_credentials ?? '', 'avatar_url' => $instructor->user->avatar_url ?? asset('images/default-avatar.svg')]) }}">Edit</button></x-slot:edit>
-                                            <x-slot:qr><button type="button" @click="qrModal = {{ Illuminate\Support\Js::from(['show' => true, 'value' => $instructor->qr_code, 'label' => $instructor->fullName()]) }}">View QR</button></x-slot:qr>
                                         </x-action-menu>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="px-6 py-8 text-center text-gray-400">
+                                    <td colspan="8" class="px-6 py-8 text-center text-gray-400">
                                         No instructors yet. Add your first one.
                                     </td>
                                 </tr>
@@ -261,16 +266,16 @@
              class="fixed inset-0 z-50 flex items-center justify-center px-4"
              style="background: rgba(0, 0, 0, 0.4)">
             <div @click.outside="deleteModal.show = false" class="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
-                <h3 class="mb-2 text-lg font-semibold text-gray-800">Delete Instructor</h3>
+                <h3 class="mb-2 text-lg font-semibold text-gray-800">Deactivate Instructor</h3>
                 <p class="mb-6 text-sm text-gray-500">
-                    Are you sure you want to delete <span class="font-medium text-gray-700" x-text="deleteModal.name"></span>?
-                    This also deletes their login account. This can't be undone.
+                    Are you sure you want to deactivate <span class="font-medium text-gray-700" x-text="deleteModal.name"></span>?
+                    Their login will be disabled and attendance history will be retained.
                 </p>
                 <form method="POST" :action="'{{ url('instructors') }}/' + deleteModal.id">
                     @csrf
                     @method('DELETE')
                     <div class="flex items-center gap-3">
-                        <button type="submit" class="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Delete</button>
+                        <button type="submit" class="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Deactivate / Archive</button>
                         <button type="button" @click="deleteModal.show = false" class="text-sm text-gray-500 hover:text-gray-700">Cancel</button>
                     </div>
                 </form>

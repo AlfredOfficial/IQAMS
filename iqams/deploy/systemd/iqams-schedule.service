@@ -1,0 +1,14 @@
+[Unit]
+Description=Run the IQAMS Laravel scheduler
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/iqams
+EnvironmentFile=/etc/iqams/iqams.env
+ExecStart=/usr/bin/php artisan schedule:run
+StandardOutput=journal
+StandardError=journal

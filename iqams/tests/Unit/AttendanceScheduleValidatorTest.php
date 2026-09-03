@@ -6,12 +6,15 @@ use App\Models\Schedule;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\AttendanceScheduleValidator;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class AttendanceScheduleValidatorTest extends TestCase
 {
+    use RefreshDatabase;
+
     private AttendanceScheduleValidator $validator;
 
     protected function setUp(): void

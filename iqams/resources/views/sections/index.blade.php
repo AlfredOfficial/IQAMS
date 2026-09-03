@@ -36,22 +36,22 @@
                         @forelse ($sections as $section)
                             <tr>
                                 <td class="px-6 py-3 text-gray-800 font-medium">{{ $section->section_name }}</td>
-                                <td class="px-6 py-3 text-gray-600">{{ $section->course->course_code ?? '—' }}</td>
+                                <td class="px-6 py-3 text-gray-600">{{ $section->course->course_code ?? 'â€”' }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $section->school_year }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ ucfirst($section->semester) }}</td>
                                 <td class="px-6 py-3 text-right space-x-3">
                                     <button type="button"
                                         @click="subjectsModal = {
                                             show: true,
-                                            sectionName: '{{ addslashes($section->section_name) }}',
+                                            sectionName: @js($section->section_name),
                                             subjects: [
                                                 @foreach ($section->schedules as $schedule)
                                                 {
-                                                    subject: '{{ addslashes($schedule->subject->subject_code ?? '—') }} - {{ addslashes($schedule->subject->subject_name ?? '') }}',
-                                                    instructor: '{{ addslashes(($schedule->instructor->first_name ?? '') . ' ' . ($schedule->instructor->last_name ?? '—')) }}',
-                                                    day: '{{ ucfirst($schedule->day) }}',
-                                                    time: '{{ \Illuminate\Support\Carbon::parse($schedule->start_time)->format('g:i A') }} - {{ \Illuminate\Support\Carbon::parse($schedule->end_time)->format('g:i A') }}',
-                                                    room: '{{ addslashes($schedule->room) }}'
+                                                    subject: @js(($schedule->subject->subject_code ?? '').' - '.($schedule->subject->subject_name ?? '')),
+                                                    instructor: @js(($schedule->instructor->first_name ?? '').' '.($schedule->instructor->last_name ?? '')),
+                                                    day: @js(ucfirst($schedule->day)),
+                                                    time: @js(\Illuminate\Support\Carbon::parse($schedule->start_time)->format('g:i A').' - '.\Illuminate\Support\Carbon::parse($schedule->end_time)->format('g:i A')),
+                                                    room: @js($schedule->room)
                                                 },
                                                 @endforeach
                                             ]
@@ -63,14 +63,14 @@
                                             show: true,
                                             id: {{ $section->id }},
                                             course_id: '{{ $section->course_id }}',
-                                            section_name: '{{ addslashes($section->section_name) }}',
-                                            school_year: '{{ $section->school_year }}',
-                                            semester: '{{ $section->semester }}'
+                                            section_name: @js($section->section_name),
+                                            school_year: @js($section->school_year),
+                                            semester: @js($section->semester)
                                         }"
                                         class="text-indigo-600 hover:text-indigo-800">Edit</button>
 
                                     <button type="button"
-                                        @click="deleteModal = { show: true, id: {{ $section->id }}, name: '{{ addslashes($section->section_name) }}' }"
+                                        @click="deleteModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $section->id, 'name' => $section->section_name]) }}"
                                         class="text-red-600 hover:text-red-800">Delete</button>
                                 </td>
                             </tr>
@@ -286,9 +286,9 @@
                         <div class="border border-gray-100 rounded-lg p-3">
                             <p class="text-sm font-medium text-gray-800" x-text="item.subject"></p>
                             <p class="text-xs text-gray-500 mt-1">
-                                <span x-text="item.instructor"></span> ·
-                                <span x-text="item.day"></span> ·
-                                <span x-text="item.time"></span> ·
+                                <span x-text="item.instructor"></span> Â·
+                                <span x-text="item.day"></span> Â·
+                                <span x-text="item.time"></span> Â·
                                 <span x-text="item.room"></span>
                             </p>
                         </div>

@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Course;
 use App\Models\Department;
+use App\Services\AuditLogger;
+use App\Services\ArchiveService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class CourseController extends Controller
 {
@@ -13,8 +16,8 @@ class CourseController extends Controller
      */
     public function index()
     {
-        $courses = Course::with('department')->latest()->paginate(10);
-        $departments = Department::orderBy('department_name')->get();
+        $courses = Course::active()->with('department')->latest()->paginate(10);
+        $departments = Department::active()->orderBy('department_name')->get();
 
         return view('courses.index', compact('courses', 'departments'));
     }
@@ -24,7 +27,7 @@ class CourseController extends Controller
      */
     public function create()
     {
-        $departments = Department::orderBy('department_name')->get();
+        $departments = Department::active()->orderBy('department_name')->get();
 
         return view('courses.create', compact('departments'));
     }
@@ -35,12 +38,13 @@ class CourseController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'department_id' => 'required|exists:departments,id',
+            'department_id' => ['required', Rule::exists('departments', 'id')->whereNull('archived_at')],
             'course_code' => 'required|string|max:20|unique:courses,course_code,',
             'course_name' => 'required|string|max:255',
         ]);
 
-        Course::create($validated);
+        $course = Course::create($validated);
+        app(AuditLogger::class)->record('record.created', $course, ['record' => 'course'], $request->user(), $request);
 
         return redirect()->route('courses.index')->with('success', 'Course created successfully.');
     }
@@ -58,7 +62,7 @@ class CourseController extends Controller
      */
     public function edit(Course $course)
     {
-        $departments = Department::orderBy('department_name')->get();
+        $departments = Department::active()->orderBy('department_name')->get();
 
         return view('courses.edit', compact('course', 'departments'));
     }
@@ -69,12 +73,13 @@ class CourseController extends Controller
     public function update(Request $request, Course $course)
     {
         $validated = $request->validate([
-            'department_id' => 'required|exists:departments,id',
+            'department_id' => ['required', Rule::exists('departments', 'id')->whereNull('archived_at')],
             'course_code' => 'required|string|max:20|unique:courses,course_code,' . $course->id,
             'course_name' => 'required|string|max:255',
         ]);
 
         $course->update($validated);
+        app(AuditLogger::class)->record('record.updated', $course, ['record' => 'course'], $request->user(), $request);
 
         return redirect()->route('courses.index')->with('success', 'Course updated successfully.');
     }
@@ -82,10 +87,10 @@ class CourseController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Course $course)
+    public function destroy(Request $request, Course $course)
     {
-        $course->delete();
+        app(ArchiveService::class)->archive($course, $request->user(), $request);
 
-        return redirect()->route('courses.index')->with('success', 'Course deleted successfully.');
+        return redirect()->route('courses.index')->with('success', 'Course archived successfully.');
     }
 }

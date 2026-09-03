@@ -9,6 +9,8 @@ use Illuminate\Support\Collection;
 
 class PersonnelWorkCalendar
 {
+    public function __construct(private ScheduleOccurrenceResolver $occurrences) {}
+
     public function context(User $user, Carbon $from, Carbon $to): array
     {
         $user->loadMissing(['role', 'instructor.schedules', 'nonTeachingStaff']);
@@ -93,12 +95,13 @@ class PersonnelWorkCalendar
 
     private function overlapsSchedule(SchoolEvent $event, $schedule, Carbon $date): bool
     {
-        $start = $date->copy()->startOfDay()->setTimeFromTimeString($schedule->start_time);
-        $end = $date->copy()->startOfDay()->setTimeFromTimeString($schedule->end_time);
-        if ($end->lte($start)) {
-            $end->addDay();
+        $occurrence = $this->occurrences->forDate($schedule, $date);
+
+        if (! $occurrence) {
+            return false;
         }
 
-        return $event->starts_at->lt($end) && $event->ends_at->gt($start);
+        return $event->starts_at->lt($occurrence->endsAt)
+            && $event->ends_at->gt($occurrence->startsAt);
     }
 }

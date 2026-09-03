@@ -114,6 +114,7 @@
                         ['instructors', 'Teaching', 'bg-violet-50 text-violet-600', 'M4 19.5V6a2 2 0 0 1 2-2h12v15.5M6 16h12'],
                         ['staff', 'Non-teaching', 'bg-amber-50 text-amber-600', 'M9 6h6m-8 4h10M5 20h14V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v14Z'],
                         ['present', 'Currently present', 'bg-emerald-50 text-emerald-600', 'm5 12 4 4L19 6'],
+                        ['absent', 'Absent users', 'bg-rose-50 text-rose-600', 'M6 6l12 12M18 6 6 18'],
                         ['late', 'Late users', 'bg-yellow-50 text-yellow-600', 'M12 7v5l3 2m6-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z'],
                         ['missing_timeout', 'Missing time-out', 'bg-orange-50 text-orange-600', 'M12 8v5m0 3h.01M10.3 3.7 2 18h20L13.7 3.7a2 2 0 0 0-3.4 0Z'],
                         ['incomplete', 'Incomplete', 'bg-red-50 text-red-600', 'M6 18 18 6M6 6l12 12'],

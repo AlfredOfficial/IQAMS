@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -94,7 +95,21 @@ class StudentProfileController extends Controller
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
-        $request->user()->update(['password' => $validated['password']]);
+        $user = $request->user();
+        $user->forceFill([
+            'password' => $validated['password'],
+            'must_change_password' => false,
+            'password_changed_at' => now(),
+        ])->save();
+
+        app(AuditLogger::class)->record(
+            'account.password_changed',
+            $user,
+            ['source' => 'student_profile'],
+            $user,
+            $request,
+        );
+        $request->session()->regenerate();
 
         return back()->with('success', 'Password changed successfully.');
     }

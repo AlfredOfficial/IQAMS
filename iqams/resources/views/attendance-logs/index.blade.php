@@ -96,17 +96,17 @@
                                 </td>
                                 <td class="px-6 py-3 text-right space-x-3">
                                     <button type="button"
-                                        @click="editModal = {
-                                            show: true,
-                                            id: {{ $log->id }},
-                                            user_id: '{{ $log->user_id }}',
-                                            schedule_id: '{{ $log->schedule_id }}',
-                                            attendance_type: '{{ $log->attendance_type }}',
-                                            scan_time: '{{ \Illuminate\Support\Carbon::parse($log->scan_time)->format('Y-m-d\TH:i') }}',
-                                            status_override: '{{ $log->status }}',
-                                            scanner_location: '{{ addslashes($log->scanner_location) }}',
-                                            remarks: '{{ addslashes($log->remarks) }}'
-                                        }"
+                                        @click="editModal = {{ Illuminate\Support\Js::from([
+                                            'show' => true,
+                                            'id' => $log->id,
+                                            'user_id' => (string) $log->user_id,
+                                            'schedule_id' => (string) $log->schedule_id,
+                                            'attendance_type' => $log->attendance_type,
+                                            'scan_time' => \Illuminate\Support\Carbon::parse($log->scan_time)->format('Y-m-d\TH:i'),
+                                            'status_override' => $log->status,
+                                            'scanner_location' => $log->scanner_location,
+                                            'remarks' => $log->remarks,
+                                        ]) }}"
                                         class="text-indigo-600 hover:text-indigo-800">Edit</button>
 
                                     <button type="button"

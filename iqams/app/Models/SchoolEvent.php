@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Archivable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SchoolEvent extends Model
 {
+    use Archivable;
+
     protected $fillable = [
         'title', 'description', 'location', 'starts_at', 'ends_at',
         'attendance_mode', 'target_scope', 'status', 'published_at', 'attendance_finalized_at',

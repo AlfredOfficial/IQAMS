@@ -24,19 +24,19 @@ class OfficeUnitManagementTest extends TestCase
     {
         $admin = $this->user('admin');
 
-        $this->actingAs($admin)->post(route('office-units.store'), [
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])->post(route('office-units.store'), [
             'code' => 'LEG', 'name' => 'Legal Affairs', 'is_active' => true,
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $unit = OfficeUnit::where('code', 'LEG')->firstOrFail();
-        $this->actingAs($admin)->put(route('office-units.update', $unit), [
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])->put(route('office-units.update', $unit), [
             'code' => 'LEG', 'name' => 'Office of Legal Affairs', 'is_active' => false,
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertFalse($unit->fresh()->is_active);
     }
 
-    public function test_referenced_office_unit_cannot_be_deleted(): void
+    public function test_referenced_office_unit_is_deactivated_instead_of_deleted(): void
     {
         $admin = $this->user('admin');
         $staffUser = $this->user('staff');
@@ -46,16 +46,16 @@ class OfficeUnitManagementTest extends TestCase
             'employee_no' => 'STF-LIB', 'first_name' => 'Library', 'last_name' => 'Staff',
         ]);
 
-        $this->actingAs($admin)->delete(route('office-units.destroy', $unit))
-            ->assertSessionHasErrors('office_unit');
-        $this->assertDatabaseHas('office_units', ['id' => $unit->id]);
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])->delete(route('office-units.destroy', $unit))
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('office_units', ['id' => $unit->id, 'is_active' => 0]);
     }
 
     public function test_academic_department_id_is_not_accepted_as_staff_office_unit(): void
     {
         $admin = $this->user('admin');
 
-        $this->actingAs($admin)->post(route('non-teaching-staff.store'), [
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])->post(route('non-teaching-staff.store'), [
             'office_unit_id' => 999999,
             'employee_no' => 'STF-BAD', 'first_name' => 'Bad', 'last_name' => 'Assignment',
             'email' => 'bad-office@example.test',

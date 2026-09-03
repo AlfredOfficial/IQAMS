@@ -17,6 +17,7 @@ class QrAttendanceService
     public function __construct(
         private QrIdentityResolver $identityResolver,
         private StudentAttendanceWindow $studentWindow,
+        private ScheduleOccurrenceResolver $occurrences,
         private AccountStatusService $accountStatus,
         private ApprovedLeaveAttendanceGuard $leaveGuard,
         private SchoolEventResolver $eventResolver,
@@ -30,7 +31,7 @@ class QrAttendanceService
         $user = $this->identityResolver->resolve(trim($qrCode));
 
         return DB::transaction(function () use ($user, $location, $scannedAt) {
-            $lockedUser = User::with(['role', 'student'])->lockForUpdate()->findOrFail($user->id);
+            $lockedUser = User::with(['roles', 'student'])->lockForUpdate()->findOrFail($user->id);
 
             $this->accountStatus->ensureAccountIsActive($lockedUser, 'qr_code');
             $this->leaveGuard->ensureAttendanceIsAllowed($lockedUser, $scannedAt, 'qr_code');
@@ -57,65 +58,81 @@ class QrAttendanceService
             return $this->recordEvent($user, $event, $scannedAt, $location);
         }
 
-        $day = strtolower($scannedAt->format('l'));
-        $schedules = Schedule::with(['subject', 'section'])
+        $candidateDates = $this->occurrences->candidateSessionDates($scannedAt);
+        $candidateDays = collect($candidateDates)
+            ->map(fn (Carbon $date) => strtolower($date->format('l')))
+            ->all();
+        $schedules = Schedule::active()->with(['subject', 'section'])
             ->where('section_id', $student->section_id)
-            ->where('day', $day)
+            ->whereIn('day', $candidateDays)
             ->get();
 
         $matches = $schedules
-            ->filter(fn (Schedule $schedule) => $this->studentWindow->isOpen($schedule, $scannedAt))
-            ->reject(fn (Schedule $schedule) => $this->eventResolver->affectingSchedule($schedule, $scannedAt))
-            ->sortByDesc(fn (Schedule $schedule) => [
-                $this->studentWindow->isPresent($schedule, $scannedAt) ? 1 : 0,
-                $this->studentWindow->start($schedule, $scannedAt)->getTimestamp(),
+            ->map(fn (Schedule $schedule) => [
+                'schedule' => $schedule,
+                'occurrence' => $this->occurrences->resolveAt($schedule, $scannedAt),
+            ])
+            ->filter(fn (array $candidate) => $candidate['occurrence'] !== null)
+            ->reject(fn (array $candidate) => $this->eventResolver->affectingOccurrence($candidate['occurrence']))
+            ->sortByDesc(fn (array $candidate) => [
+                $this->studentWindow->isPresent($candidate['occurrence'], $scannedAt) ? 1 : 0,
+                $candidate['occurrence']->startsAt->getTimestamp(),
             ])
             ->values();
 
         if ($matches->isEmpty()) {
             $nextSchedule = $schedules
-                ->filter(fn (Schedule $schedule) => $scannedAt->lessThan($this->studentWindow->opensAt($schedule, $scannedAt)))
-                ->sortBy(fn (Schedule $schedule) => $this->studentWindow->opensAt($schedule, $scannedAt)->getTimestamp())
+                ->map(fn (Schedule $schedule) => [
+                    'schedule' => $schedule,
+                    'occurrence' => $this->occurrences->forDate($schedule, $scannedAt),
+                ])
+                ->filter(fn (array $candidate) => $candidate['occurrence']
+                    && $scannedAt->lessThan($candidate['occurrence']->opensAt))
+                ->sortBy(fn (array $candidate) => $candidate['occurrence']->opensAt->getTimestamp())
                 ->first();
 
             if ($nextSchedule) {
-                $opensAt = $this->studentWindow->opensAt($nextSchedule, $scannedAt)->format('g:i A');
+                $opensAt = $nextSchedule['occurrence']->opensAt->format('g:i A');
                 $this->deny("Attendance scanning opens at {$opensAt}.");
             }
 
             $this->deny('You do not have a scheduled class at this time.');
         }
 
-        $schedule = $matches->first();
+        $schedule = $matches->first()['schedule'];
+        $occurrence = $matches->first()['occurrence'];
         $scanKey = implode(':', ['student', $user->id, $schedule->id, $scannedAt->toDateString()]);
 
-        $existing = AttendanceLog::where('scan_key', $scanKey)
-            ->orWhere(fn ($query) => $query->where('user_id', $user->id)
+        $existing = AttendanceLog::canonical()->where(function ($query) use ($scanKey, $user, $schedule, $occurrence) {
+            $query->where('scan_key', $scanKey)
+                ->orWhere(fn ($query) => $query->where('user_id', $user->id)
                 ->where('schedule_id', $schedule->id)
-                ->whereDate('scan_time', $scannedAt->toDateString())
-                ->where('attendance_type', 'time_in'))
+                ->whereBetween('scan_time', [$occurrence->opensAt, $occurrence->endsAt])
+                ->where('attendance_type', 'time_in'));
+        })
             ->lockForUpdate()
             ->first();
 
         if ($existing) {
-            if ($existing->status === 'absent' && $this->studentWindow->status($schedule, $scannedAt) === 'late') {
+            if ($existing->status === 'absent' && $this->studentWindow->status($occurrence, $scannedAt) === 'late') {
                 $existing->update([
                     'scan_time' => $scannedAt,
+                    'scan_key' => $scanKey,
                     'status' => 'late',
                     'scanner_location' => $location,
                     'remarks' => null,
                 ]);
 
-                return $existing->load(['user.role', 'schedule.subject', 'schedule.section']);
+                return $existing->load(['user.roles', 'schedule.subject', 'schedule.section']);
             }
 
             throw AttendanceAlreadyRecordedException::forLog(
-                $existing->load(['user.role', 'schedule.subject', 'schedule.section']),
+                $existing->load(['user.roles', 'schedule.subject', 'schedule.section']),
                 'Attendance already recorded for this subject.',
             );
         }
 
-        $status = $this->studentWindow->status($schedule, $scannedAt);
+        $status = $this->studentWindow->status($occurrence, $scannedAt);
 
         try {
             return AttendanceLog::create([
@@ -126,14 +143,14 @@ class QrAttendanceService
                 'scan_key' => $scanKey,
                 'status' => $status,
                 'scanner_location' => $location,
-            ])->load(['user.role', 'schedule.subject', 'schedule.section']);
+            ])->load(['user.roles', 'schedule.subject', 'schedule.section']);
         } catch (QueryException $exception) {
             if ($this->isUniqueConstraintViolation($exception)) {
-                $existing = AttendanceLog::where('scan_key', $scanKey)->first();
+                $existing = AttendanceLog::canonical()->where('scan_key', $scanKey)->first();
 
                 if ($existing) {
                     throw AttendanceAlreadyRecordedException::forLog(
-                        $existing->load(['user.role', 'schedule.subject', 'schedule.section']),
+                        $existing->load(['user.roles', 'schedule.subject', 'schedule.section']),
                         'Attendance already recorded for this subject.',
                     );
                 }
@@ -148,7 +165,7 @@ class QrAttendanceService
     private function recordEvent(User $user, SchoolEvent $event, Carbon $scannedAt, ?string $location): AttendanceLog
     {
         $scanKey = "event:{$user->id}:{$event->id}";
-        $existing = AttendanceLog::where('scan_key', $scanKey)->lockForUpdate()->first();
+        $existing = AttendanceLog::canonical()->where('scan_key', $scanKey)->lockForUpdate()->first();
         $presentUntil = $event->starts_at->copy()->addMinutes(config('attendance.present_grace_minutes'))->endOfMinute();
         $status = $scannedAt->lessThanOrEqualTo($presentUntil) ? 'present' : 'late';
 
@@ -156,10 +173,10 @@ class QrAttendanceService
             if ($existing->status === 'absent') {
                 $existing->update(['scan_time' => $scannedAt, 'status' => $status, 'scanner_location' => $location, 'remarks' => null]);
 
-                return $existing->load(['user.role', 'schoolEvent']);
+                return $existing->load(['user.roles', 'schoolEvent']);
             }
             throw AttendanceAlreadyRecordedException::forLog(
-                $existing->load(['user.role', 'schoolEvent']),
+                $existing->load(['user.roles', 'schoolEvent']),
                 'Attendance already recorded for this school event.',
             );
         }
@@ -173,18 +190,18 @@ class QrAttendanceService
             'scan_key' => $scanKey,
             'status' => $status,
             'scanner_location' => $location,
-        ])->load(['user.role', 'schoolEvent']);
+        ])->load(['user.roles', 'schoolEvent']);
     }
 
     private function recordPersonnel(User $user, Carbon $scannedAt, ?string $location): AttendanceLog
     {
-        $role = strtolower($user->role?->role_name ?? '');
+        $role = strtolower((string) $user->primaryRoleName());
 
         if (! in_array($role, ['instructor', 'staff'], true)) {
             $this->deny('This QR code does not belong to a supported attendance profile.');
         }
 
-        $todayLogs = AttendanceLog::where('user_id', $user->id)
+        $todayLogs = AttendanceLog::canonical()->where('user_id', $user->id)
             ->whereNull('schedule_id')
             ->whereDate('scan_time', $scannedAt->toDateString())
             ->orderBy('scan_time')
@@ -200,7 +217,7 @@ class QrAttendanceService
 
         if ($latestLocalTime && abs($latestLocalTime->getTimestamp() - $scannedAt->getTimestamp()) < $cooldown) {
             throw AttendanceAlreadyRecordedException::forLog(
-                $latest->load('user.role'),
+                $latest->load('user.roles'),
                 "Please wait {$cooldown} seconds before scanning this QR code again.",
             );
         }
@@ -211,7 +228,7 @@ class QrAttendanceService
 
         if ($todayLogs->count() >= $limit) {
             throw AttendanceAlreadyRecordedException::forLog(
-                $latest->load('user.role'),
+                $latest->load('user.roles'),
                 'All required attendance scans for today have already been completed.',
             );
         }
@@ -229,7 +246,7 @@ class QrAttendanceService
             if ($period && $todayLogs->contains('attendance_period', $period)) {
                 $existing = $todayLogs->firstWhere('attendance_period', $period);
                 throw AttendanceAlreadyRecordedException::forLog(
-                    $existing->load('user.role'),
+                    $existing->load('user.roles'),
                     "{$stage['label']} has already been recorded.",
                 );
             }
@@ -273,7 +290,7 @@ class QrAttendanceService
             'status' => $this->personnelClassifier->punctuality($stage, $scannedAt) === 'late' ? 'late' : 'present',
             'punctuality_status' => $this->personnelClassifier->punctuality($stage, $scannedAt),
             'scanner_location' => $location,
-        ])->load('user.role');
+        ])->load('user.roles');
     }
 
     private function isUniqueConstraintViolation(QueryException $exception): bool

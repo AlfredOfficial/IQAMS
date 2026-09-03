@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Middleware\EnsureAccountIsActive;
+use App\Http\Middleware\AllowForcedPasswordReset;
+use App\Http\Middleware\EnsurePasswordIsChanged;
 use App\Http\Middleware\RedirectNonAdminFromProfile;
 use App\Http\Middleware\RequireScannerTerminal;
 use App\Http\Middleware\ThrottleScannerRequests;
@@ -19,6 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'redirect.non-admin.profile' => RedirectNonAdminFromProfile::class,
             'active' => EnsureAccountIsActive::class,
+            'password.changed' => EnsurePasswordIsChanged::class,
+            'password.reset.access' => AllowForcedPasswordReset::class,
             'role' => Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,

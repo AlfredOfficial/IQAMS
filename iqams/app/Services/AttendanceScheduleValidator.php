@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Schedule;
 use App\Models\User;
+use App\ValueObjects\ScheduleOccurrence;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
@@ -12,7 +13,7 @@ class AttendanceScheduleValidator
     public const DENIED_MESSAGE = 'Attendance denied. You do not have a scheduled class session at this time.';
 
     public function __construct(
-        private StudentAttendanceWindow $studentWindow,
+        private ScheduleOccurrenceResolver $occurrences,
         private SchoolEventResolver $events,
     ) {}
 
@@ -20,44 +21,24 @@ class AttendanceScheduleValidator
      * Ensure a student's attendance belongs to their section and occurs
      * during the selected class session. Non-student attendance is unchanged.
      */
-    public function validate(User $user, Schedule $schedule, Carbon $occurredAt): void
+    public function validate(User $user, Schedule $schedule, Carbon $occurredAt): ?ScheduleOccurrence
     {
         $student = $user->student;
 
         if (! $student) {
-            return;
+            return null;
         }
 
+        $occurrence = $this->occurrences->resolveAt($schedule, $occurredAt);
+
         if ((int) $student->section_id !== (int) $schedule->section_id
-            || ! $this->isWithinSession($schedule, $occurredAt)
-            || $this->events->affectingSchedule($schedule, $occurredAt)) {
+            || ! $occurrence
+            || $this->events->affectingOccurrence($occurrence)) {
             throw ValidationException::withMessages([
                 'schedule_id' => self::DENIED_MESSAGE,
             ]);
         }
-    }
 
-    private function isWithinSession(Schedule $schedule, Carbon $occurredAt): bool
-    {
-        $time = $occurredAt->copy()->timezone(config('app.timezone'));
-        $start = $time->copy()->startOfDay()->setTimeFromTimeString($schedule->start_time);
-        $end = $time->copy()->startOfDay()->setTimeFromTimeString($schedule->end_time);
-        $scheduleDay = strtolower($schedule->day);
-
-        if ($end->greaterThan($start)) {
-            return strtolower($time->format('l')) === $scheduleDay
-                && $this->studentWindow->isOpen($schedule, $time);
-        }
-
-        // An end time at or before the start time represents a session that
-        // continues into the following calendar day.
-        if (strtolower($time->format('l')) === $scheduleDay) {
-            return $time->greaterThanOrEqualTo($start);
-        }
-
-        $previousDay = $time->copy()->subDay();
-
-        return strtolower($previousDay->format('l')) === $scheduleDay
-            && $time->lessThanOrEqualTo($end);
+        return $occurrence;
     }
 }

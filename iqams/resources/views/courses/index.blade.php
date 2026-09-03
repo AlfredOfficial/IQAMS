@@ -38,17 +38,11 @@
                                 <td class="px-6 py-3 text-gray-600">{{ $course->department->department_name ?? '—' }}</td>
                                 <td class="px-6 py-3 text-right space-x-3">
                                     <button type="button"
-                                        @click="editModal = {
-                                            show: true,
-                                            id: {{ $course->id }},
-                                            department_id: '{{ $course->department_id }}',
-                                            code: '{{ $course->course_code }}',
-                                            name: '{{ addslashes($course->course_name) }}'
-                                        }"
+                                        @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $course->id, 'department_id' => (string) $course->department_id, 'code' => $course->course_code, 'name' => $course->course_name]) }}"
                                         class="text-indigo-600 hover:text-indigo-800">Edit</button>
 
                                     <button type="button"
-                                        @click="deleteModal = { show: true, id: {{ $course->id }}, name: '{{ addslashes($course->course_name) }}' }"
+                                        @click="deleteModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $course->id, 'name' => $course->course_name]) }}"
                                         class="text-red-600 hover:text-red-800">Delete</button>
                                 </td>
                             </tr>

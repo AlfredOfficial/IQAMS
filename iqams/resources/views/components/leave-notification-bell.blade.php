@@ -1,3 +1,4 @@
+@if (Auth::user()->isAdmin() || Auth::user()->isStaff() || Auth::user()->isInstructor())
 @php
     $notificationType = \App\Notifications\LeaveRequestNotification::class;
     $leaveNotifications = Auth::user()->notifications()->where('type', $notificationType)->latest()->take(8)->get();
@@ -67,3 +68,4 @@
         </div>
     </div>
 </div>
+@endif

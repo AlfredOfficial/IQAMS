@@ -6,7 +6,7 @@ use App\Models\AttendanceLog;
 use App\Models\Schedule;
 use App\Models\Student;
 use App\Services\PersonnelAttendancePages;
-use App\Services\StudentAttendanceWindow;
+use App\Services\ScheduleOccurrenceResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -79,7 +79,7 @@ class InstructorAttendanceController extends Controller
     public function classAttendance(
         Request $request,
         Schedule $schedule,
-        StudentAttendanceWindow $window,
+        ScheduleOccurrenceResolver $occurrences,
     ): JsonResponse {
         $instructor = $request->user()->instructor;
         abort_unless($instructor && $schedule->instructor_id === $instructor->id, 403);
@@ -87,7 +87,9 @@ class InstructorAttendanceController extends Controller
         $validated = $request->validate(['date' => ['required', 'date_format:Y-m-d']]);
         $date = Carbon::createFromFormat('!Y-m-d', $validated['date'], config('app.timezone'));
 
-        if (strtolower($date->format('l')) !== strtolower($schedule->day)) {
+        $occurrence = $occurrences->forDate($schedule, $date);
+
+        if (! $occurrence) {
             throw ValidationException::withMessages([
                 'date' => 'The selected date is not a valid class day for this schedule.',
             ]);
@@ -100,11 +102,12 @@ class InstructorAttendanceController extends Controller
             ->whereHas('user', fn ($query) => $query->where('status', 'active'))
             ->orderBy('last_name')->orderBy('first_name')->get();
 
-        $logs = AttendanceLog::where('schedule_id', $schedule->id)
-            ->whereDate('scan_time', $date->toDateString())
+        $logs = AttendanceLog::canonical()->where('schedule_id', $schedule->id)
+            ->whereBetween('scan_time', [$occurrence->opensAt, $occurrence->endsAt])
+            ->where('attendance_type', 'time_in')
             ->whereIn('user_id', $students->pluck('user_id'))
             ->orderBy('scan_time')->get()->keyBy('user_id');
-        $cutoffPassed = now(config('app.timezone'))->greaterThan($window->presentUntil($schedule, $date));
+        $cutoffPassed = now(config('app.timezone'))->greaterThan($occurrence->presentUntil);
 
         $rows = $students->map(function (Student $student) use ($logs, $cutoffPassed) {
             $log = $logs->get($student->user_id);
@@ -128,7 +131,7 @@ class InstructorAttendanceController extends Controller
                 'room' => $schedule->room ?: 'TBD',
                 'date' => $date->toDateString(),
                 'date_label' => $date->format('l, F j, Y'),
-                'time_label' => Carbon::parse($schedule->start_time)->format('g:i A').' - '.Carbon::parse($schedule->end_time)->format('g:i A'),
+                'time_label' => $occurrence->startsAt->format('g:i A').' - '.$occurrence->endsAt->format('g:i A'),
             ],
             'summary' => [
                 'present' => $rows->whereIn('status', ['present', 'late'])->count(),

@@ -12,12 +12,11 @@
         'Absent' => 'bg-red-100 text-red-700',
         'Not Started' => 'bg-slate-100 text-slate-600',
         'On Leave' => 'bg-sky-100 text-sky-700',
-        'Sick Leave' => 'bg-sky-100 text-sky-700',
     ];
 @endphp
 
 <x-staff-layout title="Dashboard">
-    <div x-data="staffWorkspace" data-realtime-url="{{ route('staff.dashboard.realtime') }}" data-qr-value="{{ $staff->qr_code ?? $staff->employee_no }}">
+    <div x-data="staffWorkspace" data-realtime-url="{{ route('staff.dashboard.realtime') }}" data-id-card-url="{{ route('id-card.show') }}">
         <div class="mx-auto max-w-[1500px] space-y-6">
             @unless (Auth::user()->isAccountActive())
                 <div class="rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-800">
@@ -32,7 +31,7 @@
                 <div class="rounded-xl border border-gray-200 bg-white px-4 py-4 sm:px-5">
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <div class="flex items-baseline gap-2"><p data-staff-progress-count class="text-sm font-bold text-gray-900">{{ $today['completedPeriods'] }} of 4 completed</p><p data-staff-progress-percent class="text-sm font-semibold text-emerald-700">{{ $today['progressPercentage'] }}%</p></div>
-                        <span data-staff-status class="inline-flex rounded-full px-3 py-1 text-xs font-bold {{ $statusClasses[$today['status']] ?? 'bg-amber-100 text-amber-700' }}">{{ $today['status'] }}</span>
+                        <span data-staff-status class="inline-flex rounded-full px-3 py-1 text-xs font-bold {{ $statusClasses[$today['summaryStatus'] ?? $today['status']] ?? 'bg-amber-100 text-amber-700' }}">{{ $today['summaryStatus'] ?? $today['status'] }}</span>
                     </div>
                     <div class="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-gray-200" role="progressbar" aria-label="Today's attendance progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ $today['progressPercentage'] }}" data-staff-progress-track>
                         <div data-staff-progress-bar class="h-full rounded-full bg-emerald-500 transition-[width] duration-300" style="width: {{ $today['progressPercentage'] }}%"></div>

@@ -10,7 +10,7 @@ class RedirectNonAdminFromProfile
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->user()->role?->role_name !== 'admin') {
+        if (! $request->user()->hasRole('admin')) {
             return redirect()->route($request->user()->isStudent() ? 'student.profile' : 'my-profile.edit');
         }
 

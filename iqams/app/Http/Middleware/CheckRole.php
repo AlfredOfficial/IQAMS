@@ -18,12 +18,8 @@ class CheckRole
     {
         $user = $request->user();
 
-        if (! $user || ! $user->role) {
+        if (! $user || ! $user->hasAnyRole($roles)) {
             abort(403, 'No role assigned to this account.');
-        }
-
-        if (! in_array($user->role->role_name, $roles, true)) {
-            abort(403, 'You are not authorized to access this page.');
         }
 
         return $next($request);

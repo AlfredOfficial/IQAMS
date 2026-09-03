@@ -22,6 +22,14 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // The fixed admin portal role is the production super-admin role.
-        Gate::before(fn (User $user) => $user->hasRole('admin') ? true : null);
+        Gate::before(function (User $user, string $ability) {
+            // The audit trail is deliberately permission-gated even for the
+            // admin super-role so access can be revoked independently.
+            if ($ability === 'view-audit-logs') {
+                return null;
+            }
+
+            return $user->hasRole('admin') ? true : null;
+        });
     }
 }

@@ -21,6 +21,7 @@ class RolePermissionSeeder extends Seeder
         'review-leave-requests',
         'manage-school-events',
         'view-reports',
+        'view-audit-logs',
     ];
 
     public function run(): void

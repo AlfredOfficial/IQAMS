@@ -17,14 +17,14 @@ class StaffDashboardTest extends TestCase
     {
         $role = Role::create(['role_name' => 'staff']);
         $officeUnit = OfficeUnit::where('code', 'REG')->firstOrFail();
-        $user = User::create([
-            'role_id' => $role->id,
+        $user = User::factory()->create([
             'username' => 'STF001',
             'name' => 'Jamie Santos',
             'email' => 'jamie@example.test',
             'password' => 'password',
             'status' => 'active',
         ]);
+        $user->assignRole($role);
         NonTeachingStaff::create([
             'user_id' => $user->id,
             'office_unit_id' => $officeUnit->id,
@@ -53,7 +53,8 @@ class StaffDashboardTest extends TestCase
             ->assertSee('data-staff-progress-bar', false)
             ->assertSee('Staff ID: STF001')
             ->assertSee('Office/Unit: Registrar')
-            ->assertSee('data-qr-value="STF001"', false)
+            ->assertDontSee('data-qr-value=', false)
+            ->assertSee('data-id-card-url=', false)
             ->assertSee('id="staff-qr"', false)
             ->assertDontSee('View my QR code')
             ->assertDontSee('My Teaching Schedule');
@@ -62,14 +63,14 @@ class StaffDashboardTest extends TestCase
     public function test_staff_account_without_a_staff_profile_is_rejected(): void
     {
         $role = Role::create(['role_name' => 'staff']);
-        $user = User::create([
-            'role_id' => $role->id,
+        $user = User::factory()->create([
             'username' => 'STF002',
             'name' => 'Unlinked Staff',
             'email' => 'unlinked@example.test',
             'password' => 'password',
             'status' => 'active',
         ]);
+        $user->assignRole($role);
 
         $this->actingAs($user)->get(route('staff.dashboard'))->assertForbidden();
     }

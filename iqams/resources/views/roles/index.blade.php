@@ -24,10 +24,10 @@
                 @endphp
 
                 @foreach ($roles as $role)
-                    @php $style = $roleStyles[$role->role_name] ?? ['bg' => 'bg-gray-50', 'text' => 'text-gray-600', 'ring' => 'ring-gray-100']; @endphp
+                    @php $style = $roleStyles[$role->name] ?? ['bg' => 'bg-gray-50', 'text' => 'text-gray-600', 'ring' => 'ring-gray-100']; @endphp
                     <div class="bg-white shadow-sm rounded-lg p-5 ring-1 {{ $style['ring'] }}">
                         <div class="w-10 h-10 rounded-lg {{ $style['bg'] }} {{ $style['text'] }} flex items-center justify-center mb-4">
-                            @switch($role->role_name)
+                            @switch($role->name)
                                 @case('admin')
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l7 4v6c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-4z" />
@@ -49,7 +49,7 @@
                         </div>
 
                         <p class="text-2xl font-semibold text-gray-800">{{ $role->users_count }}</p>
-                        <p class="text-sm text-gray-500 mt-0.5">{{ ucfirst($role->role_name) }}{{ $role->users_count === 1 ? '' : 's' }}</p>
+                        <p class="text-sm text-gray-500 mt-0.5">{{ ucfirst($role->name) }}{{ $role->users_count === 1 ? '' : 's' }}</p>
                     </div>
                 @endforeach
             </div>
@@ -72,7 +72,7 @@
                                             @csrf @method('PATCH')
                                             <select name="role" class="rounded-md border-gray-300 text-sm" @disabled(auth()->user()->is($user))>
                                                 @foreach (['admin', 'instructor', 'staff', 'student'] as $roleName)
-                                                    <option value="{{ $roleName }}" @selected(($user->getRoleNames()->first() ?? $user->role?->role_name) === $roleName)>{{ ucfirst($roleName) }}</option>
+                                                    <option value="{{ $roleName }}" @selected($user->primaryRoleName() === $roleName)>{{ ucfirst($roleName) }}</option>
                                                 @endforeach
                                             </select>
                                             <button class="rounded-md bg-indigo-600 px-3 py-2 text-white disabled:opacity-50" @disabled(auth()->user()->is($user))>Save</button>

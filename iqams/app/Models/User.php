@@ -9,8 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use LogicException;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -19,7 +19,6 @@ class User extends Authenticatable
     use HasFactory, HasRoles, Notifiable;
 
     protected $fillable = [
-        'role_id',
         'username',
         'name',
         'email',
@@ -37,14 +36,9 @@ class User extends Authenticatable
     {
         static::saved(function (User $user) {
             DashboardReferenceCache::forget();
-
-            // Compatibility bridge for legacy code that still writes users.role_id.
-            if ($user->role_id && Schema::hasTable('model_has_roles')) {
-                $role = Role::find($user->role_id);
-                if ($role && $user->roles()->whereKey($role->id)->count() !== 1) {
-                    $user->syncRoles([$role]);
-                }
-            }
+        });
+        static::deleting(function (): void {
+            throw new LogicException('Accounts are deactivated and cannot be deleted.');
         });
         static::deleted(fn () => DashboardReferenceCache::forget());
     }
@@ -54,7 +48,19 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'must_change_password' => 'boolean',
+            'password_changed_at' => 'datetime',
         ];
+    }
+
+    public function primaryRoleName(): ?string
+    {
+        return $this->getRoleNames()->first();
+    }
+
+    public function isHumanAccount(): bool
+    {
+        return $this->hasAnyRole(['admin', 'instructor', 'staff', 'student']);
     }
 
     public function role(): BelongsTo

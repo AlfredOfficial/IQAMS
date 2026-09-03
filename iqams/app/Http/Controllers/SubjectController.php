@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Subject;
+use App\Services\AuditLogger;
+use App\Services\ArchiveService;
 use Illuminate\Http\Request;
 
 class SubjectController extends Controller
@@ -12,7 +14,7 @@ class SubjectController extends Controller
      */
     public function index()
     {
-        $subjects = Subject::latest()->paginate(10);
+        $subjects = Subject::active()->latest()->paginate(10);
 
         return view('subjects.index', compact('subjects'));
     }
@@ -36,7 +38,8 @@ class SubjectController extends Controller
             'units' => 'required|numeric|min:0|max:10',
         ]);
 
-        Subject::create($validated);
+        $subject = Subject::create($validated);
+        app(AuditLogger::class)->record('record.created', $subject, ['record' => 'subject'], $request->user(), $request);
 
         return redirect()->route('subjects.index')->with('success', 'Subject creted successfully.');
     }
@@ -69,6 +72,7 @@ class SubjectController extends Controller
         ]);
 
         $subject->update($validated);
+        app(AuditLogger::class)->record('record.updated', $subject, ['record' => 'subject'], $request->user(), $request);
 
         return redirect()->route('subjects.index')->with('success', 'Subject updated successfully.');
     }
@@ -76,10 +80,10 @@ class SubjectController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Subject $subject)
+    public function destroy(Request $request, Subject $subject)
     {
-        $subject->delete();
+        app(ArchiveService::class)->archive($subject, $request->user(), $request);
 
-        return redirect()->route('subjects.index')->with('success', 'Subject deleted successfully.');
+        return redirect()->route('subjects.index')->with('success', 'Subject archived successfully.');
     }
 }

@@ -115,11 +115,13 @@ window.downloadIqamsIdCard = async (endpoint) => {
 
     const details = [
         [data.identifier_label, data.identifier],
-        ['Department', data.department],
+        ...(data.office ? [['Office / Unit', data.office]] : (data.department ? [['Department', data.department]] : [])),
+        ...(data.course ? [['Course', data.course]] : []),
+        ...(data.section ? [['Section', data.section]] : []),
         ...(data.year_level ? [['Year Level', data.year_level]] : []),
     ];
     details.forEach(([label, value], index) => {
-        const y = 282 + index * 82;
+        const y = 265 + index * 64;
         context.fillStyle = '#64748b';
         context.font = '600 15px Arial, sans-serif';
         context.fillText(label.toUpperCase(), 310, y);
@@ -173,6 +175,65 @@ window.downloadIqamsIdCard = async (endpoint) => {
     window.dispatchEvent(new CustomEvent('toast', {
         detail: { title: 'Success', message: 'ID card downloaded successfully.' },
     }));
+};
+
+const escapePrintText = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character]));
+
+const fetchIdCard = async (endpoint) => {
+    const response = await fetch(endpoint, { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin', cache: 'no-store' });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || 'The ID card could not be loaded.');
+    return data;
+};
+
+const qrDataUrl = async (value) => {
+    const canvas = document.createElement('canvas');
+    await QRCodeRenderer.toCanvas(canvas, value, { width: 260, margin: 4, errorCorrectionLevel: 'H', color: { dark: '#0f172a', light: '#ffffff' } });
+    return canvas.toDataURL('image/png');
+};
+
+const printCard = (data, qrImage) => `<article class="card"><div class="brand"><img src="${escapePrintText(data.logo_url)}" alt=""> <strong>IQAMS</strong><span>QR ATTENDANCE IDENTIFICATION</span></div><div class="body"><div class="identity"><img src="${escapePrintText(data.avatar_url)}" alt=""><h1>${escapePrintText(data.name)}</h1><h2>${escapePrintText(data.role)}</h2><p><small>${escapePrintText(data.identifier_label)}</small><br>${escapePrintText(data.identifier)}</p>${data.office ? `<p><small>OFFICE / UNIT</small><br>${escapePrintText(data.office)}</p>` : (data.department ? `<p><small>DEPARTMENT</small><br>${escapePrintText(data.department)}</p>` : '')}${data.course ? `<p><small>COURSE</small><br>${escapePrintText(data.course)}</p>` : ''}${data.section ? `<p><small>SECTION</small><br>${escapePrintText(data.section)}</p>` : ''}${data.year_level ? `<p><small>YEAR LEVEL</small><br>${escapePrintText(data.year_level)}</p>` : ''}</div><div class="qr"><img src="${qrImage}" alt="QR code"><strong>SCAN FOR ATTENDANCE</strong><span>${escapePrintText(data.identifier)}</span></div></div><footer>Official IQAMS Identification Card</footer></article>`;
+
+const openPrintWindow = (cards) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) throw new Error('Please allow pop-ups to print ID cards.');
+    printWindow.document.write(`<html><head><title>IQAMS ID Cards</title><style>@page{size:A4;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;color:#10294b}.card{width:85.6mm;height:54mm;border:1px solid #cbd5e1;border-radius:4mm;padding:4mm;margin:0 auto 8mm;page-break-after:always;overflow:hidden}.brand{display:flex;align-items:center;gap:2mm;height:8mm}.brand img{width:7mm;height:7mm}.brand strong{font-size:6mm}.brand span{font-size:2.2mm;color:#64748b;margin-left:1mm}.body{display:grid;grid-template-columns:1fr 30mm;gap:3mm;height:34mm;margin-top:2mm}.identity>img{width:18mm;height:18mm;object-fit:cover;border-radius:50%;float:left;margin:0 3mm 2mm 0}.identity h1{font-size:4.2mm;margin:2mm 0 1mm}.identity h2{font-size:2.8mm;color:#2563eb;margin:0 0 3mm}.identity p{font-size:3mm;margin:2mm 0;clear:both}.identity small{font-size:2mm;color:#64748b;font-weight:bold;text-transform:uppercase}.qr{border:1px solid #dbeafe;border-radius:2mm;padding:2mm;text-align:center}.qr img{display:block;width:25mm;height:25mm;margin:0 auto 2mm}.qr strong{display:block;font-size:2.2mm}.qr span{display:block;font-size:2mm;color:#64748b;margin-top:1mm}footer{background:#10294b;color:#fff;text-align:center;font-size:2.1mm;padding:2mm;border-radius:2mm;margin-top:1mm}@media print{.card{margin-bottom:0}}</style></head><body>${cards.join('')}</body></html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.onload = () => { printWindow.print(); printWindow.close(); };
+};
+
+window.printIqamsIdCard = async (endpoint) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) throw new Error('Please allow pop-ups to print ID cards.');
+    try {
+        const data = await fetchIdCard(endpoint);
+        const qrImage = await qrDataUrl(data.qr_code);
+        printWindow.document.write(`<html><head><title>IQAMS ID Card</title></head><body></body></html>`);
+        printWindow.document.close();
+        printWindow.document.body.innerHTML = `<style>@page{size:A4;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;color:#10294b}.card{width:85.6mm;height:54mm;border:1px solid #cbd5e1;border-radius:4mm;padding:4mm;overflow:hidden}.brand{display:flex;align-items:center;gap:2mm;height:8mm}.brand img{width:7mm;height:7mm}.brand strong{font-size:6mm}.brand span{font-size:2.2mm;color:#64748b;margin-left:1mm}.body{display:grid;grid-template-columns:1fr 30mm;gap:3mm;height:34mm;margin-top:2mm}.identity>img{width:18mm;height:18mm;object-fit:cover;border-radius:50%;float:left;margin:0 3mm 2mm 0}.identity h1{font-size:4.2mm;margin:2mm 0 1mm}.identity h2{font-size:2.8mm;color:#2563eb;margin:0 0 3mm}.identity p{font-size:3mm;margin:2mm 0;clear:both}.identity small{font-size:2mm;color:#64748b;font-weight:bold;text-transform:uppercase}.qr{border:1px solid #dbeafe;border-radius:2mm;padding:2mm;text-align:center}.qr img{display:block;width:25mm;height:25mm;margin:0 auto 2mm}.qr strong{display:block;font-size:2.2mm}.qr span{display:block;font-size:2mm;color:#64748b;margin-top:1mm}footer{background:#10294b;color:#fff;text-align:center;font-size:2.1mm;padding:2mm;border-radius:2mm;margin-top:1mm}</style>${printCard(data, qrImage)}`;
+        printWindow.onload = () => { printWindow.print(); printWindow.close(); };
+    } catch (error) {
+        printWindow.close();
+        throw error;
+    }
+};
+
+window.printIqamsIdCards = async (endpoints) => {
+    if (!endpoints.length) throw new Error('Select at least one user.');
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) throw new Error('Please allow pop-ups to print ID cards.');
+    try {
+        const data = await Promise.all(endpoints.map(fetchIdCard));
+        const cards = await Promise.all(data.map(async (card) => printCard(card, await qrDataUrl(card.qr_code))));
+        printWindow.document.write(`<html><head><title>IQAMS ID Cards</title></head><body><style>@page{size:A4;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;color:#10294b}.card{width:85.6mm;height:54mm;border:1px solid #cbd5e1;border-radius:4mm;padding:4mm;margin:0 auto 8mm;page-break-after:always;overflow:hidden}.brand{display:flex;align-items:center;gap:2mm;height:8mm}.brand img{width:7mm;height:7mm}.brand strong{font-size:6mm}.brand span{font-size:2.2mm;color:#64748b;margin-left:1mm}.body{display:grid;grid-template-columns:1fr 30mm;gap:3mm;height:34mm;margin-top:2mm}.identity>img{width:18mm;height:18mm;object-fit:cover;border-radius:50%;float:left;margin:0 3mm 2mm 0}.identity h1{font-size:4.2mm;margin:2mm 0 1mm}.identity h2{font-size:2.8mm;color:#2563eb;margin:0 0 3mm}.identity p{font-size:3mm;margin:2mm 0;clear:both}.identity small{font-size:2mm;color:#64748b;font-weight:bold;text-transform:uppercase}.qr{border:1px solid #dbeafe;border-radius:2mm;padding:2mm;text-align:center}.qr img{display:block;width:25mm;height:25mm;margin:0 auto 2mm}.qr strong{display:block;font-size:2.2mm}.qr span{display:block;font-size:2mm;color:#64748b;margin-top:1mm}footer{background:#10294b;color:#fff;text-align:center;font-size:2.1mm;padding:2mm;border-radius:2mm;margin-top:1mm}@media print{.card{margin-bottom:0}}</style>${cards.join('')}</body></html>`);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.onload = () => { printWindow.print(); printWindow.close(); };
+    } catch (error) {
+        printWindow.close();
+        throw error;
+    }
 };
 
 window.dispatchEvent(new CustomEvent('qrcode:ready'));

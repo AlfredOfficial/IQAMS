@@ -1,0 +1,25 @@
+; Install as a PHP-FPM pool fragment after replacing the socket and paths.
+
+[iqams]
+user = www-data
+group = www-data
+
+listen = /run/php/iqams.sock
+listen.owner = www-data
+listen.group = www-data
+listen.mode = 0660
+
+pm = dynamic
+pm.max_children = 20
+pm.start_servers = 3
+pm.min_spare_servers = 2
+pm.max_spare_servers = 5
+pm.max_requests = 500
+
+; The systemd PHP-FPM service must load /etc/iqams/iqams.env from the secret
+; manager. Passing the environment through is required for Laravel's runtime
+; configuration to resolve the production values.
+clear_env = no
+
+catch_workers_output = yes
+decorate_workers_output = no

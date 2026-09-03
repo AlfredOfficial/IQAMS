@@ -16,7 +16,7 @@ class RoleController extends Controller
     public function index()
     {
         $roles = Role::withCount('users')->orderBy('name')->get();
-        $users = User::with(['role', 'roles'])->orderBy('name')->paginate(20);
+        $users = User::with('roles')->orderBy('name')->paginate(20);
 
         return view('roles.index', compact('roles', 'users'));
     }

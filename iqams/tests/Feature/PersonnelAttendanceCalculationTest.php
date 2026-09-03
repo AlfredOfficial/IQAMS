@@ -116,6 +116,7 @@ class PersonnelAttendanceCalculationTest extends TestCase
 
             $this->assertSame($completed * 25, $today['progressPercentage']);
             $this->assertSame('In Progress', $today['status']);
+            $this->assertSame('Present', $today['summaryStatus']);
             $this->assertSame(0, $totals['presentDays']);
             $this->assertSame(1, $totals['inProgressCount']);
             $this->assertSame(0, $totals['percentage']);

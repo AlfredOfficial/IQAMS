@@ -7,6 +7,7 @@ use App\Models\LeaveRequest;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 
 class PersonnelAttendanceSummary
 {
@@ -16,7 +17,7 @@ class PersonnelAttendanceSummary
 
     public function days(User $user, Carbon $from, Carbon $to, bool $includeEmpty = false): Collection
     {
-        $logs = AttendanceLog::where('user_id', $user->id)
+        $logs = AttendanceLog::canonical()->where('user_id', $user->id)
             ->whereNull('schedule_id')->whereNull('school_event_id')
             ->whereBetween('scan_time', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
             ->orderBy('scan_time')->get()->groupBy(fn ($log) => $log->scan_time->toDateString());
@@ -25,6 +26,12 @@ class PersonnelAttendanceSummary
         $days = collect();
         if ($from->gt($to)) {
             return $days;
+        }
+        $maximum = (int) config('attendance.max_report_days', 366);
+        if ($from->diffInDays($to) + 1 > $maximum) {
+            throw ValidationException::withMessages([
+                'to' => "The attendance summary range cannot exceed {$maximum} days.",
+            ]);
         }
         $calendar = $this->calendar->context($user, $from, $to);
         for ($date = $from->copy()->startOfDay(); $date->lte($to); $date->addDay()) {
@@ -73,8 +80,11 @@ class PersonnelAttendanceSummary
             default => 'In Progress',
         };
         if ($leave) {
-            $status = $leave->leave_type === 'sick' ? 'Sick Leave' : 'On Leave';
+            $status = 'On Leave';
         }
+        $summaryStatus = $leave
+            ? 'On Leave'
+            : ($count > 0 ? 'Present' : ($isPast ? 'Absent' : null));
         $minutes = $leave ? 0 : $this->pairMinutes($events['morning_in'], $events['lunch_out']) + $this->pairMinutes($events['afternoon_in'], $events['final_out']);
         $notes = collect([
             $leave && $count > 0 ? 'Attendance exists during approved leave' : null,
@@ -87,7 +97,7 @@ class PersonnelAttendanceSummary
             ? null
             : self::PERIODS[($latestRecordedIndex ?? -1) + 1];
 
-        return compact('date', 'events', 'status', 'minutes', 'late', 'early', 'notes', 'leave') + [
+        return compact('date', 'events', 'status', 'summaryStatus', 'minutes', 'late', 'early', 'notes', 'leave') + [
             'completedPeriods' => $count,
             'progressPercentage' => $count * 25,
             'isIncomplete' => $isIncomplete,
@@ -103,6 +113,9 @@ class PersonnelAttendanceSummary
     {
         $included = $days->where('isExcluded', false);
         $working = $included->count();
+        // Keep detailed four-period accounting intact. A partial day is
+        // surfaced as Present through summaryStatus, but remains Incomplete
+        // in period-completion totals and attendance-rate calculations.
         $present = $included->where('status', 'Present')->count();
         $absent = $included->where('status', 'Absent')->count();
         $ratedDays = $present + $absent;

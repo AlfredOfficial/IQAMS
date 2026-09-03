@@ -4,13 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\Department;
 use App\Models\Instructor;
-use App\Models\Role;
 use App\Models\User;
+use App\Services\AdminAccountProtectionService;
+use App\Services\AuditLogger;
 use App\Services\QrCredentialService;
+use App\Services\RoleAssignmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class InstructorController extends Controller
 {
@@ -21,7 +24,7 @@ class InstructorController extends Controller
     {
         $instructors = Instructor::with(['user', 'department'])->latest()->paginate(10);
 
-        $departments = Department::orderBy('department_name')->get();
+        $departments = Department::active()->orderBy('department_name')->get();
 
         return view('instructors.index', compact('instructors', 'departments'));
     }
@@ -40,7 +43,7 @@ class InstructorController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'department_id' => 'required|exists:departments,id',
+            'department_id' => ['required', Rule::exists('departments', 'id')->whereNull('archived_at')],
             'employee_no' => 'required|string|max:50|unique:instructors,employee_no|unique:users,username',
             'name_prefix' => 'nullable|string|max:50',
             'first_name' => 'required|string|max:255',
@@ -54,13 +57,11 @@ class InstructorController extends Controller
         $avatarPath = $request->file('avatar')->store('avatars', 'public');
 
         $plainPassword = 'Instructor@'.$validated['employee_no'];
+        $administrator = $request->user();
 
         try {
-            DB::transaction(function () use ($validated, $plainPassword, $avatarPath) {
-                $instructorRole = Role::where('role_name', 'instructor')->firstOrFail();
-
+            $user = DB::transaction(function () use ($validated, $plainPassword, $administrator, $avatarPath) {
                 $user = User::create([
-                    'role_id' => $instructorRole->id,
                     'username' => $validated['employee_no'],
                     'name' => Instructor::formatFullName($validated),
                     'email' => $validated['email'],
@@ -69,6 +70,12 @@ class InstructorController extends Controller
                     'status' => 'active',
                     'email_verified_at' => now(),
                 ]);
+
+                $user->forceFill([
+                    'must_change_password' => true,
+                    'password_changed_at' => null,
+                ])->saveQuietly();
+                app(RoleAssignmentService::class)->assign($user, 'instructor', $administrator);
 
                 Instructor::create([
                     'user_id' => $user->id,
@@ -79,17 +86,23 @@ class InstructorController extends Controller
                     'middle_name' => $validated['middle_name'] ?? null,
                     'last_name' => $validated['last_name'],
                     'professional_credentials' => $validated['professional_credentials'] ?? null,
-                    'qr_code' => $validated['employee_no'],
+                    'qr_code' => null,
                 ]);
-                app(QrCredentialService::class)->issue($user);
+                app(QrCredentialService::class)->issue($user, $administrator);
 
+                return $user;
             });
         } catch (\Throwable $exception) {
             Storage::disk('public')->delete($avatarPath);
             throw $exception;
         }
 
-        return redirect()->route('instructors.index')->with('success', 'Instructor created successfully.')->with('generated_username', $validated['employee_no'])->with('generated_password', $plainPassword);
+        app(AuditLogger::class)->record('account.created', $user, ['role' => 'instructor'], $administrator, $request);
+
+        return redirect()->route('instructors.index')
+            ->with('success', 'Instructor created successfully. Share the temporary credentials below and require a password change on first login.')
+            ->with('generated_username', $validated['employee_no'])
+            ->with('generated_password', $plainPassword);
 
     }
 
@@ -115,7 +128,7 @@ class InstructorController extends Controller
     public function update(Request $request, Instructor $instructor)
     {
         $validated = $request->validate([
-            'department_id' => 'required|exists:departments,id',
+            'department_id' => ['required', Rule::exists('departments', 'id')->whereNull('archived_at')],
             'name_prefix' => 'nullable|string|max:50',
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
@@ -148,19 +161,33 @@ class InstructorController extends Controller
             Storage::disk('public')->delete($oldAvatarPath);
         }
 
+        app(AuditLogger::class)->record('account.profile_updated', $instructor->user, [
+            'profile' => 'instructor',
+            'profile_id' => $instructor->id,
+        ], $request->user(), $request);
+
         return redirect()->route('instructors.index')->with('success', 'Instructor updated successfully.');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Instructor $instructor)
+    public function destroy(Request $request, Instructor $instructor)
     {
-        // deleteng the linked User cascades to delete the Instructor roww too
-        // instructors.user_id has cascadesOnDelete in the migration
+        $user = $instructor->user;
 
-        $instructor->user()->delete();
+        DB::transaction(function () use ($instructor, $user, $request) {
+            $lockedUser = app(AdminAccountProtectionService::class)->assertCanChangeStatus($user, 'inactive');
+            $oldStatus = $lockedUser->status;
+            $lockedUser->update(['status' => 'inactive']);
+            app(AuditLogger::class)->record('account.status_changed', $lockedUser, [
+                'from' => $oldStatus,
+                'to' => 'inactive',
+                'record' => 'instructor_account',
+                'profile_id' => $instructor->id,
+            ], $request->user(), $request);
+        });
 
-        return redirect()->route('instructors.index')->with('success', 'Instructor deleted successfully.');
+        return redirect()->route('instructors.index')->with('success', 'Instructor account deactivated successfully.');
     }
 }

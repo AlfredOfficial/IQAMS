@@ -16,14 +16,14 @@ class DashboardReferenceCache
     {
         return Cache::remember(self::KEY, now()->addMinutes(5), fn () => [
             'totals' => [
-                'student' => User::whereHas('role', fn ($query) => $query->where('role_name', 'student'))->count(),
-                'instructor' => User::whereHas('role', fn ($query) => $query->where('role_name', 'instructor'))->count(),
-                'staff' => User::whereHas('role', fn ($query) => $query->where('role_name', 'staff'))->count(),
+                'student' => User::whereHas('roles', fn ($query) => $query->where('name', 'student')->where('guard_name', 'web'))->count(),
+                'instructor' => User::whereHas('roles', fn ($query) => $query->where('name', 'instructor')->where('guard_name', 'web'))->count(),
+                'staff' => User::whereHas('roles', fn ($query) => $query->where('name', 'staff')->where('guard_name', 'web'))->count(),
             ],
             'filters' => [
-                'departments' => Department::orderBy('department_name')->pluck('department_name')->values()->all(),
-                'sections' => Section::orderBy('section_name')->pluck('section_name')->values()->all(),
-                'subjects' => Subject::orderBy('subject_name')->pluck('subject_name')->values()->all(),
+                'departments' => Department::active()->orderBy('department_name')->pluck('department_name')->values()->all(),
+                'sections' => Section::active()->orderBy('section_name')->pluck('section_name')->values()->all(),
+                'subjects' => Subject::active()->orderBy('subject_name')->pluck('subject_name')->values()->all(),
             ],
         ]);
     }

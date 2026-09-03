@@ -56,7 +56,7 @@ class AttendanceScannerController extends Controller
 
         $terminal = $request->attributes->get('scanner_terminal');
         $user = $resolved['user']->loadMissing([
-            'role', 'student.course.department', 'instructor.department', 'nonTeachingStaff.officeUnit',
+            'roles', 'student.course.department', 'instructor.department', 'nonTeachingStaff.officeUnit',
         ]);
         $credentialType = $resolved['is_legacy'] ? 'legacy' : 'random';
 
@@ -113,7 +113,7 @@ class AttendanceScannerController extends Controller
         $name = $name ?: $user->name;
         $name = preg_replace('/\s+/u', ' ', trim($name));
 
-        $roleName = strtolower((string) $user->role?->role_name);
+        $roleName = strtolower((string) $user->primaryRoleName());
         $role = match ($roleName) {
             'student' => 'Student',
             'instructor' => 'Instructor',

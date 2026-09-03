@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\RoleAssignmentService;
+use App\Services\AuditLogger;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -50,7 +51,10 @@ class MakeAdmin extends Command
             return self::FAILURE;
         }
 
-        $adminRole = Role::where('role_name', 'admin')->first();
+        $adminRole = Role::query()
+            ->where('name', 'admin')
+            ->where('guard_name', 'web')
+            ->first();
 
         if (! $adminRole) {
             $this->error("The 'admin' role does not exist yet. Run your role seeder first.");
@@ -58,7 +62,6 @@ class MakeAdmin extends Command
         }
 
         $user = User::create([
-            'role_id' => $adminRole->id,
             'username' => $username,
             'name' => $name,
             'email' => $email,
@@ -67,7 +70,13 @@ class MakeAdmin extends Command
             'email_verified_at' => now(),
         ]);
 
+        $user->forceFill([
+            'must_change_password' => false,
+            'password_changed_at' => now(),
+        ])->saveQuietly();
+
         app(RoleAssignmentService::class)->assign($user, 'admin');
+        app(AuditLogger::class)->record('account.created', $user, ['role' => 'admin']);
 
         $this->info("Admin account created successfully: {$user->email}");
 

@@ -1,5 +1,5 @@
 @php
-    $roleName = $user->role?->role_name;
+    $roleName = $user->primaryRoleName();
     $roleLabel = match ($roleName) {
         'student' => 'Student',
         'instructor' => 'Instructor',

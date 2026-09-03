@@ -25,7 +25,7 @@ class InstructorNameFieldsTest extends TestCase
             'department_name' => 'Teacher Education',
         ]);
 
-        $this->actingAs($admin)->post(route('instructors.store'), [
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])->post(route('instructors.store'), [
             'department_id' => $department->id,
             'employee_no' => 'INS-2026-001',
             'name_prefix' => 'Engr.',
@@ -67,7 +67,7 @@ class InstructorNameFieldsTest extends TestCase
             'qr_code' => 'INS-2026-002',
         ]);
 
-        $this->actingAs($admin)->put(route('instructors.update', $instructor), [
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])->put(route('instructors.update', $instructor), [
             'department_id' => $department->id,
             'name_prefix' => 'Dr.',
             'first_name' => 'Maria',

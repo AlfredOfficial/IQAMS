@@ -18,6 +18,7 @@ use App\Models\Student;
 use App\Models\Subject;
 use App\Models\User;
 use App\Services\PersonnelAttendanceSummary;
+use App\Services\AdminDashboardData;
 use App\Services\QrAttendanceService;
 use App\Services\SchoolEventAttendanceService;
 use App\Services\StudentAbsenceService;
@@ -97,7 +98,7 @@ class QrAttendanceScannerTest extends TestCase
         $adminRole = Role::where('role_name', 'admin')->first() ?? Role::create(['role_name' => 'admin']);
         $admin = $this->createUser(['role_id' => $adminRole->id, 'status' => 'active']);
 
-        $this->actingAs($admin)
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])
             ->post(route('attendance-logs.store'), ['user_id' => $user->id])
             ->assertSessionHasErrors(['user_id']);
 
@@ -110,7 +111,7 @@ class QrAttendanceScannerTest extends TestCase
         $adminRole = Role::where('role_name', 'admin')->first() ?? Role::create(['role_name' => 'admin']);
         $admin = $this->createUser(['role_id' => $adminRole->id, 'status' => 'active']);
 
-        $this->actingAs($admin)->post(route('attendance-logs.store'), [
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])->post(route('attendance-logs.store'), [
             'user_id' => $user->id,
             'attendance_type' => 'time_in',
             'scan_time' => '2026-08-10 08:00:00',
@@ -125,6 +126,39 @@ class QrAttendanceScannerTest extends TestCase
         ]);
     }
 
+    public function test_admin_attendance_log_update_redirects_to_index_and_keeps_audit_trail(): void
+    {
+        $user = $this->createPersonnel('staff', 'EMP-UPDATE');
+        $admin = $this->createUser([
+            'role_id' => Role::firstOrCreate(['role_name' => 'admin'])->id,
+            'status' => 'active',
+        ]);
+        $log = AttendanceLog::create([
+            'user_id' => $user->id,
+            'attendance_type' => 'time_in',
+            'attendance_period' => 'morning_in',
+            'scan_time' => '2026-08-10 08:00:00',
+            'status' => 'present',
+            'punctuality_status' => 'on_time',
+        ]);
+
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])
+            ->patch(route('attendance-logs.update', $log), [
+                'user_id' => $user->id,
+                'attendance_type' => 'time_in',
+                'scan_time' => '2026-08-10 08:10:00',
+                'status_override' => 'late',
+                'remarks' => 'Corrected by administrator.',
+            ])
+            ->assertRedirect(route('attendance-logs.index'));
+
+        $this->assertSame('late', $log->fresh()->status);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'attendance.corrected',
+            'subject_id' => $log->id,
+        ]);
+    }
+
     public function test_manual_instructor_attendance_uses_qr_period_and_punctuality_rules(): void
     {
         $user = $this->createPersonnel('instructor', 'INS-MANUAL');
@@ -133,7 +167,7 @@ class QrAttendanceScannerTest extends TestCase
             'status' => 'active',
         ]);
 
-        $this->actingAs($admin)->post(route('attendance-logs.store'), [
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])->post(route('attendance-logs.store'), [
             'user_id' => $user->id,
             'attendance_type' => 'time_in',
             'scan_time' => '2026-08-10 08:05:00',
@@ -162,7 +196,7 @@ class QrAttendanceScannerTest extends TestCase
         ]);
         $payload = ['user_id' => $user->id, 'attendance_type' => 'time_in', 'scan_time' => '2026-08-10 08:00:00'];
 
-        $this->actingAs($admin)->post(route('attendance-logs.store'), $payload)->assertRedirect();
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])->post(route('attendance-logs.store'), $payload)->assertRedirect();
         $this->post(route('attendance-logs.store'), $payload)->assertSessionHasErrors('scan_time');
         $this->assertSame(1, AttendanceLog::where('user_id', $user->id)->count());
     }
@@ -200,10 +234,10 @@ class QrAttendanceScannerTest extends TestCase
         $adminRole = Role::where('role_name', 'admin')->first() ?? Role::create(['role_name' => 'admin']);
         $admin = $this->createUser(['role_id' => $adminRole->id, 'status' => 'active']);
 
-        $this->actingAs($admin)->patch(route('users.status.update', $user), ['status' => 'inactive'])->assertRedirect();
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])->patch(route('users.status.update', $user), ['status' => 'inactive'])->assertRedirect();
         $this->assertSame('inactive', $user->refresh()->status);
 
-        $this->patch(route('users.status.update', $user), ['status' => 'active'])->assertRedirect();
+        $this->withSession(['auth.password_confirmed_at' => time()])->patch(route('users.status.update', $user), ['status' => 'active'])->assertRedirect();
         $this->assertSame('active', $user->refresh()->status);
     }
 
@@ -497,7 +531,7 @@ class QrAttendanceScannerTest extends TestCase
         $adminRole = Role::firstOrCreate(['role_name' => 'admin']);
         $admin = $this->createUser(['role_id' => $adminRole->id, 'status' => 'active']);
 
-        $this->actingAs($admin)->post(route('attendance-logs.store'), [
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])->post(route('attendance-logs.store'), [
             'user_id' => $user->id,
             'attendance_type' => 'time_in',
             'scan_time' => '2026-08-10 08:00:00',
@@ -706,7 +740,7 @@ class QrAttendanceScannerTest extends TestCase
     public function test_qr_profile_role_mismatch_is_rejected(): void
     {
         [$user] = $this->studentWithSchedule();
-        $user->update(['role_id' => Role::where('role_name', 'instructor')->value('id')]);
+        $user->syncRoles([Role::where('name', 'instructor')->firstOrFail()]);
 
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('mismatched role');
@@ -784,6 +818,53 @@ class QrAttendanceScannerTest extends TestCase
             Carbon::parse('2026-08-10 08:05:00', 'Asia/Manila'));
         $this->assertSame($schedule->id, $log->schedule_id);
         $this->assertNull($log->school_event_id);
+    }
+
+    public function test_student_scan_after_midnight_uses_the_previous_day_overnight_occurrence(): void
+    {
+        [$user, $schedule] = $this->studentWithSchedule();
+        $schedule->update([
+            'start_time' => '22:00',
+            'end_time' => '01:00',
+        ]);
+
+        $log = app(QrAttendanceService::class)->record(
+            'STU-001',
+            null,
+            Carbon::parse('2026-08-11 00:30:00', 'Asia/Manila'),
+        );
+
+        $this->assertSame($user->id, $log->user_id);
+        $this->assertSame($schedule->id, $log->schedule_id);
+        $this->assertSame('late', $log->status);
+        $this->assertSame('2026-08-11', $log->attendance_date?->toDateString());
+
+        Carbon::setTestNow(Carbon::parse('2026-08-11 00:30:00', 'Asia/Manila'));
+        $this->assertSame(1, app(AdminDashboardData::class)->build()['stats']['present']);
+    }
+
+    public function test_overnight_absence_is_updated_by_a_late_after_midnight_scan(): void
+    {
+        [$user, $schedule] = $this->studentWithSchedule();
+        $schedule->update([
+            'start_time' => '22:00',
+            'end_time' => '01:00',
+        ]);
+
+        $this->assertSame(1, app(StudentAbsenceService::class)->markDue(
+            Carbon::parse('2026-08-10 22:16:00', 'Asia/Manila'),
+        ));
+
+        $log = app(QrAttendanceService::class)->record(
+            'STU-001',
+            'Night scanner',
+            Carbon::parse('2026-08-11 00:30:00', 'Asia/Manila'),
+        );
+
+        $this->assertSame('late', $log->status);
+        $this->assertSame('Night scanner', $log->scanner_location);
+        $this->assertSame(1, AttendanceLog::where('user_id', $user->id)
+            ->where('schedule_id', $schedule->id)->count());
     }
 
     private function studentWithSchedule(): array

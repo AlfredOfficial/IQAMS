@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -20,9 +21,22 @@ class PasswordController extends Controller
             'password' => ['required', Password::defaults(), 'confirmed'],
         ]);
 
-        $request->user()->update([
+        $user = $request->user();
+        $user->forceFill([
             'password' => Hash::make($validated['password']),
+            'must_change_password' => false,
+            'password_changed_at' => now(),
         ]);
+        $user->save();
+
+        app(AuditLogger::class)->record(
+            'account.password_changed',
+            $user,
+            ['source' => 'authenticated_change'],
+            $user,
+            $request,
+        );
+        $request->session()->regenerate();
 
         return back()->with('status', 'password-updated');
     }

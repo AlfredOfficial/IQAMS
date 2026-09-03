@@ -12,8 +12,6 @@
         <p class="text-xs text-gray-400 mb-4">Scan this code for attendance</p>
 
         <div x-ref="qrTarget" class="flex justify-center mb-3"></div>
-        <p class="text-xs font-mono text-gray-400 mb-4" x-text="qrModal.value"></p>
-
         <div class="flex items-center justify-center gap-3">
             <button type="button"
                 @click="

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Services\AuditLogger;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -47,6 +48,10 @@ class LoginRequest extends FormRequest
             'password' => $this->string('password')->toString(),
         ], $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
+            app(AuditLogger::class)->record('auth.login_failed', null, [
+                'username' => $this->string('user_id')->toString(),
+                'reason' => 'invalid_credentials',
+            ], null, $this);
 
             throw ValidationException::withMessages([
                 'user_id' => trans('auth.failed'),
@@ -54,6 +59,11 @@ class LoginRequest extends FormRequest
         }
 
         if (! Auth::user()->isAccountActive()) {
+            $inactiveUser = Auth::user();
+            app(AuditLogger::class)->record('auth.login_failed', $inactiveUser, [
+                'username' => $this->string('user_id')->toString(),
+                'reason' => 'inactive_account',
+            ], null, $this);
             Auth::logout();
             RateLimiter::hit($this->throttleKey());
 
@@ -77,6 +87,10 @@ class LoginRequest extends FormRequest
         }
 
         event(new Lockout($this));
+        app(AuditLogger::class)->record('auth.lockout', null, [
+            'username' => $this->string('user_id')->toString(),
+            'reason' => 'rate_limited',
+        ], null, $this);
 
         $seconds = RateLimiter::availableIn($this->throttleKey());
 

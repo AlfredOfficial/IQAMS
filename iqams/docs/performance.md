@@ -31,3 +31,16 @@ npm run build
 ```
 
 For development after configuration or route changes, run `php artisan optimize:clear`.
+
+Personnel attendance history accepts a maximum inclusive range of 366 days in
+production. Daily personnel PDF and Excel exports are queued, stored privately,
+and expire after 24 hours. Monitor their queue processing through the
+`report_exports` status endpoint rather than holding an HTTP request open.
+
+The student and school-event absence commands select eligible students in bulk
+and insert absence rows in bounded batches. They use shared Redis scheduler
+locks so only one application instance performs each occurrence at a time.
+
+Production operators should enable the Redis queue worker, scheduler timer, and
+health timer from `deploy/systemd`. Check `php artisan ops:health` and the
+`iqams-queue`/`iqams-health` systemd journals during rollout.

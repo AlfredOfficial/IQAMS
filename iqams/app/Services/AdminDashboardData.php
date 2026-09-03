@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\AttendanceLog;
+use App\Models\User;
+use App\Services\ScheduleOccurrenceResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -11,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 class AdminDashboardData
 {
     private const SCAN_LIMIT = 250;
+
+    public function __construct(private ScheduleOccurrenceResolver $occurrences) {}
 
     public function build(?Carbon $cursor = null, bool $includeFilters = false): array
     {
@@ -40,7 +44,8 @@ class AdminDashboardData
             'students' => (int) ($roleMetrics->get('student')['users'] ?? 0),
             'instructors' => (int) ($roleMetrics->get('instructor')['users'] ?? 0),
             'staff' => (int) ($roleMetrics->get('staff')['users'] ?? 0),
-            'present' => $this->currentlyPresentCount($today, $tomorrow),
+            'present' => $this->currentlyPresentCount($generatedAt),
+            'absent' => $this->absentUserCount($today, $generatedAt),
             'late' => (int) ($statusMetrics->get('late') ?? 0),
             'missing_timeout' => $missingTimeout,
             'incomplete' => $incompleteUsers,
@@ -58,7 +63,7 @@ class AdminDashboardData
                     ['label' => 'Teaching', 'value' => (int) ($roleMetrics->get('instructor')['scans'] ?? 0)],
                     ['label' => 'Non-teaching', 'value' => (int) ($roleMetrics->get('staff')['scans'] ?? 0)],
                 ],
-                'statuses' => collect(['present', 'late', 'incomplete', 'missing'])->map(fn ($status) => [
+                'statuses' => collect(['present', 'late', 'absent', 'incomplete', 'missing'])->map(fn ($status) => [
                     'label' => ucfirst($status),
                     'value' => $status === 'incomplete' ? $incompleteUsers : ($status === 'missing' ? $missingTimeout : (int) ($statusMetrics->get($status) ?? 0)),
                 ])->all(),
@@ -82,8 +87,8 @@ class AdminDashboardData
 
     private function scanQuery(): Builder
     {
-        return AttendanceLog::with([
-            'user.role', 'user.student.section.course', 'user.student.course',
+        return AttendanceLog::canonical()->with([
+            'user.roles', 'user.student.section.course', 'user.student.course',
             'user.instructor.department', 'user.nonTeachingStaff.officeUnit',
             'schedule.subject', 'schedule.section.course', 'schedule.instructor.user',
         ]);
@@ -93,11 +98,19 @@ class AdminDashboardData
     {
         return DB::table('attendance_logs')
             ->join('users', 'users.id', '=', 'attendance_logs.user_id')
-            ->join('roles', 'roles.id', '=', 'users.role_id')
+            ->join('model_has_roles', function ($join) {
+                $join->on('model_has_roles.model_id', '=', 'users.id')
+                    ->where('model_has_roles.model_type', User::class);
+            })
+            ->join('roles', function ($join) {
+                $join->on('roles.id', '=', 'model_has_roles.role_id')
+                    ->where('roles.guard_name', 'web');
+            })
             ->where('attendance_logs.scan_time', '>=', $from)
             ->where('attendance_logs.scan_time', '<', $to)
-            ->groupBy('roles.role_name')
-            ->selectRaw('roles.role_name, COUNT(*) as scans, COUNT(DISTINCT attendance_logs.user_id) as users, SUM(CASE WHEN attendance_logs.status = ? THEN 1 ELSE 0 END) as present, SUM(CASE WHEN attendance_logs.status = ? THEN 1 ELSE 0 END) as late', ['present', 'late'])
+            ->where('attendance_logs.record_state', 'canonical')
+            ->groupBy('roles.name')
+            ->selectRaw('roles.name as role_name, COUNT(*) as scans, COUNT(DISTINCT attendance_logs.user_id) as users, SUM(CASE WHEN attendance_logs.status = ? THEN 1 ELSE 0 END) as present, SUM(CASE WHEN attendance_logs.status = ? THEN 1 ELSE 0 END) as late', ['present', 'late'])
             ->get()->mapWithKeys(fn ($row) => [$row->role_name => [
                 'scans' => (int) $row->scans, 'users' => (int) $row->users,
                 'present' => (int) $row->present, 'late' => (int) $row->late,
@@ -107,15 +120,24 @@ class AdminDashboardData
     private function statusMetrics(Carbon $from, Carbon $to): Collection
     {
         return DB::table('attendance_logs')->where('scan_time', '>=', $from)->where('scan_time', '<', $to)
+            ->where('record_state', 'canonical')
             ->groupBy('status')->selectRaw('status, COUNT(*) as aggregate')->pluck('aggregate', 'status');
     }
 
     private function personnelRows(Carbon $from, Carbon $to): Collection
     {
         return DB::table('attendance_logs')->join('users', 'users.id', '=', 'attendance_logs.user_id')
-            ->join('roles', 'roles.id', '=', 'users.role_id')->whereIn('roles.role_name', ['instructor', 'staff'])
+            ->join('model_has_roles', function ($join) {
+                $join->on('model_has_roles.model_id', '=', 'users.id')
+                    ->where('model_has_roles.model_type', User::class);
+            })
+            ->join('roles', function ($join) {
+                $join->on('roles.id', '=', 'model_has_roles.role_id')
+                    ->where('roles.guard_name', 'web');
+            })->whereIn('roles.name', ['instructor', 'staff'])
             ->where('attendance_logs.scan_time', '>=', $from)->where('attendance_logs.scan_time', '<', $to)
-            ->orderBy('attendance_logs.scan_time')->get(['attendance_logs.user_id', 'attendance_logs.attendance_type', 'attendance_logs.scan_time', 'roles.role_name']);
+            ->where('attendance_logs.record_state', 'canonical')
+            ->orderBy('attendance_logs.scan_time')->get(['attendance_logs.user_id', 'attendance_logs.attendance_type', 'attendance_logs.scan_time', 'roles.name as role_name']);
     }
 
     private function personnelExceptions(Collection $rows, int $hour): array
@@ -134,14 +156,121 @@ class AdminDashboardData
         return [$incomplete, $missing, $byRole];
     }
 
-    private function currentlyPresentCount(Carbon $from, Carbon $to): int
+    private function currentlyPresentCount(Carbon $at): int
     {
-        $latest = DB::table('attendance_logs')->where('scan_time', '>=', $from)->where('scan_time', '<', $to)
-            ->selectRaw('user_id, MAX(scan_time) as latest_scan')->groupBy('user_id');
+        $from = $at->copy()->startOfDay()->subDay();
 
-        return DB::table('attendance_logs as logs')->joinSub($latest, 'latest', fn ($join) => $join
-            ->on('logs.user_id', '=', 'latest.user_id')->on('logs.scan_time', '=', 'latest.latest_scan'))
-            ->where('logs.attendance_type', 'time_in')->distinct()->count('logs.user_id');
+        return AttendanceLog::canonical()
+            ->with(['schedule', 'schoolEvent'])
+            ->whereBetween('scan_time', [$from, $at])
+            ->whereNotExists(function ($query) use ($from, $at): void {
+                $query->selectRaw('1')
+                    ->from('attendance_logs as newer')
+                    ->whereColumn('newer.user_id', 'attendance_logs.user_id')
+                    ->whereBetween('newer.scan_time', [$from, $at])
+                    ->where(function ($query): void {
+                        $query->where('newer.record_state', 'canonical')
+                            ->orWhereNull('newer.record_state');
+                    })
+                    ->where(function ($query): void {
+                        $query->whereColumn('newer.scan_time', '>', 'attendance_logs.scan_time')
+                            ->orWhere(function ($query): void {
+                                $query->whereColumn('newer.scan_time', 'attendance_logs.scan_time')
+                                    ->whereColumn('newer.id', '>', 'attendance_logs.id');
+                            });
+                    });
+            })
+            ->get()
+            ->filter(fn (AttendanceLog $log) => $this->isCurrentlyPresent($log, $at))
+            ->count();
+    }
+
+    private function absentUserCount(Carbon $date, Carbon $at): int
+    {
+        $studentAbsent = AttendanceLog::canonical()
+            ->whereDate('scan_time', $date->toDateString())
+            ->where('status', 'absent')
+            ->where(function ($query): void {
+                $query->whereNotNull('schedule_id')->orWhereNotNull('school_event_id');
+            })
+            ->whereHas('user', fn ($query) => $query
+                ->where('status', 'active')
+                ->whereHas('student', fn ($student) => $student->where('status', 'active')))
+            ->with(['schedule', 'schoolEvent'])
+            ->get()
+            ->filter(fn (AttendanceLog $log): bool => $this->studentAbsenceCutoffPassed($log, $at))
+            ->pluck('user_id')
+            ->unique()
+            ->count();
+
+        $personnelAbsent = 0;
+        foreach (['instructor', 'staff'] as $role) {
+            if (! $this->personnelCutoffPassed($role, $at)) {
+                continue;
+            }
+
+            $profileRelation = $role === 'instructor' ? 'instructor' : 'nonTeachingStaff';
+            $personnelAbsent += User::query()
+                ->where('status', 'active')
+                ->whereHas('roles', fn ($query) => $query->where('name', $role)->where('guard_name', 'web'))
+                ->whereHas($profileRelation)
+                ->whereDoesntHave('leaveRequests', function ($query) use ($date): void {
+                    $query->where('status', 'approved')
+                        ->whereDate('start_date', '<=', $date->toDateString())
+                        ->whereDate('end_date', '>=', $date->toDateString());
+                })
+                ->whereDoesntHave('attendanceLogs', function ($query) use ($date): void {
+                    $query->where(function ($query): void {
+                        $query->where('record_state', 'canonical')->orWhereNull('record_state');
+                    })->whereDate('scan_time', $date->toDateString())
+                        ->where('attendance_period', 'morning_in')
+                        ->where('attendance_type', 'time_in')
+                        ->whereIn('status', ['present', 'late']);
+                })
+                ->count();
+        }
+
+        return $studentAbsent + $personnelAbsent;
+    }
+
+    private function studentAbsenceCutoffPassed(AttendanceLog $log, Carbon $at): bool
+    {
+        if ($log->schedule) {
+            $occurrence = $this->occurrences->forDate($log->schedule, $at->copy()->startOfDay());
+
+            return $occurrence !== null && $at->greaterThan($occurrence->presentUntil);
+        }
+
+        return $log->schoolEvent?->ends_at?->lessThan($at) ?? false;
+    }
+
+    private function personnelCutoffPassed(string $role, Carbon $at): bool
+    {
+        $end = config("attendance.personnel_windows.{$role}.morning_in.end");
+        $cutoff = $at->copy()->startOfDay()->setTimeFromTimeString((string) $end);
+
+        return $at->greaterThan($cutoff);
+    }
+
+    private function isCurrentlyPresent(AttendanceLog $log, Carbon $at): bool
+    {
+        if ($log->attendance_type !== 'time_in' || ! in_array($log->status, ['present', 'late'], true)) {
+            return false;
+        }
+
+        if ($log->schedule) {
+            $occurrence = $this->occurrences->resolveAt($log->schedule, $at);
+
+            return $occurrence !== null
+                && $log->scan_time->betweenIncluded($occurrence->opensAt, $occurrence->endsAt);
+        }
+
+        if ($log->schoolEvent) {
+            return $log->schoolEvent->starts_at->lessThanOrEqualTo($at)
+                && $log->schoolEvent->ends_at->greaterThanOrEqualTo($at);
+        }
+
+        return $log->scan_time->copy()->timezone(config('app.timezone'))->isSameDay($at);
     }
 
     private function hourly(Carbon $from, Carbon $to): array
@@ -150,6 +279,7 @@ class AdminDashboardData
             ? "CAST(strftime('%H', scan_time) AS INTEGER)"
             : 'HOUR(scan_time)';
         $counts = DB::table('attendance_logs')->where('scan_time', '>=', $from)->where('scan_time', '<', $to)
+            ->where('record_state', 'canonical')
             ->selectRaw("{$expression} as bucket, COUNT(*) as aggregate")->groupBy('bucket')->pluck('aggregate', 'bucket');
 
         return collect(range(6, 20))->map(fn ($hour) => [
@@ -161,6 +291,7 @@ class AdminDashboardData
     {
         $expression = DB::getDriverName() === 'sqlite' ? 'date(scan_time)' : 'DATE(scan_time)';
         $counts = DB::table('attendance_logs')->whereBetween('scan_time', [$from, $to])
+            ->where('record_state', 'canonical')
             ->selectRaw("{$expression} as bucket, COUNT(*) as aggregate")->groupBy('bucket')->pluck('aggregate', 'bucket');
 
         return collect(range(0, 6))->map(function ($offset) use ($from, $counts) {
@@ -175,6 +306,7 @@ class AdminDashboardData
         return DB::table('attendance_logs')->join('users', 'users.id', '=', 'attendance_logs.user_id')
             ->join('instructors', 'instructors.user_id', '=', 'users.id')->leftJoin('departments', 'departments.id', '=', 'instructors.department_id')
             ->where('attendance_logs.scan_time', '>=', $from)->where('attendance_logs.scan_time', '<', $to)
+            ->where('attendance_logs.record_state', 'canonical')
             ->groupBy('departments.department_code')->orderByDesc('aggregate')->limit(8)
             ->selectRaw("COALESCE(departments.department_code, 'Unassigned') as label, COUNT(*) as aggregate")
             ->get()->map(fn ($row) => ['label' => $row->label, 'value' => (int) $row->aggregate])->all();
@@ -185,6 +317,7 @@ class AdminDashboardData
         return DB::table('attendance_logs')->join('schedules', 'schedules.id', '=', 'attendance_logs.schedule_id')
             ->join('subjects', 'subjects.id', '=', 'schedules.subject_id')
             ->where('attendance_logs.scan_time', '>=', $from)->where('attendance_logs.scan_time', '<', $to)
+            ->where('attendance_logs.record_state', 'canonical')
             ->groupBy('subjects.subject_code')->orderByDesc('aggregate')->limit(8)
             ->selectRaw('subjects.subject_code as label, COUNT(*) as aggregate')->get()
             ->map(fn ($row) => ['label' => $row->label, 'value' => (int) $row->aggregate])->all();
@@ -207,7 +340,7 @@ class AdminDashboardData
 
     private function formatLog(AttendanceLog $log): array
     {
-        $role = strtolower($log->user?->role?->role_name ?? 'unknown');
+        $role = strtolower((string) ($log->user?->primaryRoleName() ?? 'unknown'));
         $student = $log->user?->student;
         $instructor = $log->user?->instructor;
         $staff = $log->user?->nonTeachingStaff;

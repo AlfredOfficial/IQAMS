@@ -35,7 +35,7 @@ class LeaveNotificationTest extends TestCase
         $admin = $this->user('admin');
         $student = $this->user('student');
 
-        $this->actingAs($student)->post(route('leave-requests.store'), $this->leavePayload('student'))->assertRedirect();
+        $this->actingAs($student)->post(route('leave-requests.store'), $this->leavePayload('student'))->assertForbidden();
 
         $this->assertSame(0, $student->notifications()->count());
         $this->assertSame(0, $admin->notifications()->count());
@@ -49,8 +49,8 @@ class LeaveNotificationTest extends TestCase
         $approved = $this->leave($approvedOwner);
         $rejected = $this->leave($rejectedOwner, '2026-09-03');
 
-        $this->actingAs($admin)->patch(route('admin.leave-requests.update', $approved), ['status' => 'approved', 'review_notes' => 'Approved by dean.'])->assertRedirect();
-        $this->patch(route('admin.leave-requests.update', $rejected), ['status' => 'rejected', 'review_notes' => 'Insufficient staffing.'])->assertRedirect();
+        $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])->patch(route('admin.leave-requests.update', $approved), ['status' => 'approved', 'review_notes' => 'Approved by dean.'])->assertRedirect();
+        $this->withSession(['auth.password_confirmed_at' => time()])->patch(route('admin.leave-requests.update', $rejected), ['status' => 'rejected', 'review_notes' => 'Insufficient staffing.'])->assertRedirect();
 
         $this->assertSame('approved', $approvedOwner->notifications()->first()->data['status']);
         $this->assertSame('Approved by dean.', $approvedOwner->notifications()->first()->data['review_notes']);

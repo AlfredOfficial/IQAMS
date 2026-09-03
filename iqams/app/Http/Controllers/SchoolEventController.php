@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Schedule;
 use App\Models\SchoolEvent;
 use App\Models\Section;
+use App\Services\AuditLogger;
+use App\Services\ScheduleOccurrenceResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +15,8 @@ use Illuminate\Validation\ValidationException;
 
 class SchoolEventController extends Controller
 {
+    public function __construct(private ScheduleOccurrenceResolver $occurrences) {}
+
     public function index()
     {
         $events = SchoolEvent::with(['targets.section', 'targets.schedule.subject', 'targets.schedule.section'])
@@ -20,8 +24,8 @@ class SchoolEventController extends Controller
 
         return view('school-events.index', [
             'events' => $events,
-            'sections' => Section::orderBy('section_name')->get(),
-            'schedules' => Schedule::with(['subject', 'section'])->orderBy('day')->orderBy('start_time')->get(),
+            'sections' => Section::active()->orderBy('section_name')->get(),
+            'schedules' => Schedule::active()->with(['subject', 'section'])->orderBy('day')->orderBy('start_time')->get(),
         ]);
     }
 
@@ -34,6 +38,7 @@ class SchoolEventController extends Controller
 
             return $event;
         });
+        app(AuditLogger::class)->record('record.created', $event, ['record' => 'school_event'], $request->user(), $request);
 
         return redirect()->route('school-events.index')->with('success', "{$event->title} created as a draft.");
     }
@@ -51,11 +56,12 @@ class SchoolEventController extends Controller
                 $this->ensureNoConflict($schoolEvent);
             }
         });
+        app(AuditLogger::class)->record('record.updated', $schoolEvent, ['record' => 'school_event'], $request->user(), $request);
 
         return redirect()->route('school-events.index')->with('success', 'School event updated.');
     }
 
-    public function publish(SchoolEvent $schoolEvent)
+    public function publish(Request $request, SchoolEvent $schoolEvent)
     {
         if ($schoolEvent->status !== 'draft' || now()->greaterThanOrEqualTo($schoolEvent->starts_at)) {
             throw ValidationException::withMessages(['event' => 'Only a draft event can be published before it starts.']);
@@ -64,29 +70,33 @@ class SchoolEventController extends Controller
         $this->ensureTargets($schoolEvent);
         $this->ensureNoConflict($schoolEvent);
         $schoolEvent->update(['status' => 'published', 'published_at' => now()]);
+        app(AuditLogger::class)->record('school_event.published', $schoolEvent, [], $request->user(), $request);
 
         return back()->with('success', 'School event published.');
     }
 
-    public function cancel(SchoolEvent $schoolEvent)
+    public function cancel(Request $request, SchoolEvent $schoolEvent)
     {
         if ($schoolEvent->status !== 'published' || now()->greaterThanOrEqualTo($schoolEvent->starts_at)
             || $schoolEvent->attendanceLogs()->exists()) {
             throw ValidationException::withMessages(['event' => 'This event can no longer be cancelled.']);
         }
         $schoolEvent->update(['status' => 'cancelled']);
+        app(AuditLogger::class)->record('school_event.cancelled', $schoolEvent, [], $request->user(), $request);
 
         return back()->with('success', 'School event cancelled.');
     }
 
-    public function destroy(SchoolEvent $schoolEvent)
+    public function destroy(Request $request, SchoolEvent $schoolEvent)
     {
-        if ($schoolEvent->attendanceLogs()->exists()) {
-            throw ValidationException::withMessages(['event' => 'Events with attendance history cannot be deleted.']);
+        if ($schoolEvent->status === 'cancelled') {
+            return back()->with('success', 'School event is already archived.');
         }
-        $schoolEvent->delete();
 
-        return back()->with('success', 'School event deleted.');
+        $schoolEvent->update(['status' => 'cancelled']);
+        app(AuditLogger::class)->record('record.archived', $schoolEvent, ['record' => 'school_event'], $request->user(), $request);
+
+        return back()->with('success', 'School event archived.');
     }
 
     private function validated(Request $request): array
@@ -100,9 +110,9 @@ class SchoolEventController extends Controller
             'attendance_mode' => ['required', Rule::in(['cancelled', 'event_attendance', 'unchanged'])],
             'target_scope' => ['required', Rule::in(['school', 'sections', 'schedules'])],
             'section_ids' => ['required_if:target_scope,sections', 'array'],
-            'section_ids.*' => ['integer', 'exists:sections,id'],
+            'section_ids.*' => ['integer', Rule::exists('sections', 'id')->whereNull('archived_at')],
             'schedule_ids' => ['required_if:target_scope,schedules', 'array'],
-            'schedule_ids.*' => ['integer', 'exists:schedules,id'],
+            'schedule_ids.*' => ['integer', Rule::exists('schedules', 'id')->whereNull('archived_at')],
         ]);
     }
 
@@ -120,7 +130,7 @@ class SchoolEventController extends Controller
             }
         }
         if ($event->target_scope === 'schedules') {
-            $schedules = Schedule::whereIn('id', array_unique($data['schedule_ids'] ?? []))->get();
+            $schedules = Schedule::active()->whereIn('id', array_unique($data['schedule_ids'] ?? []))->get();
             foreach ($schedules as $schedule) {
                 if (! $this->scheduleOverlaps($schedule, Carbon::parse($event->starts_at), Carbon::parse($event->ends_at))) {
                     throw ValidationException::withMessages(['schedule_ids' => "{$schedule->subject?->subject_code} does not overlap the event date and time."]);
@@ -133,15 +143,12 @@ class SchoolEventController extends Controller
     private function scheduleOverlaps(Schedule $schedule, Carbon $start, Carbon $end): bool
     {
         for ($date = $start->copy()->startOfDay(); $date->lessThanOrEqualTo($end->copy()->startOfDay()); $date->addDay()) {
-            if (strtolower($date->format('l')) !== strtolower($schedule->day)) {
+            $occurrence = $this->occurrences->forDate($schedule, $date);
+
+            if (! $occurrence) {
                 continue;
             }
-            $classStart = $date->copy()->setTimeFromTimeString($schedule->start_time);
-            $classEnd = $date->copy()->setTimeFromTimeString($schedule->end_time);
-            if ($classEnd->lessThanOrEqualTo($classStart)) {
-                $classEnd->addDay();
-            }
-            if ($start->lessThan($classEnd) && $end->greaterThan($classStart)) {
+            if ($start->lessThan($occurrence->endsAt) && $end->greaterThan($occurrence->startsAt)) {
                 return true;
             }
         }
@@ -173,10 +180,10 @@ class SchoolEventController extends Controller
     private function sectionIds(SchoolEvent $event)
     {
         if ($event->target_scope === 'school') {
-            return Section::pluck('id');
+            return Section::active()->pluck('id');
         }
         if ($event->target_scope === 'sections') {
-            return $event->targets->pluck('section_id')->filter();
+            return $event->targets->pluck('section_id')->filter(fn ($id) => Section::active()->whereKey($id)->exists());
         }
 
         return $event->targets->pluck('schedule.section_id')->filter()->unique();

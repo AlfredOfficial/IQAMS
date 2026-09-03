@@ -15,7 +15,7 @@ class StaffDashboardController extends Controller
 
         abort_unless($staff, 403, 'No non-teaching staff profile is linked to this account.');
 
-        $todayLogs = AttendanceLog::where('user_id', $user->id)
+        $todayLogs = AttendanceLog::canonical()->where('user_id', $user->id)
             ->whereNull('schedule_id')
             ->whereDate('scan_time', today())
             ->orderBy('scan_time')
@@ -24,7 +24,7 @@ class StaffDashboardController extends Controller
         $today = $summary->day(today(), $todayLogs);
         $monthDays = $summary->days($user, now()->startOfMonth(), today(), true);
         $totals = $summary->totals($monthDays);
-        $recentLogs = AttendanceLog::where('user_id', $user->id)
+        $recentLogs = AttendanceLog::canonical()->where('user_id', $user->id)
             ->whereNull('schedule_id')
             ->latest('scan_time')
             ->limit(8)
@@ -37,7 +37,7 @@ class StaffDashboardController extends Controller
     {
         $user = $request->user();
         abort_unless($user->nonTeachingStaff, 403);
-        $logs = AttendanceLog::where('user_id', $user->id)->whereNull('schedule_id')
+        $logs = AttendanceLog::canonical()->where('user_id', $user->id)->whereNull('schedule_id')
             ->whereNull('school_event_id')->latest('scan_time')->limit(8)->get();
         $today = $summary->day(today(), $logs->filter(fn ($log) => $log->scan_time->isToday())->sortBy('scan_time')->values());
         $totals = $summary->totals($summary->days($user, now()->startOfMonth(), today(), true));
@@ -45,6 +45,7 @@ class StaffDashboardController extends Controller
         return response()->json([
             'today' => [
                 'status' => $today['status'],
+                'summary_status' => $today['summaryStatus'],
                 'next_period' => $today['nextPeriod'],
                 'completed_periods' => $today['completedPeriods'],
                 'progress_percentage' => $today['progressPercentage'],

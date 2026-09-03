@@ -3,9 +3,10 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendPasswordResetLink;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Password;
 use Illuminate\View\View;
 
 class PasswordResetLinkController extends Controller
@@ -27,9 +28,16 @@ class PasswordResetLinkController extends Controller
             'email' => ['required', 'email'],
         ]);
 
-        // The broker securely creates, stores, throttles, and sends the token
-        // through the user's standard password-reset notification.
-        Password::sendResetLink($request->only('email'));
+        // Keep account existence private while ensuring delivery happens through
+        // Laravel's existing password broker in the queue worker.
+        $user = User::query()
+            ->where('email', (string) $request->string('email'))
+            ->where('status', 'active')
+            ->first();
+
+        if ($user) {
+            SendPasswordResetLink::dispatch($user->id);
+        }
 
         // Always return the same response for valid input. The password broker
         // still handles user lookup, notification delivery, and per-address

@@ -1,12 +1,12 @@
 @php
     $portalUser = Auth::user(); $portalStudent = $portalUser->student;
     $initials = strtoupper(substr($portalStudent?->first_name ?? $portalUser->name, 0, 1));
-    $descriptions = ['Dashboard'=>'Overview of your attendance and class schedule','My Attendance'=>'Review and filter your official attendance history','My QR Code'=>'Your digital student identity for attendance','Student Profile'=>'Your personal and academic information','Account Settings'=>'Manage your photo, password, and session'];
+    $descriptions = ['Dashboard'=>'Overview of your attendance and class schedule','My Attendance'=>'Review and filter your official attendance history','Schedule'=>'View your weekly class schedule','My QR Code'=>'Your digital student identity for attendance','Student Profile'=>'Your personal and academic information','Account Settings'=>'Manage your photo, password, and session'];
     $navigation = [
         'Navigation' => [
             ['student.dashboard','Dashboard','M4 5h6v6H4V5zm0 10h6v5H4v-5zm10-10h6v6h-6V5zm0 10h6v5h-6v-5z'],
             ['student.attendance','Attendance','M9 11l2 2 4-4m4-4v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2h8l4 4z'],
-            ['student.dashboard','Schedule','M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z','#schedule'],
+            ['student.schedule','Schedule','M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z'],
             ['student.qr','QR Code','M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h2v2h-2v-2zm4 0h2v6h-6v-2h4v-4z'],
         ],
         'Account' => [
@@ -24,7 +24,7 @@
   <nav class="flex-1 overflow-y-auto px-3 py-6" aria-label="Student navigation">
    @foreach($navigation as $group => $items)
     <p @class(['px-3 text-[11px] font-semibold uppercase tracking-[.16em] text-teal-100/45','mt-8'=>$loop->index])>{{ $group }}</p><div class="mt-2 space-y-1">
-    @foreach($items as $item) @php $isSchedule = ($item[1] === 'Schedule'); $active = !$isSchedule && request()->routeIs($item[0]); @endphp
+    @foreach($items as $item) @php $active = request()->routeIs($item[0]); @endphp
      <a href="{{ route($item[0]).($item[3] ?? '') }}" @class(['relative flex h-10 items-center gap-3 px-3 text-sm transition','bg-white/10 font-semibold text-white before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:bg-cyan-300'=>$active,'text-teal-50/70 hover:bg-white/5 hover:text-white'=>!$active])><svg class="h-[18px] w-[18px] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="{{ $item[2] }}"/></svg>{{ $item[1] }}</a>
     @endforeach</div>
    @endforeach

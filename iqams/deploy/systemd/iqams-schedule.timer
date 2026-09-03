@@ -1,0 +1,10 @@
+[Unit]
+Description=Run IQAMS scheduler every minute
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+Persistent=true
+Unit=iqams-schedule.service
+
+[Install]
+WantedBy=timers.target

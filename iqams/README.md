@@ -19,6 +19,12 @@ php artisan storage:link
 
 Without this link, uploads are stored successfully but cannot be served from `/storage` in the browser.
 
+## IQAMS production deployment
+
+The production environment contract, backup baseline, verification checklist,
+and Linux Nginx/PHP-FPM deployment templates are documented in
+[`docs/production-deployment.md`](docs/production-deployment.md).
+
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
 
 - [Simple, fast routing engine](https://laravel.com/docs/routing).

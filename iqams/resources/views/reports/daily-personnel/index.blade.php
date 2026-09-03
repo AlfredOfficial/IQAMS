@@ -38,7 +38,7 @@
     </style>
 
     <div class="report-shell mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <form method="GET" action="{{ route('admin.reports.daily-personnel.index') }}" class="no-print mb-6 rounded-lg bg-white p-5 shadow-sm">
+        <form method="GET" action="{{ route('admin.reports.daily-personnel.index') }}" data-report-filter class="no-print mb-6 rounded-lg bg-white p-5 shadow-sm">
             <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                 <div>
                     <label for="date" class="mb-1 block text-sm font-medium text-gray-700">Date</label>
@@ -84,15 +84,69 @@
                 <button type="submit" class="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Generate Report</button>
                 <a href="{{ route('admin.reports.daily-personnel.index') }}" class="text-sm text-gray-600 hover:text-gray-900">Reset</a>
                 <div class="ml-auto flex flex-wrap gap-2">
-                    <a href="{{ route('admin.reports.daily-personnel.pdf', ['date' => $date->toDateString()] + $filters) }}" class="rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Export PDF</a>
-                    <a href="{{ route('admin.reports.daily-personnel.excel', ['date' => $date->toDateString()] + $filters) }}" class="rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Export Excel</a>
+                    @foreach(['pdf' => 'Export PDF', 'xlsx' => 'Export Excel'] as $format => $label)
+                        <button type="button" data-report-export-format="{{ $format }}" data-report-export-url="{{ route('admin.reports.daily-personnel.exports.store') }}" class="rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">{{ $label }}</button>
+                    @endforeach
                     <button type="button" onclick="window.print()" class="rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Print</button>
                 </div>
             </div>
+            <div data-report-export-status class="mt-3 text-sm text-gray-600" aria-live="polite"></div>
         </form>
 
         <div class="overflow-hidden rounded-lg bg-white shadow-sm">
             @include('reports.daily-personnel._report')
         </div>
     </div>
+
+    <script>
+        document.querySelectorAll('[data-report-export-format]').forEach((button) => {
+            button.addEventListener('click', async () => {
+                const filterForm = document.querySelector('[data-report-filter]');
+                const status = document.querySelector('[data-report-export-status]');
+                const body = new FormData(filterForm);
+                body.set('format', button.dataset.reportExportFormat);
+                button.disabled = true;
+                status.textContent = 'Preparing export…';
+
+                try {
+                    const response = await fetch(button.dataset.reportExportUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        },
+                        body,
+                    });
+                    const payload = await response.json();
+                    if (!response.ok) throw new Error(payload.message || 'The export could not be queued.');
+                    status.textContent = 'Export queued. This page will provide the download when it is ready.';
+
+                    const poll = async () => {
+                        const result = await fetch(payload.status_url, { headers: { 'Accept': 'application/json' } });
+                        const current = await result.json();
+                        if (current.status === 'completed' && current.download_url) {
+                            const link = document.createElement('a');
+                            link.href = current.download_url;
+                            link.textContent = 'Download completed export';
+                            link.className = 'ml-2 font-medium text-indigo-600 hover:text-indigo-800';
+                            status.appendChild(link);
+                            button.disabled = false;
+                            return;
+                        }
+                        if (current.status === 'failed' || current.status === 'expired') {
+                            status.textContent = 'The export is no longer available. Please request it again.';
+                            button.disabled = false;
+                            return;
+                        }
+                        window.setTimeout(poll, 2000);
+                    };
+                    window.setTimeout(poll, 1000);
+                } catch (error) {
+                    status.textContent = error.message || 'The export could not be queued.';
+                    button.disabled = false;
+                }
+            });
+        });
+    </script>
 </x-app-layout>

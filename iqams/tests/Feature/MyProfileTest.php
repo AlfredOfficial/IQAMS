@@ -19,10 +19,13 @@ class MyProfileTest extends TestCase
         foreach (['student', 'instructor', 'staff'] as $roleName) {
             $user = $this->userWithRole($roleName);
 
-            $this->actingAs($user)
-                ->get(route('my-profile.edit'))
-                ->assertOk()
-                ->assertViewIs('my-profile.edit');
+            $response = $this->actingAs($user)->get(route('my-profile.edit'));
+
+            if ($roleName === 'student') {
+                $response->assertRedirect(route('student.profile'));
+            } else {
+                $response->assertOk()->assertViewIs($roleName === 'instructor' ? 'instructor.profile' : 'my-profile.edit');
+            }
         }
 
         $admin = $this->userWithRole('admin');
@@ -54,15 +57,20 @@ class MyProfileTest extends TestCase
         foreach (['student', 'instructor', 'staff'] as $roleName) {
             $user = $this->userWithRole($roleName);
 
-            $this->actingAs($user)
-                ->get(route('my-profile.edit'))
-                ->assertOk()
-                ->assertSee('href="'.route('my-profile.edit').'"', false)
-                ->assertDontSee('href="'.route('profile.edit').'"', false);
+            $response = $this->actingAs($user)->get(route('my-profile.edit'));
+
+            if ($roleName === 'student') {
+                $response->assertRedirect(route('student.profile'));
+            } else {
+                $profileRoute = $roleName === 'staff' ? route('staff.profile.edit') : route('my-profile.edit');
+                $response->assertOk()
+                    ->assertSee('href="'.$profileRoute.'"', false)
+                    ->assertDontSee('href="'.route('profile.edit').'"', false);
+            }
 
             $this->actingAs($user)
                 ->get(route('profile.edit'))
-                ->assertRedirect(route('my-profile.edit'));
+                ->assertRedirect($roleName === 'student' ? route('student.profile') : route('my-profile.edit'));
         }
     }
 
@@ -77,11 +85,10 @@ class MyProfileTest extends TestCase
                 'name' => 'Updated Student',
                 'email' => 'updated@example.com',
             ])
-            ->assertSessionHasNoErrors()
-            ->assertRedirect(route('my-profile.edit'));
+            ->assertForbidden();
 
-        $this->assertSame('Updated Student', $user->refresh()->name);
-        $this->assertSame('updated@example.com', $user->email);
+        $this->assertNotSame('Updated Student', $user->refresh()->name);
+        $this->assertNotSame('updated@example.com', $user->email);
         $this->assertNotSame('Updated Student', $other->refresh()->name);
     }
 

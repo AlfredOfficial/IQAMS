@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class PersonnelAttendancePages
 {
@@ -11,14 +12,13 @@ class PersonnelAttendancePages
 
     public function history(User $user, array $filters): array
     {
-        $from = Carbon::parse($filters['from'] ?? now()->startOfMonth()->toDateString());
-        $to = Carbon::parse($filters['to'] ?? now()->toDateString());
+        [$from, $to] = $this->boundedRange($filters);
         $days = $this->summary->days($user, $from, $to, false)->reverse()->values();
 
         if ($status = ($filters['status'] ?? null)) {
             $days = $status === 'Incomplete'
                 ? $days->where('isIncomplete', true)->values()
-                : $days->where('status', $status)->values();
+                : $days->filter(fn ($day) => $day['status'] === $status || ($day['summaryStatus'] ?? null) === $status)->values();
         }
 
         if ($punctuality = ($filters['punctuality'] ?? null)) {
@@ -26,6 +26,52 @@ class PersonnelAttendancePages
         }
 
         return compact('days', 'from', 'to');
+    }
+
+    /**
+     * Parse and bound user-selected history dates before attendance rows are
+     * loaded. The same guard is used by both instructor and staff pages.
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function boundedRange(array $filters): array
+    {
+        $from = $this->date($filters['from'] ?? now()->startOfMonth()->toDateString(), 'from');
+        $to = $this->date($filters['to'] ?? now()->toDateString(), 'to');
+
+        if ($to->lt($from)) {
+            throw ValidationException::withMessages([
+                'to' => 'The end date must be on or after the start date.',
+            ]);
+        }
+
+        $days = $from->diffInDays($to) + 1;
+        $maximum = (int) config('attendance.max_report_days', 366);
+
+        if ($days > $maximum) {
+            throw ValidationException::withMessages([
+                'to' => "The attendance history range cannot exceed {$maximum} days.",
+            ]);
+        }
+
+        return [$from, $to];
+    }
+
+    private function date(mixed $value, string $field): Carbon
+    {
+        try {
+            $date = Carbon::createFromFormat('!Y-m-d', (string) $value, config('app.timezone'));
+        } catch (\Throwable) {
+            $date = false;
+        }
+
+        if (! $date || $date->format('Y-m-d') !== (string) $value) {
+            throw ValidationException::withMessages([
+                $field => 'Enter a valid date in YYYY-MM-DD format.',
+            ]);
+        }
+
+        return $date->startOfDay();
     }
 
     public function monthly(User $user, int $requestedMonth, int $requestedYear): array

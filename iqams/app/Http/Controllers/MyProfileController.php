@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -21,11 +22,11 @@ class MyProfileController extends Controller
             return redirect()->route('student.profile');
         }
 
-        $user->load(match ($user->role?->role_name) {
-            'student' => ['role', 'student.course', 'student.section'],
-            'instructor' => ['role', 'instructor.department'],
-            'staff' => ['role', 'nonTeachingStaff'],
-            default => ['role'],
+        $user->load(match ($user->primaryRoleName()) {
+            'student' => ['roles', 'student.course', 'student.section'],
+            'instructor' => ['roles', 'instructor.department'],
+            'staff' => ['roles', 'nonTeachingStaff'],
+            default => ['roles'],
         });
 
         return $user->isInstructor()
@@ -64,6 +65,8 @@ class MyProfileController extends Controller
             $newAvatarPath = $request->file('avatar')->store('avatars', 'public');
         }
 
+        $passwordChanged = ! empty($validated['password']);
+
         try {
             $user->fill([
                 'name' => $validated['name'],
@@ -78,8 +81,12 @@ class MyProfileController extends Controller
                 $user->avatar_path = $newAvatarPath;
             }
 
-            if (! empty($validated['password'])) {
-                $user->password = $validated['password'];
+            if ($passwordChanged) {
+                $user->forceFill([
+                    'password' => $validated['password'],
+                    'must_change_password' => false,
+                    'password_changed_at' => now(),
+                ]);
             }
 
             $user->save();
@@ -93,6 +100,20 @@ class MyProfileController extends Controller
 
         if ($newAvatarPath !== null && $oldAvatarPath !== null && $oldAvatarPath !== $newAvatarPath) {
             Storage::disk('public')->delete($oldAvatarPath);
+        }
+
+        if ($passwordChanged) {
+            app(AuditLogger::class)->record(
+                'account.password_changed',
+                $user,
+                ['source' => 'profile'],
+                $user,
+                $request,
+            );
+        }
+
+        if (! $passwordChanged) {
+            app(AuditLogger::class)->record('account.profile_updated', $user, [], $user, $request);
         }
 
         $route = $user->isStaff() ? 'staff.profile.edit' : 'my-profile.edit';

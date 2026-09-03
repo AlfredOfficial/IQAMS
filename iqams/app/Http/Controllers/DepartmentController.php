@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Department;
+use App\Services\ArchiveService;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 
 class DepartmentController extends Controller
@@ -12,7 +14,7 @@ class DepartmentController extends Controller
      */
     public function index()
     {
-        $departments = Department::latest()->paginate(10);
+        $departments = Department::active()->latest()->paginate(10);
         return view('departments.index', compact('departments'));
     }
 
@@ -34,7 +36,8 @@ class DepartmentController extends Controller
             'department_name' => 'required|string|max:255',
         ]);
 
-        Department::create($validated);
+        $department = Department::create($validated);
+        app(AuditLogger::class)->record('record.created', $department, ['record' => 'department'], $request->user(), $request);
 
         return redirect()->route('departments.index')->with('success', 'Department created successfully.');
     }
@@ -66,6 +69,7 @@ class DepartmentController extends Controller
         ]);
 
         $department->update($validated);
+        app(AuditLogger::class)->record('record.updated', $department, ['record' => 'department'], $request->user(), $request);
 
         return redirect()->route('departments.index')->with('success', 'Department updated successfully.');
     }
@@ -73,10 +77,10 @@ class DepartmentController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Department $department)
+    public function destroy(Request $request, Department $department)
     {
-        $department->delete();
+        app(ArchiveService::class)->archive($department, $request->user(), $request);
 
-        return redirect()->route('departments.index')->with('success', 'Department deleted successfully.');
+        return redirect()->route('departments.index')->with('success', 'Department archived successfully.');
     }
 }

@@ -10,9 +10,11 @@ use App\Models\Student;
 use App\Models\User;
 use App\Services\AccountStatusService;
 use App\Services\ApprovedLeaveAttendanceGuard;
+use App\Services\AuditLogger;
 use App\Services\AttendanceScheduleValidator;
 use App\Services\PersonnelAttendanceClassifier;
 use App\Services\StudentAttendanceWindow;
+use App\ValueObjects\ScheduleOccurrence;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
@@ -25,7 +27,7 @@ class AttendanceLogController extends Controller
      */
     public function index(Request $request)
     {
-        $query = AttendanceLog::with(['user.nonTeachingStaff', 'schedule.subject', 'schedule.section', 'schoolEvent']);
+        $query = AttendanceLog::canonical()->with(['user.nonTeachingStaff', 'schedule.subject', 'schedule.section', 'schoolEvent']);
 
         if ($request->filled('date')) {
             $query->whereDate('scan_time', $request->date('date'));
@@ -41,7 +43,7 @@ class AttendanceLogController extends Controller
 
         $logs = $query->latest('scan_time')->paginate(15)->withQueryString();
 
-        $schedules = Schedule::with(['subject', 'section'])->orderBy('day')->get();
+        $schedules = Schedule::active()->with(['subject', 'section'])->orderBy('day')->get();
 
         // build a combined list of loggable people
         // for the person dropdown each carrying their linked user_id
@@ -86,7 +88,7 @@ class AttendanceLogController extends Controller
         PersonnelAttendanceClassifier $personnelClassifier
     ) {
         $identity = $request->validate(['user_id' => 'required|exists:users,id']);
-        $user = User::with(['student', 'role'])->findOrFail($identity['user_id']);
+        $user = User::with(['student', 'roles'])->findOrFail($identity['user_id']);
         $accountStatus->ensureAccountIsActive($user, 'user_id');
 
         $validated = $request->validate([
@@ -103,20 +105,24 @@ class AttendanceLogController extends Controller
         $scanTime = Carbon::parse($validated['scan_time'], config('app.timezone'));
         $leaveGuard->ensureAttendanceIsAllowed($user, $scanTime, 'scan_time');
 
+        $occurrence = null;
         if ($schedule) {
-            $scheduleValidator->validate($user, $schedule, $scanTime);
+            $occurrence = $scheduleValidator->validate($user, $schedule, $scanTime);
         }
 
         if (! $user->student) {
-            $classification = $personnelClassifier->classify($user->role->role_name, $validated['attendance_type'], $scanTime);
+            $classification = $personnelClassifier->classify($user->primaryRoleName(), $validated['attendance_type'], $scanTime);
             $this->ensurePersonnelPeriodIsUnique($user, $scanTime, $classification['attendance_period']);
             $validated = array_merge($validated, $classification);
         }
 
-        $validated['status'] = $this->resolveStatus($validated, $schedule, $scanTime, app(StudentAttendanceWindow::class));
+        $validated['status'] = $this->resolveStatus($validated, $occurrence, $scanTime, app(StudentAttendanceWindow::class));
         unset($validated['status_override']);
 
-        AttendanceLog::create($validated);
+        $attendanceLog = AttendanceLog::create($validated);
+        app(AuditLogger::class)->record('attendance.corrected', $attendanceLog, [
+            'operation' => 'created',
+        ], $request->user(), $request);
 
         return redirect()->route('attendance-logs.index')->with('success', 'Attendace log created successfully.');
     }
@@ -149,7 +155,7 @@ class AttendanceLogController extends Controller
         PersonnelAttendanceClassifier $personnelClassifier
     ) {
         $identity = $request->validate(['user_id' => 'required|exists:users,id']);
-        $user = User::with(['student', 'role'])->findOrFail($identity['user_id']);
+        $user = User::with(['student', 'roles'])->findOrFail($identity['user_id']);
         $accountStatus->ensureAccountIsActive($user, 'user_id');
 
         $validated = $request->validate([
@@ -166,12 +172,13 @@ class AttendanceLogController extends Controller
         $scanTime = Carbon::parse($validated['scan_time'], config('app.timezone'));
         $leaveGuard->ensureAttendanceIsAllowed($user, $scanTime, 'scan_time');
 
+        $occurrence = null;
         if ($schedule) {
-            $scheduleValidator->validate($user, $schedule, $scanTime);
+            $occurrence = $scheduleValidator->validate($user, $schedule, $scanTime);
         }
 
         if (! $user->student) {
-            $classification = $personnelClassifier->classify($user->role->role_name, $validated['attendance_type'], $scanTime);
+            $classification = $personnelClassifier->classify($user->primaryRoleName(), $validated['attendance_type'], $scanTime);
             $this->ensurePersonnelPeriodIsUnique($user, $scanTime, $classification['attendance_period'], $attendanceLog);
             $validated = array_merge($validated, $classification);
         } else {
@@ -179,46 +186,55 @@ class AttendanceLogController extends Controller
             $validated['punctuality_status'] = null;
         }
 
-        $validated['status'] = $this->resolveStatus($validated, $schedule, $scanTime, app(StudentAttendanceWindow::class));
+        $validated['status'] = $this->resolveStatus($validated, $occurrence, $scanTime, app(StudentAttendanceWindow::class));
         unset($validated['status_override']);
 
         $attendanceLog->update($validated);
+        app(AuditLogger::class)->record('attendance.corrected', $attendanceLog, [
+            'operation' => 'updated',
+        ], $request->user(), $request);
 
-        return redirect()->route(['attendance-logs.index'])->with('success', 'Attendance log updated successfully.');
+        return redirect()->route('attendance-logs.index')->with('success', 'Attendance log updated successfully.');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(AttendanceLog $attendanceLog)
+    public function destroy(Request $request, AttendanceLog $attendanceLog)
     {
-        $attendanceLog->delete();
+        $attendanceLog->update([
+            'record_state' => 'voided',
+            'superseded_by_id' => null,
+        ]);
+        app(AuditLogger::class)->record('record.voided', $attendanceLog, [
+            'record' => 'attendance_log',
+        ], $request->user(), $request);
 
-        return redirect()->route('attendance-logs.index')->with('success', 'Attendance log deleted successfully.');
+        return redirect()->route('attendance-logs.index')->with('success', 'Attendance log voided successfully.');
     }
 
     // if admin picked an explicit override (excused, late, absent, etc..)
 
-    private function resolveStatus(array $data, ?Schedule $schedule, Carbon $scanTime, StudentAttendanceWindow $window): string
+    private function resolveStatus(array $data, ?ScheduleOccurrence $occurrence, Carbon $scanTime, StudentAttendanceWindow $window): string
     {
         if (! empty($data['status_override'])) {
             return $data['status_override'];
         }
 
-        if (! $schedule && ($data['punctuality_status'] ?? null) === 'late') {
+        if (! $occurrence && ($data['punctuality_status'] ?? null) === 'late') {
             return 'late';
         }
 
-        if ($data['attendance_type'] !== 'time_in' || ! $schedule) {
+        if ($data['attendance_type'] !== 'time_in' || ! $occurrence) {
             return 'present';
         }
 
-        return $window->status($schedule, $scanTime);
+        return $window->status($occurrence, $scanTime);
     }
 
     private function ensurePersonnelPeriodIsUnique(User $user, Carbon $scanTime, string $period, ?AttendanceLog $except = null): void
     {
-        $exists = AttendanceLog::where('user_id', $user->id)
+        $exists = AttendanceLog::canonical()->where('user_id', $user->id)
             ->whereDate('scan_time', $scanTime->toDateString())
             ->where('attendance_period', $period)
             ->when($except, fn ($query) => $query->whereKeyNot($except->getKey()))

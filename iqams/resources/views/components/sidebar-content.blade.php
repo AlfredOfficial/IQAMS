@@ -1,4 +1,5 @@
 @props(['collapsible' => true])
+@php($roleName = Auth::user()->primaryRoleName())
 
 {{-- Logo + system name --}}
 <div class="flex h-20 shrink-0 items-center border-b border-gray-200 px-4"
@@ -54,13 +55,13 @@
         </x-slot>
     </x-sidebar-link>
 
-    @if (in_array(Auth::user()->role?->role_name, ['staff', 'student']))
+    @if (in_array($roleName, ['staff', 'instructor']))
         <x-sidebar-link :href="route('leave-requests.index')" :active="request()->routeIs('leave-requests.*')" :collapsible="$collapsible" label="Leave Requests">
             <x-slot name="icon"><x-heroicon-o-bookmark class="w-5 h-5" /></x-slot>
         </x-sidebar-link>
     @endif
 
-    @if (Auth::user()->role?->role_name === 'instructor')
+    @if ($roleName === 'instructor')
         @foreach([
             'instructor.attendance' => 'My Attendance',
             'instructor.schedule' => 'My Teaching Schedule',
@@ -75,7 +76,7 @@
         @endforeach
     @endif
 
-    @if (Auth::user()->role?->role_name === 'admin')
+    @if ($roleName === 'admin')
         <x-sidebar-link
             :href="route('attendance-scanner.index')"
             :active="request()->routeIs('attendance-scanner.*')"
@@ -106,6 +107,11 @@
         <x-sidebar-link :href="route('scanner-security.index')" :active="request()->routeIs('scanner-security.*')" :collapsible="$collapsible" label="Scanner Security">
             <x-slot name="icon"><x-heroicon-o-shield-check class="h-5 w-5" /></x-slot>
         </x-sidebar-link>
+        @can('view-audit-logs')
+            <x-sidebar-link :href="route('admin.audit-logs.index')" :active="request()->routeIs('admin.audit-logs.*')" :collapsible="$collapsible" label="Audit Logs">
+                <x-slot name="icon"><x-heroicon-o-clipboard-document-list class="h-5 w-5" /></x-slot>
+            </x-sidebar-link>
+        @endcan
 
         <div class="px-3 pb-2 pt-5" @if($collapsible) x-show="!sidebarCollapsed" x-cloak @endif>
             <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Reports</p>
@@ -118,7 +124,6 @@
         >
             <x-slot name="icon"><x-heroicon-o-document-chart-bar class="h-5 w-5" /></x-slot>
         </x-sidebar-link>
-
         <div class="px-3 pt-5 pb-2" @if($collapsible) x-show="!sidebarCollapsed" x-cloak @endif>
             <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">User Management</p>
         </div>
@@ -260,13 +265,13 @@
         @if (! $collapsible)
             <div class="min-w-0 text-left flex-1">
                 <div class="text-sm font-medium text-gray-800 truncate">{{ Auth::user()->name }}</div>
-                <div class="text-xs text-gray-400 truncate">{{ ucfirst(Auth::user()->role?->role_name ?? 'No role') }}</div>
+                <div class="text-xs text-gray-400 truncate">{{ ucfirst($roleName ?? 'No role') }}</div>
             </div>
             <x-heroicon-o-chevron-down class="w-4 h-4 text-gray-400 shrink-0 transition-transform" x-bind:class="userMenuOpen ? 'rotate-180' : ''" aria-hidden="true" />
         @else
             <div x-show="!sidebarCollapsed" x-cloak class="min-w-0 text-left flex-1">
                 <div class="text-sm font-medium text-gray-800 truncate">{{ Auth::user()->name }}</div>
-                <div class="text-xs text-gray-400 truncate">{{ ucfirst(Auth::user()->role?->role_name ?? 'No role') }}</div>
+                <div class="text-xs text-gray-400 truncate">{{ ucfirst($roleName ?? 'No role') }}</div>
             </div>
             <x-heroicon-o-chevron-down x-show="!sidebarCollapsed" x-cloak class="w-4 h-4 text-gray-400 shrink-0 transition-transform" x-bind:class="userMenuOpen ? 'rotate-180' : ''" aria-hidden="true" />
         @endif
@@ -282,8 +287,8 @@
          x-transition:leave-end="opacity-0"
          class="mt-1 space-y-1">
         <x-sidebar-link
-            :href="route(Auth::user()->role?->role_name === 'admin' ? 'profile.edit' : 'my-profile.edit')"
-            :active="request()->routeIs(Auth::user()->role?->role_name === 'admin' ? 'profile.edit' : 'my-profile.edit')"
+            :href="route($roleName === 'admin' ? 'profile.edit' : 'my-profile.edit')"
+            :active="request()->routeIs($roleName === 'admin' ? 'profile.edit' : 'my-profile.edit')"
             :collapsible="$collapsible"
             label="Profile"
         >

@@ -15,7 +15,8 @@ class BackfillQrCredentials extends Command
     public function handle(QrCredentialService $credentials): int
     {
         $count = 0;
-        User::whereHas('role', fn ($q) => $q->whereIn('role_name', ['student', 'instructor', 'staff']))
+        User::where('status', 'active')
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['student', 'instructor', 'staff'])->where('guard_name', 'web'))
             ->whereDoesntHave('qrCredentials', fn ($q) => $q->where('status', 'active'))
             ->chunkById(100, function ($users) use ($credentials, &$count) {
                 foreach ($users as $user) {

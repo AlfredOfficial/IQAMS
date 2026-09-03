@@ -1,0 +1,21 @@
+[Unit]
+Description=IQAMS Redis queue worker
+After=network-online.target redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/iqams
+EnvironmentFile=/etc/iqams/iqams.env
+ExecStart=/usr/bin/php artisan queue:work redis --sleep=3 --tries=3 --timeout=90 --max-time=3600
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=120
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

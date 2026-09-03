@@ -13,7 +13,7 @@ class ApprovedLeaveAttendanceGuard
 
     public function ensureAttendanceIsAllowed(User $user, Carbon $attendanceAt, string $errorKey = 'attendance'): void
     {
-        $role = strtolower($user->role?->role_name ?? '');
+        $role = strtolower((string) $user->primaryRoleName());
 
         if (! in_array($role, ['instructor', 'staff'], true)) {
             return;

@@ -3,15 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
-use App\Models\Role;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\AdminAccountProtectionService;
+use App\Services\AuditLogger;
 use App\Services\QrCredentialService;
+use App\Services\RoleAssignmentService;
+use App\Rules\SectionBelongsToCourse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class StudentController extends Controller
 {
@@ -22,9 +26,9 @@ class StudentController extends Controller
     {
         $students = Student::with(['user', 'course', 'section'])->latest()->paginate(10);
 
-        $courses = Course::orderBy('course_name')->get();
+        $courses = Course::active()->orderBy('course_name')->get();
 
-        $sections = Section::with('course')->orderBy('section_name')->get();
+        $sections = Section::active()->with('course')->orderBy('section_name')->get();
 
         return view('students.index', compact('students', 'courses', 'sections'));
 
@@ -44,8 +48,8 @@ class StudentController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'course_id' => 'required|exists:courses,id',
-            'section_id' => 'required|exists:sections,id',
+            'course_id' => ['required', Rule::exists('courses', 'id')->whereNull('archived_at')],
+            'section_id' => ['required', Rule::exists('sections', 'id')->whereNull('archived_at'), new SectionBelongsToCourse($request->input('course_id'))],
             'student_no' => 'required|string|max:50|unique:students,student_no|unique:users,username',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
@@ -57,14 +61,11 @@ class StudentController extends Controller
         $avatarPath = $request->file('avatar')->store('avatars', 'public');
 
         $plainPassword = 'Student@'.$validated['student_no'];
+        $administrator = $request->user();
 
         try {
-            DB::transaction(function () use ($validated, $plainPassword, $avatarPath) {
-
-                $studentRole = Role::where('role_name', 'student')->firstOrFail();
-
+            $user = DB::transaction(function () use ($validated, $plainPassword, $administrator, $avatarPath) {
                 $user = User::create([
-                    'role_id' => $studentRole->id,
                     'username' => $validated['student_no'],
                     'name' => $validated['first_name'].' '.$validated['last_name'],
                     'email' => $validated['email'],
@@ -73,6 +74,12 @@ class StudentController extends Controller
                     'status' => 'active',
                     'email_verified_at' => now(),
                 ]);
+
+                $user->forceFill([
+                    'must_change_password' => true,
+                    'password_changed_at' => null,
+                ])->saveQuietly();
+                app(RoleAssignmentService::class)->assign($user, 'student', $administrator);
 
                 Student::create([
                     'user_id' => $user->id,
@@ -83,16 +90,24 @@ class StudentController extends Controller
                     'section_id' => $validated['section_id'] ?? null,
                     'course_id' => $validated['course_id'],
                     'status' => 'active',
-                    'qr_code' => $validated['student_no'],
+                    'qr_code' => null,
                 ]);
-                app(QrCredentialService::class)->issue($user);
+
+                app(QrCredentialService::class)->issue($user, $administrator);
+
+                return $user;
             });
         } catch (\Throwable $exception) {
             Storage::disk('public')->delete($avatarPath);
             throw $exception;
         }
 
-        return redirect()->route('students.index')->with('success', 'Student created successfully')->with('generated_username', $validated['student_no'])->with('generated_password', $plainPassword);
+        app(AuditLogger::class)->record('account.created', $user, ['role' => 'student'], $administrator, $request);
+
+        return redirect()->route('students.index')
+            ->with('success', 'Student created successfully. Share the temporary credentials below and require a password change on first login.')
+            ->with('generated_username', $validated['student_no'])
+            ->with('generated_password', $plainPassword);
     }
 
     /**
@@ -117,8 +132,8 @@ class StudentController extends Controller
     public function update(Request $request, Student $student)
     {
         $validated = $request->validate([
-            'course_id' => 'required|exists:courses,id',
-            'section_id' => 'nullable|exists:sections,id',
+            'course_id' => ['required', Rule::exists('courses', 'id')->whereNull('archived_at')],
+            'section_id' => ['nullable', Rule::exists('sections', 'id')->whereNull('archived_at'), new SectionBelongsToCourse($request->input('course_id'))],
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
@@ -148,16 +163,33 @@ class StudentController extends Controller
             Storage::disk('public')->delete($oldAvatarPath);
         }
 
+        app(AuditLogger::class)->record('account.profile_updated', $student->user, [
+            'profile' => 'student',
+            'profile_id' => $student->id,
+        ], $request->user(), $request);
+
         return redirect()->route('students.index')->with('success', 'Student updated successfully.');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Student $student)
+    public function destroy(Request $request, Student $student)
     {
-        $student->user()->delete();
+        $user = $student->user;
 
-        return redirect()->route('students.index')->with('success', 'Student deleted successfully.');
+        DB::transaction(function () use ($student, $user, $request) {
+            $lockedUser = app(AdminAccountProtectionService::class)->assertCanChangeStatus($user, 'inactive');
+            $oldStatus = $lockedUser->status;
+            $lockedUser->update(['status' => 'inactive']);
+            app(AuditLogger::class)->record('account.status_changed', $lockedUser, [
+                'from' => $oldStatus,
+                'to' => 'inactive',
+                'record' => 'student_account',
+                'profile_id' => $student->id,
+            ], $request->user(), $request);
+        });
+
+        return redirect()->route('students.index')->with('success', 'Student account deactivated successfully.');
     }
 }

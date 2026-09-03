@@ -10,6 +10,8 @@ return [
     'preview_ttl_seconds' => (int) env('ATTENDANCE_PREVIEW_TTL_SECONDS', 30),
     'scanner_scan_rate' => (int) env('ATTENDANCE_SCANNER_SCAN_RATE', 120),
     'invalid_scan_threshold' => (int) env('ATTENDANCE_INVALID_SCAN_THRESHOLD', 5),
+    'max_report_days' => (int) env('ATTENDANCE_MAX_REPORT_DAYS', 366),
+    'report_export_ttl_hours' => (int) env('ATTENDANCE_REPORT_EXPORT_TTL_HOURS', 24),
 
     'personnel_windows' => [
         'instructor' => [

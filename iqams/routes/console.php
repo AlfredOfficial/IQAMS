@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Inspiring;
+use App\Jobs\RecordQueueHeartbeat;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
@@ -10,8 +11,25 @@ Artisan::command('inspire', function () {
 
 Schedule::command('attendance:mark-student-absences')
     ->everyMinute()
-    ->withoutOverlapping();
+    ->onOneServer()
+    ->withoutOverlapping(5);
 
 Schedule::command('attendance:mark-school-event-absences')
     ->everyMinute()
-    ->withoutOverlapping();
+    ->onOneServer()
+    ->withoutOverlapping(5);
+
+Schedule::command('ops:scheduler-heartbeat')
+    ->everyMinute()
+    ->onOneServer()
+    ->withoutOverlapping(2);
+
+Schedule::job(new RecordQueueHeartbeat)
+    ->everyMinute()
+    ->onOneServer()
+    ->withoutOverlapping(2);
+
+Schedule::command('reports:prune-exports')
+    ->daily()
+    ->onOneServer()
+    ->withoutOverlapping(15);

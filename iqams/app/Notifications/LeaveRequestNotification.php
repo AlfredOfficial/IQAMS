@@ -4,13 +4,23 @@ namespace App\Notifications;
 
 use App\Models\LeaveRequest;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class LeaveRequestNotification extends Notification
+class LeaveRequestNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(public LeaveRequest $leaveRequest, public string $event) {}
+    public LeaveRequest $leaveRequest;
+
+    public string $event;
+
+    public function __construct(LeaveRequest $leaveRequest, string $event)
+    {
+        $this->leaveRequest = $leaveRequest;
+        $this->event = $event;
+        $this->afterCommit = true;
+    }
 
     public function via(object $notifiable): array
     {

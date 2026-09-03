@@ -21,7 +21,7 @@ class StudentAbsenceWarningService
             return collect();
         }
 
-        return AttendanceLog::query()
+        return AttendanceLog::canonical()
             ->join('schedules', 'attendance_logs.schedule_id', '=', 'schedules.id')
             ->join('subjects', 'schedules.subject_id', '=', 'subjects.id')
             ->where('attendance_logs.user_id', $student->user_id)

@@ -6,6 +6,8 @@ use App\Models\AttendanceLog;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Notifications\LeaveRequestNotification;
+use App\Services\AuditLogger;
+use App\Services\LeaveOverlapService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -15,7 +17,7 @@ class AdminLeaveRequestController extends Controller
 {
     public function index(Request $request)
     {
-        $query = LeaveRequest::with(['user.role', 'reviewer'])->latest();
+        $query = LeaveRequest::with(['user.roles', 'reviewer'])->latest();
         if ($request->filled('status')) {
             $query->where('status', $request->string('status'));
         }
@@ -31,9 +33,22 @@ class AdminLeaveRequestController extends Controller
 
         DB::transaction(function () use ($leaveRequest, $validated, $request) {
             User::whereKey($leaveRequest->user_id)->lockForUpdate()->firstOrFail();
+            $overlapService = app(LeaveOverlapService::class);
+            $overlapService->lockUserRows($leaveRequest->user_id);
 
             if ($validated['status'] === 'approved') {
-                $hasAttendance = AttendanceLog::where('user_id', $leaveRequest->user_id)
+                if ($overlapService->hasConflict(
+                    $leaveRequest->user_id,
+                    $leaveRequest->start_date->toDateString(),
+                    $leaveRequest->end_date->toDateString(),
+                    $leaveRequest->id,
+                )) {
+                    throw ValidationException::withMessages([
+                        'status' => 'This leave overlaps another pending or approved request. Resolve the leave overlap first.',
+                    ]);
+                }
+
+                $hasAttendance = AttendanceLog::canonical()->where('user_id', $leaveRequest->user_id)
                     ->whereNull('schedule_id')
                     ->whereBetween('scan_time', [
                         $leaveRequest->start_date->copy()->startOfDay(),
@@ -49,6 +64,9 @@ class AdminLeaveRequestController extends Controller
             }
 
             $leaveRequest->update($validated + ['reviewed_by' => $request->user()->id, 'reviewed_at' => now()]);
+            app(AuditLogger::class)->record('leave.reviewed', $leaveRequest, [
+                'status' => $validated['status'],
+            ], $request->user(), $request);
         });
 
         $leaveRequest->user->notify(new LeaveRequestNotification($leaveRequest->fresh(), $validated['status']));

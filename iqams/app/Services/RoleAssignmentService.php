@@ -22,25 +22,20 @@ class RoleAssignmentService
             throw ValidationException::withMessages(['role' => 'You cannot change your own role.']);
         }
 
-        $currentRole = $user->getRoleNames()->first() ?? $user->role?->role_name;
-        if ($currentRole === 'admin' && $roleName !== 'admin' && $this->activeAdminCount() <= 1) {
-            throw ValidationException::withMessages(['role' => 'The final active administrator cannot be reassigned.']);
-        }
-
         DB::transaction(function () use ($user, $roleName) {
+            $lockedUser = app(AdminAccountProtectionService::class)->assertCanChangeRole($user, $roleName);
+
             $role = Role::findByName($roleName, 'web');
-            $user->syncRoles([$role]);
-            $user->forceFill(['role_id' => $role->id])->save();
+            $lockedUser->syncRoles([$role]);
+            $lockedUser->forceFill(['role_id' => $role->id])->saveQuietly();
         });
 
         $user->unsetRelation('role')->unsetRelation('roles');
+        DashboardReferenceCache::forget();
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-    }
-
-    private function activeAdminCount(): int
-    {
-        return User::where('status', 'active')
-            ->whereHas('roles', fn ($query) => $query->where('name', 'admin')->where('guard_name', 'web'))
-            ->count();
+        app(AuditLogger::class)->record('role.assigned', $user, [
+            'role' => $roleName,
+            'compatibility_mirror_updated' => true,
+        ], $actor);
     }
 }

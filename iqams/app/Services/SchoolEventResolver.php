@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Schedule;
 use App\Models\SchoolEvent;
 use App\Models\Student;
+use App\ValueObjects\ScheduleOccurrence;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -20,18 +22,13 @@ class SchoolEventResolver
             ->first();
     }
 
-    public function affectingSchedule(Schedule $schedule, Carbon $date): ?SchoolEvent
+    public function affectingOccurrence(ScheduleOccurrence $occurrence): ?SchoolEvent
     {
-        $start = $date->copy()->startOfDay()->setTimeFromTimeString($schedule->start_time);
-        $end = $date->copy()->startOfDay()->setTimeFromTimeString($schedule->end_time);
-        if ($end->lessThanOrEqualTo($start)) {
-            $end->addDay();
-        }
-
-        return $this->publishedNear($start)
+        return $this->publishedNear($occurrence->startsAt)
             ->whereIn('attendance_mode', ['cancelled', 'event_attendance'])
-            ->filter(fn (SchoolEvent $event) => $this->targetsSchedule($event, $schedule)
-                && $event->starts_at->lessThan($end) && $event->ends_at->greaterThan($start))
+            ->filter(fn (SchoolEvent $event) => $this->targetsSchedule($event, $occurrence->schedule)
+                && $event->starts_at->lessThan($occurrence->endsAt)
+                && $event->ends_at->greaterThan($occurrence->startsAt))
             ->sortBy('starts_at')
             ->first();
     }
@@ -63,7 +60,7 @@ class SchoolEventResolver
             : $event->targets->contains('schedule_id', $schedule->id);
     }
 
-    public function publishedNear(Carbon $at): Collection
+    public function publishedNear(CarbonInterface $at): Collection
     {
         return SchoolEvent::with('targets.schedule')
             ->where('status', 'published')

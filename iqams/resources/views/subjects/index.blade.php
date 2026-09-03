@@ -38,17 +38,11 @@
                                 <td class="px-6 py-3 text-gray-600">{{ $subject->units }}</td>
                                 <td class="px-6 py-3 text-right space-x-3">
                                     <button type="button"
-                                        @click="editModal = {
-                                            show: true,
-                                            id: {{ $subject->id }},
-                                            code: '{{ $subject->subject_code }}',
-                                            name: '{{ addslashes($subject->subject_name) }}',
-                                            units: '{{ $subject->units }}'
-                                        }"
+                                        @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $subject->id, 'code' => $subject->subject_code, 'name' => $subject->subject_name, 'units' => (string) $subject->units]) }}"
                                         class="text-indigo-600 hover:text-indigo-800">Edit</button>
 
                                     <button type="button"
-                                        @click="deleteModal = { show: true, id: {{ $subject->id }}, name: '{{ addslashes($subject->subject_name) }}' }"
+                                        @click="deleteModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $subject->id, 'name' => $subject->subject_name]) }}"
                                         class="text-red-600 hover:text-red-800">Delete</button>
                                 </td>
                             </tr>

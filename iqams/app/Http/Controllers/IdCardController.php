@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\QrCredentialService;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -11,14 +12,26 @@ class IdCardController extends Controller
 {
     public function show(Request $request, QrCredentialService $credentials): JsonResponse
     {
-        $user = $request->user()->loadMissing([
-            'role',
+        return $this->cardResponse($request->user(), $credentials);
+    }
+
+    public function adminShow(User $user, QrCredentialService $credentials): JsonResponse
+    {
+        abort_unless($user->isAccountActive() && $user->hasAnyRole(['student', 'instructor', 'staff']), 404);
+
+        return $this->cardResponse($user, $credentials);
+    }
+
+    private function cardResponse(User $user, QrCredentialService $credentials): JsonResponse
+    {
+        $user = $user->loadMissing([
+            'roles',
             'student.course.department',
             'instructor.department',
             'nonTeachingStaff.officeUnit',
         ]);
 
-        $card = match ($user->role?->role_name) {
+        $card = match ($user->primaryRoleName()) {
             'student' => $this->studentCard($user->student),
             'instructor' => $this->instructorCard($user->instructor),
             'staff' => $this->staffCard($user->nonTeachingStaff),
@@ -41,6 +54,9 @@ class IdCardController extends Controller
             'identifier' => $card['identifier'],
             'department' => $card['department'] ?: $card['assignment_label'].' not assigned',
             'assignment_label' => $card['assignment_label'],
+            'course' => $card['course'],
+            'section' => $card['section'],
+            'office' => $card['office'],
             'year_level' => $card['year_level'],
             'qr_code' => $qrCode,
             'avatar_url' => $user->avatar_url ?: asset('images/default-avatar.svg'),
@@ -60,6 +76,9 @@ class IdCardController extends Controller
             'identifier' => $identifier,
             'department' => $student?->course?->department?->department_name,
             'assignment_label' => 'Department',
+            'course' => $student?->course?->course_code,
+            'section' => $student?->section?->section_name,
+            'office' => null,
             'year_level' => $student?->year_level ? $this->yearLevel($student->year_level) : null,
             'filename' => $this->filename('STUDENT', $identifier),
         ];
@@ -76,6 +95,9 @@ class IdCardController extends Controller
             'identifier' => $identifier,
             'department' => $instructor?->department?->department_name,
             'assignment_label' => 'Department',
+            'course' => null,
+            'section' => null,
+            'office' => null,
             'year_level' => null,
             'filename' => $this->filename('INSTRUCTOR', $identifier),
         ];
@@ -92,6 +114,9 @@ class IdCardController extends Controller
             'identifier' => $identifier,
             'department' => $staff?->officeUnit?->name,
             'assignment_label' => 'Office/Unit',
+            'course' => null,
+            'section' => null,
+            'office' => $staff?->officeUnit?->name,
             'year_level' => null,
             'filename' => $this->filename('STAFF', $identifier),
         ];

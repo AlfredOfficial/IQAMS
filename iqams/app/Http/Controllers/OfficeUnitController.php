@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\OfficeUnit;
+use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -19,7 +20,8 @@ class OfficeUnitController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        OfficeUnit::create($this->validated($request));
+        $officeUnit = OfficeUnit::create($this->validated($request));
+        app(AuditLogger::class)->record('record.created', $officeUnit, ['record' => 'office_unit'], $request->user(), $request);
 
         return back()->with('success', 'Office/unit created successfully.');
     }
@@ -27,19 +29,17 @@ class OfficeUnitController extends Controller
     public function update(Request $request, OfficeUnit $officeUnit): RedirectResponse
     {
         $officeUnit->update($this->validated($request, $officeUnit));
+        app(AuditLogger::class)->record('record.updated', $officeUnit, ['record' => 'office_unit'], $request->user(), $request);
 
         return back()->with('success', 'Office/unit updated successfully.');
     }
 
-    public function destroy(OfficeUnit $officeUnit): RedirectResponse
+    public function destroy(Request $request, OfficeUnit $officeUnit): RedirectResponse
     {
-        if ($officeUnit->staff()->exists()) {
-            return back()->withErrors(['office_unit' => 'A referenced office/unit cannot be deleted. Deactivate it instead.']);
-        }
+        $officeUnit->update(['is_active' => false]);
+        app(AuditLogger::class)->record('record.archived', $officeUnit, ['record' => 'office_unit'], $request->user(), $request);
 
-        $officeUnit->delete();
-
-        return back()->with('success', 'Office/unit deleted successfully.');
+        return back()->with('success', 'Office/unit deactivated successfully.');
     }
 
     private function validated(Request $request, ?OfficeUnit $officeUnit = null): array

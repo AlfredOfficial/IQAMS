@@ -12,7 +12,6 @@
         'Present' => 'bg-emerald-100 text-emerald-700', 'Absent' => 'bg-red-100 text-red-700',
         'In Progress' => 'bg-amber-100 text-amber-700', 'Incomplete' => 'bg-amber-100 text-amber-700',
         'Not Started' => 'bg-slate-100 text-slate-600', 'On Leave' => 'bg-sky-100 text-sky-700',
-        'Sick Leave' => 'bg-sky-100 text-sky-700',
     ];
     $workStart = config('attendance.personnel_windows.instructor.morning_in.window_start', '08:00');
     $workEnd = config('attendance.personnel_windows.instructor.final_out.window_end', '17:00');
@@ -21,9 +20,58 @@
         'history'=>'M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z','summary'=>'M4 19h16M7 16V9m5 7V5m5 11v-4',
         'schedule'=>'M8 7V3m8 4V3M5 11h14M5 5h14v16H5z','issues'=>'M12 9v4m0 4h.01M10.3 3.6L2.6 17a2 2 0 001.7 3h15.4a2 2 0 001.7-3L13.7 3.6a2 2 0 00-3.4 0z','profile'=>'M5.1 17.8a9 9 0 1113.8 0M15 11a3 3 0 11-6 0 3 3 0 016 0z'
     ];
+    $chartWidth = 760;
+    $chartHeight = 230;
+    $chartTop = 16;
+    $chartRight = 18;
+    $chartBottom = 38;
+    $chartLeft = 46;
+    $chartPlotWidth = $chartWidth - $chartLeft - $chartRight;
+    $chartPlotHeight = $chartHeight - $chartTop - $chartBottom;
+    $chartDays = $monthDays->values();
+    $chartLabelInterval = max(1, (int) ceil(max(1, $chartDays->count()) / 7));
+    $chartPoints = $chartDays->map(function (array $day, int $index) use ($chartDays, $chartLeft, $chartPlotWidth, $chartTop, $chartPlotHeight, $chartLabelInterval): array {
+        $value = ($day['isExcluded'] || $day['leave']) ? null : (int) $day['progressPercentage'];
+        $x = $chartLeft + ($chartDays->count() > 1 ? $index * $chartPlotWidth / ($chartDays->count() - 1) : $chartPlotWidth / 2);
+        $y = $chartTop + (100 - ($value ?? 0)) * $chartPlotHeight / 100;
+        $color = match (true) {
+            $value === null => '#cbd5e1',
+            $day['status'] === 'Absent' => '#f43f5e',
+            $day['status'] === 'Not Started' => '#94a3b8',
+            $day['isIncomplete'] => '#fbbf24',
+            $day['late'] => '#fb923c',
+            $day['early'] => '#8b5cf6',
+            default => '#34d399',
+        };
+
+        return [
+            'day' => $day,
+            'value' => $value,
+            'x' => round($x, 2),
+            'y' => round($y, 2),
+            'color' => $color,
+            'showLabel' => $index === 0 || $index === $chartDays->count() - 1 || $index % $chartLabelInterval === 0,
+        ];
+    });
+    $chartSegments = [];
+    $currentSegment = [];
+    foreach ($chartPoints as $point) {
+        if ($point['value'] === null) {
+            if ($currentSegment) {
+                $chartSegments[] = implode(' ', $currentSegment);
+                $currentSegment = [];
+            }
+            continue;
+        }
+        $currentSegment[] = $point['x'].','.$point['y'];
+    }
+    if ($currentSegment) {
+        $chartSegments[] = implode(' ', $currentSegment);
+    }
+    $chartHasData = $chartPoints->contains(fn (array $point) => $point['value'] !== null);
 @endphp
 <x-instructor-layout title="Dashboard">
-<div x-data="instructorWorkspace" data-realtime-url="{{ route('instructor.dashboard.realtime') }}" data-id-card-url="{{ route('id-card.show') }}" data-qr-value="{{ $instructor->qr_code ?? $instructor->employee_no }}" class="mx-auto max-w-[1500px] space-y-4">
+<div x-data="instructorWorkspace" data-realtime-url="{{ route('instructor.dashboard.realtime') }}" data-id-card-url="{{ route('id-card.show') }}" class="mx-auto max-w-[1500px] space-y-4">
     @unless (Auth::user()->isAccountActive())
         <div class="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-800">
             <div class="flex items-center gap-3"><span class="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold">Inactive</span><p class="text-sm font-semibold">Attendance unavailable. Your account is inactive. Please contact the administrator.</p></div>
@@ -35,7 +83,7 @@
                 <div class="mb-3"><h2 class="text-lg font-semibold text-gray-900">Today's attendance</h2><p class="text-sm text-gray-500">Your four daily attendance periods</p></div>
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <div class="flex items-baseline gap-2"><p data-instructor-progress-count class="text-sm font-bold text-gray-900">{{ $today['completedPeriods'] }} of 4 completed</p><p data-instructor-progress-percent class="text-sm font-semibold text-emerald-700">{{ $today['progressPercentage'] }}%</p></div>
-                    <span data-instructor-status class="inline-flex rounded-full px-3 py-1 text-xs font-bold {{ $statusClasses[$today['status']] ?? 'bg-amber-100 text-amber-700' }}">{{ $today['status'] }}</span>
+                    <span data-instructor-status class="inline-flex rounded-full px-3 py-1 text-xs font-bold {{ $statusClasses[$today['summaryStatus'] ?? $today['status']] ?? 'bg-amber-100 text-amber-700' }}">{{ $today['summaryStatus'] ?? $today['status'] }}</span>
                 </div>
                 <div class="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-gray-200" role="progressbar" aria-label="Today's attendance progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ $today['progressPercentage'] }}" data-instructor-progress-track>
                     <div data-instructor-progress-bar class="h-full rounded-full bg-emerald-500 transition-[width] duration-300" style="width: {{ $today['progressPercentage'] }}%"></div>
@@ -57,7 +105,44 @@
                 <section class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm"><div class="flex items-center justify-between gap-3"><h2 class="text-xs font-extrabold uppercase text-[#10294b]">Monthly Attendance Overview</h2><a href="{{ route('instructor.summary') }}" class="shrink-0 rounded-lg bg-slate-50 px-2.5 py-1.5 text-[10px] font-semibold">{{ now()->format('F Y') }}⌄</a></div><div class="mt-3 grid grid-cols-2 gap-2 text-center sm:grid-cols-3">@foreach([['Attendance Rate','attendance',$totals['percentage'].'%','bg-blue-50 text-blue-700'],['Present','present',$totals['presentDays'].' days','bg-emerald-50 text-emerald-700'],['Absent','absent',$totals['absentDays'].' days','bg-rose-50 text-rose-700'],['Late','late',$totals['lateCount'].' days','bg-orange-50 text-orange-600'],['Early Out','early',$totals['earlyOutCount'].' days','bg-purple-50 text-purple-700'],['Incomplete','incomplete',$totals['incompleteCount'].' days','bg-amber-50 text-amber-700'],['In Progress','in_progress',$totals['inProgressCount'].' day'.($totals['inProgressCount'] === 1 ? '' : 's'),'bg-sky-50 text-sky-700']] as [$label,$key,$value,$class])<div class="rounded-lg p-2 {{ $class }}"><p class="text-[10px] text-slate-600">{{ $label }}</p><p data-stat="{{ $key }}" class="mt-1 text-lg font-extrabold">{{ $value }}</p></div>@endforeach</div><div class="mt-2 flex items-end justify-between rounded-lg border border-slate-100 px-3 py-2"><div><p class="text-[10px] text-slate-500">Total Hours</p><p data-stat="hours" class="text-lg font-extrabold text-slate-950">{{ intdiv($totals['totalMinutes'],60) }}h {{ $totals['totalMinutes']%60 }}m</p></div><span class="text-3xl text-blue-300">◷</span></div></section>
             </div>
 
-            <section class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm"><div class="flex items-center justify-between"><h2 class="text-xs font-extrabold uppercase text-[#10294b]">My Attendance This Month</h2><a href="{{ route('instructor.summary') }}" class="rounded-lg bg-slate-50 px-3 py-1.5 text-[10px] font-semibold">{{ now()->format('F Y') }}⌄</a></div><div class="mt-4 flex h-28 items-end gap-1 border-b border-slate-200 px-1">@foreach($monthDays as $day) @php($color=$day['status']==='Absent'?'bg-rose-500':($day['isIncomplete']?'bg-amber-400':($day['late']?'bg-orange-400':($day['early']?'bg-purple-500':'bg-emerald-400'))))<div class="group relative flex h-full min-w-0 flex-1 items-end"><div class="w-full rounded-t-sm {{ $color }}" style="height:{{ $day['status']==='Absent'?18:max(18,min(100,$day['minutes']/480*100)) }}%"></div><span class="absolute bottom-full left-1/2 z-20 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-[9px] text-white group-hover:block">{{ $day['date']->format('M j') }} · {{ $day['status'] }}</span></div>@endforeach</div><div class="mt-2 flex flex-wrap gap-4 text-[10px] text-slate-600">@foreach(['bg-emerald-400'=>'On Time','bg-orange-400'=>'Late','bg-purple-500'=>'Early Out','bg-amber-400'=>'Incomplete','bg-rose-500'=>'Absent'] as $color=>$label)<span class="flex items-center gap-1.5"><i class="h-2 w-3 rounded-sm {{ $color }}"></i>{{ $label }}</span>@endforeach</div></section>
+            <section class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                <div class="flex items-center justify-between gap-3">
+                    <div><h2 class="text-xs font-extrabold uppercase text-[#10294b]">My Attendance This Month</h2><p class="mt-1 text-[11px] text-slate-500">Daily completion of your four attendance periods</p></div>
+                    <a href="{{ route('instructor.summary') }}" class="shrink-0 rounded-lg bg-slate-50 px-3 py-1.5 text-[10px] font-semibold">{{ now()->format('F Y') }}⌄</a>
+                </div>
+                @if($chartHasData)
+                    <div class="mt-4 overflow-x-auto rounded-xl border border-slate-100 bg-slate-50/40 px-2 pt-2">
+                        <svg class="h-64 min-w-[680px] w-full" viewBox="0 0 {{ $chartWidth }} {{ $chartHeight }}" role="img" aria-labelledby="instructor-attendance-chart-title instructor-attendance-chart-description">
+                            <title id="instructor-attendance-chart-title">Daily attendance completion</title>
+                            <desc id="instructor-attendance-chart-description">Attendance completion percentage for each working day this month. One hundred percent means all four attendance periods were recorded.</desc>
+                            @foreach([100, 75, 50, 25, 0] as $gridValue)
+                                @php($gridY = $chartTop + (100 - $gridValue) * $chartPlotHeight / 100)
+                                <line x1="{{ $chartLeft }}" y1="{{ $gridY }}" x2="{{ $chartWidth - $chartRight }}" y2="{{ $gridY }}" stroke="#e2e8f0" stroke-width="1" />
+                                <text x="{{ $chartLeft - 10 }}" y="{{ $gridY + 4 }}" text-anchor="end" fill="#64748b" font-size="11">{{ $gridValue }}%</text>
+                            @endforeach
+                            @foreach($chartSegments as $segment)
+                                <polyline points="{{ $segment }}" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                            @endforeach
+                            @foreach($chartPoints as $point)
+                                @if($point['value'] !== null)
+                                    <circle cx="{{ $point['x'] }}" cy="{{ $point['y'] }}" r="4.5" fill="{{ $point['color'] }}" stroke="#ffffff" stroke-width="2">
+                                        <title>{{ $point['day']['date']->format('M j') }}: {{ $point['value'] }}% ({{ $point['day']['status'] }})</title>
+                                    </circle>
+                                @endif
+                                @if($point['showLabel'])
+                                    <text x="{{ $point['x'] }}" y="{{ $chartHeight - 9 }}" text-anchor="middle" fill="#64748b" font-size="10">{{ $point['day']['date']->format('M j') }}</text>
+                                @endif
+                            @endforeach
+                        </svg>
+                    </div>
+                @else
+                    <div class="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-xs text-slate-500">No rated attendance days yet this month.</div>
+                @endif
+                <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] text-slate-600">
+                    <span class="inline-flex items-center gap-1.5"><i class="h-0.5 w-4 rounded-full bg-blue-600"></i>Daily completion</span>
+                    @foreach(['#34d399'=>'Complete','#fbbf24'=>'Incomplete','#f43f5e'=>'Absent'] as $color=>$label)<span class="inline-flex items-center gap-1.5"><i class="h-2 w-2 rounded-full" style="background-color:{{ $color }}"></i>{{ $label }}</span>@endforeach
+                </div>
+            </section>
         </div>
 
         <aside class="space-y-4">

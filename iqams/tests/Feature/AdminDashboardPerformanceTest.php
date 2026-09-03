@@ -107,6 +107,41 @@ class AdminDashboardPerformanceTest extends TestCase
         $this->assertLessThan(1000, $milliseconds, "Incremental dashboard took {$milliseconds} ms in the test environment.");
     }
 
+    public function test_current_presence_requires_a_present_or_late_time_in_as_the_latest_event(): void
+    {
+        Carbon::setTestNow('2026-08-19 10:00:00');
+        $present = $this->user('student');
+        $absent = $this->user('student');
+        $timedOut = $this->user('staff');
+
+        AttendanceLog::create([
+            'user_id' => $present->id,
+            'attendance_type' => 'time_in',
+            'scan_time' => now()->subMinutes(5),
+            'status' => 'late',
+        ]);
+        AttendanceLog::create([
+            'user_id' => $absent->id,
+            'attendance_type' => 'time_in',
+            'scan_time' => now()->subMinutes(4),
+            'status' => 'absent',
+        ]);
+        AttendanceLog::create([
+            'user_id' => $timedOut->id,
+            'attendance_type' => 'time_in',
+            'scan_time' => now()->subMinutes(3),
+            'status' => 'present',
+        ]);
+        AttendanceLog::create([
+            'user_id' => $timedOut->id,
+            'attendance_type' => 'time_out',
+            'scan_time' => now()->subMinutes(2),
+            'status' => 'present',
+        ]);
+
+        $this->assertSame(1, app(AdminDashboardData::class)->build()['stats']['present']);
+    }
+
     private function user(string $role): User
     {
         /** @var User $user */

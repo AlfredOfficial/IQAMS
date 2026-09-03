@@ -94,6 +94,7 @@ Alpine.data('instructorWorkspace', () => ({
     refreshTimer: null,
     qrReadyHandler: null,
     downloadingIdCard: false,
+    qrCode: null,
 
     init() {
         this.refreshTimer = window.setInterval(() => this.refresh(), 3000);
@@ -105,6 +106,8 @@ Alpine.data('instructorWorkspace', () => ({
         } else {
             window.addEventListener('qrcode:ready', this.qrReadyHandler, { once: true });
         }
+
+        this.loadQrCode();
     },
 
     destroy() {
@@ -114,7 +117,7 @@ Alpine.data('instructorWorkspace', () => ({
 
     renderQrCode() {
         const qr = this.$root.querySelector('#instructor-qr');
-        const value = this.$root.dataset.qrValue;
+        const value = this.qrCode;
 
         if (!qr) return;
 
@@ -133,6 +136,24 @@ Alpine.data('instructorWorkspace', () => ({
             colorDark: '#0f172a',
             colorLight: '#ffffff',
         });
+    },
+
+    async loadQrCode() {
+        const endpoint = this.$root.dataset.idCardUrl;
+        if (!endpoint) return;
+
+        try {
+            const response = await fetch(endpoint, {
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                cache: 'no-store',
+            });
+            if (!response.ok) return;
+            this.qrCode = (await response.json()).qr_code || null;
+            this.renderQrCode();
+        } catch {
+            // Keep the placeholder when the private ID-card endpoint is unavailable.
+        }
     },
 
     async downloadIdCard() {
@@ -159,7 +180,7 @@ Alpine.data('instructorWorkspace', () => ({
             const data = await response.json();
             const day = data.today;
             const statusBadge = this.$root.querySelector('[data-instructor-status]');
-            if (statusBadge) statusBadge.textContent = day.status;
+            if (statusBadge) statusBadge.textContent = day.summary_status || day.status;
             const next = this.$root.querySelector('[data-instructor-next]');
             if (next) next.textContent = day.next_period?.replaceAll('_', ' ').replace(/\b\w/g, char => char.toUpperCase()) ?? 'Complete';
             const progressCount = this.$root.querySelector('[data-instructor-progress-count]');
@@ -243,7 +264,7 @@ const pollingWorkspace = (render) => ({
 
 Alpine.data('staffWorkspace', () => ({
     ...pollingWorkspace((root, data) => {
-        root.querySelector('[data-staff-status]').textContent = data.today.status;
+        root.querySelector('[data-staff-status]').textContent = data.today.summary_status || data.today.status;
         root.querySelector('[data-staff-next]').textContent = data.today.next_period?.replaceAll('_', ' ').replace(/\b\w/g, char => char.toUpperCase()) ?? 'Complete';
         root.querySelector('[data-staff-progress-count]').textContent = `${data.today.completed_periods} of 4 completed`;
         root.querySelector('[data-staff-progress-percent]').textContent = `${data.today.progress_percentage}%`;
@@ -282,6 +303,7 @@ Alpine.data('staffWorkspace', () => ({
         }));
     }),
     qrReadyHandler: null,
+    qrCode: null,
 
     init() {
         this.refreshTimer = window.setInterval(() => this.refresh(), 3000);
@@ -292,6 +314,8 @@ Alpine.data('staffWorkspace', () => ({
         } else {
             window.addEventListener('qrcode:ready', this.qrReadyHandler, { once: true });
         }
+
+        this.loadQrCode();
     },
 
     destroy() {
@@ -302,7 +326,7 @@ Alpine.data('staffWorkspace', () => ({
 
     renderQrCode() {
         const target = this.$root.querySelector('#staff-qr');
-        const value = this.$root.dataset.qrValue;
+        const value = this.qrCode;
 
         if (!target) return;
         if (!value) {
@@ -320,11 +344,35 @@ Alpine.data('staffWorkspace', () => ({
             colorLight: '#ffffff',
         });
     },
+
+    async loadQrCode() {
+        const endpoint = this.$root.dataset.idCardUrl;
+        if (!endpoint) return;
+
+        try {
+            const response = await fetch(endpoint, {
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                cache: 'no-store',
+            });
+            if (!response.ok) return;
+            this.qrCode = (await response.json()).qr_code || null;
+            this.renderQrCode();
+        } catch {
+            // Keep the placeholder when the private ID-card endpoint is unavailable.
+        }
+    },
 }));
 
 Alpine.data('studentWorkspace', () => pollingWorkspace((root, data) => {
-    const statValues = root.querySelectorAll('[aria-labelledby="summary-title"] p.mt-2');
-    ['present', 'late', 'absent', 'excused'].forEach((status, index) => { if (statValues[index]) statValues[index].textContent = data.stats[status]; });
+    ['present', 'late', 'absent', 'excused'].forEach((status) => {
+        const element = root.querySelector(`[data-student-stat="${status}"]`);
+        if (element) element.textContent = data.stats[status];
+    });
+    const percentage = root.querySelector('[data-student-stat="percentage"]');
+    if (percentage && data.summary) percentage.textContent = `${Number(data.summary.percentage || 0).toFixed(2)}%`;
+    const detail = root.querySelector('[data-student-stat="detail"]');
+    if (detail && data.summary) detail.textContent = `${data.summary.attended} attended of ${data.summary.scheduled} rated sessions · ${data.summary.excluded} excluded`;
     const section = [...root.querySelectorAll('section')].find(item => item.querySelector('h2')?.textContent.trim() === 'Recent attendance');
     const recent = section?.querySelector('.border.border-slate-200.bg-white');
     if (!recent) return;
@@ -341,6 +389,7 @@ Alpine.data('studentWorkspace', () => pollingWorkspace((root, data) => {
 Alpine.data('studentQr', () => ({
     qrReadyHandler: null,
     downloadingIdCard: false,
+    qrCode: null,
 
     init() {
         this.qrReadyHandler = () => this.renderQrCode();
@@ -349,6 +398,8 @@ Alpine.data('studentQr', () => ({
         } else {
             window.addEventListener('qrcode:ready', this.qrReadyHandler, { once: true });
         }
+
+        this.loadQrCode();
     },
 
     destroy() {
@@ -357,7 +408,7 @@ Alpine.data('studentQr', () => ({
 
     renderQrCode() {
         const target = this.$root.querySelector('#student-qr');
-        const value = this.$root.dataset.qrValue;
+        const value = this.qrCode;
         if (!target) return;
         if (!value) {
             target.textContent = 'No QR code assigned';
@@ -372,6 +423,24 @@ Alpine.data('studentQr', () => ({
             height: 224,
             colorDark: '#093f3d',
         });
+    },
+
+    async loadQrCode() {
+        const endpoint = this.$root.dataset.idCardUrl;
+        if (!endpoint) return;
+
+        try {
+            const response = await fetch(endpoint, {
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                cache: 'no-store',
+            });
+            if (!response.ok) return;
+            this.qrCode = (await response.json()).qr_code || null;
+            this.renderQrCode();
+        } catch {
+            // Keep the placeholder when the private ID-card endpoint is unavailable.
+        }
     },
 
     async downloadIdCard() {

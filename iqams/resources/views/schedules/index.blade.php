@@ -81,24 +81,28 @@
                                 <td class="px-6 py-3 text-gray-600">{{ $schedule->room }}</td>
                                 <td class="px-6 py-3 text-right space-x-3">
                                     <button type="button"
-                                        @click="editModal = {
-                                            show: true,
-                                            id: {{ $schedule->id }},
-                                            subject_id: '{{ $schedule->subject_id }}',
-                                            instructor_id: '{{ $schedule->instructor_id }}',
-                                            section_id: '{{ $schedule->section_id }}',
-                                            days: @js(count($schedule->recurring_days) > 1 ? $schedule->recurring_days : [$schedule->day]),
-                                            original_day: @js($schedule->day),
-                                            recurring_days: @js($schedule->recurring_days),
-                                            apply_to_recurring: @js(count($schedule->recurring_days) > 1),
-                                            start_time: '{{ \Illuminate\Support\Carbon::parse($schedule->start_time)->format('H:i') }}',
-                                            end_time: '{{ \Illuminate\Support\Carbon::parse($schedule->end_time)->format('H:i') }}',
-                                            room: '{{ addslashes($schedule->room) }}'
-                                        }"
+                                        @click="editModal = {{ Illuminate\Support\Js::from([
+                                            'show' => true,
+                                            'id' => $schedule->id,
+                                            'subject_id' => (string) $schedule->subject_id,
+                                            'instructor_id' => (string) $schedule->instructor_id,
+                                            'section_id' => (string) $schedule->section_id,
+                                            'days' => count($schedule->recurring_days) > 1 ? $schedule->recurring_days : [$schedule->day],
+                                            'original_day' => $schedule->day,
+                                            'recurring_days' => $schedule->recurring_days,
+                                            'apply_to_recurring' => count($schedule->recurring_days) > 1,
+                                            'start_time' => \Illuminate\Support\Carbon::parse($schedule->start_time)->format('H:i'),
+                                            'end_time' => \Illuminate\Support\Carbon::parse($schedule->end_time)->format('H:i'),
+                                            'room' => $schedule->room,
+                                        ]) }}"
                                         class="text-indigo-600 hover:text-indigo-800">Edit</button>
 
                                     <button type="button"
-                                        @click="deleteModal = { show: true, id: {{ $schedule->id }}, name: '{{ addslashes(($schedule->subject->subject_code ?? 'Schedule') . ' - ' . ucfirst($schedule->day)) }}' }"
+                                        @click="deleteModal = {{ Illuminate\Support\Js::from([
+                                            'show' => true,
+                                            'id' => $schedule->id,
+                                            'name' => ($schedule->subject->subject_code ?? 'Schedule').' - '.ucfirst($schedule->day),
+                                        ]) }}"
                                         class="text-red-600 hover:text-red-800">Delete</button>
                                 </td>
                             </tr>

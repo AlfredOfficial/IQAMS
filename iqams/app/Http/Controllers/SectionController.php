@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Course;
 use App\Models\Section;
+use App\Services\AuditLogger;
+use App\Services\ArchiveService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class SectionController extends Controller
 {
@@ -13,9 +16,9 @@ class SectionController extends Controller
      */
     public function index()
     {
-        $sections = Section::with(['course', 'schedules.subject', 'schedules.instructor'])->latest()->paginate(10);
+        $sections = Section::active()->with(['course', 'schedules.subject', 'schedules.instructor'])->latest()->paginate(10);
         
-        $courses = Course::orderBy('course_name')->get();
+        $courses = Course::active()->orderBy('course_name')->get();
 
         return view('sections.index', compact('sections', 'courses'));
     }
@@ -34,13 +37,14 @@ class SectionController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'course_id' => 'required|exists:courses,id',
+            'course_id' => ['required', Rule::exists('courses', 'id')->whereNull('archived_at')],
             'section_name' => 'required|string|max:50',
             'school_year' => 'required|string|max:20',
             'semester' => 'required|in:1st,2nd,summer',
         ]);
 
-        Section::create($validated);
+        $section = Section::create($validated);
+        app(AuditLogger::class)->record('record.created', $section, ['record' => 'section'], $request->user(), $request);
 
         return redirect()->route('sections.index')->with('success', 'Section created successfully.');
     }
@@ -68,13 +72,14 @@ class SectionController extends Controller
     public function update(Request $request, Section $section)
     {
         $validated = $request->validate([
-            'course_id' => 'required|exists:courses,id',
+            'course_id' => ['required', Rule::exists('courses', 'id')->whereNull('archived_at')],
             'section_name' => 'required|string|max:50',
             'school_year' => 'required|string|max:20',
             'semester' => 'required|in:1st,2nd,summer',
         ]);
 
         $section->update($validated);
+        app(AuditLogger::class)->record('record.updated', $section, ['record' => 'section'], $request->user(), $request);
 
         return redirect()->route('sections.index')->with('success', 'Section updated successfully.');
     }
@@ -82,10 +87,10 @@ class SectionController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Section $section)
+    public function destroy(Request $request, Section $section)
     {
-        $section->delete();
+        app(ArchiveService::class)->archive($section, $request->user(), $request);
 
-        return redirect()->route('sections.index')->with('success', 'Section deleted successfully');
+        return redirect()->route('sections.index')->with('success', 'Section archived successfully');
     }
 }

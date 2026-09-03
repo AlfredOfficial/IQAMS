@@ -76,7 +76,7 @@ class RecurringScheduleUpdateTest extends TestCase
 
     public function test_multi_day_creation_assigns_one_group_without_duplicates(): void
     {
-        $this->actingAs($this->admin)->post(route('schedules.store'), [
+        $this->actingAs($this->admin)->withSession(['auth.password_confirmed_at' => time()])->post(route('schedules.store'), [
             'subject_id' => $this->subject->id,
             'instructor_id' => $this->instructor->id,
             'section_id' => $this->section->id,
@@ -186,7 +186,7 @@ class RecurringScheduleUpdateTest extends TestCase
             'room' => $schedule->room,
         ], $changes);
 
-        return $this->actingAs($this->admin)->put(route('schedules.update', $schedule), $payload)->assertRedirect();
+        return $this->actingAs($this->admin)->withSession(['auth.password_confirmed_at' => time()])->put(route('schedules.update', $schedule), $payload)->assertRedirect();
     }
 
     private function group(array $days, array $overrides = [])

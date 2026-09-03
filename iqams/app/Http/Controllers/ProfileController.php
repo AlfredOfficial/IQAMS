@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Services\AdminAccountProtectionService;
+use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
 
@@ -34,6 +37,8 @@ class ProfileController extends Controller
 
         $request->user()->save();
 
+        app(AuditLogger::class)->record('account.profile_updated', $request->user(), [], $request->user(), $request);
+
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
     }
 
@@ -48,9 +53,17 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
-        Auth::logout();
+        DB::transaction(function () use ($user, $request) {
+            $lockedUser = app(AdminAccountProtectionService::class)->assertCanChangeStatus($user, 'inactive');
+            $lockedUser->update(['status' => 'inactive']);
+            app(AuditLogger::class)->record('account.status_changed', $lockedUser, [
+                'from' => 'active',
+                'to' => 'inactive',
+                'record' => 'user_account',
+            ], $lockedUser, $request);
+        });
 
-        $user->delete();
+        Auth::logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

@@ -1,0 +1,6 @@
+# Install as:
+# /etc/systemd/system/php8.4-fpm.service.d/iqams-environment.conf
+# The secret manager should render this environment file outside the repo.
+
+[Service]
+EnvironmentFile=/etc/iqams/iqams.env

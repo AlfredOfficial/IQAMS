@@ -4,11 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\AttendanceLog;
 use App\Services\StudentAbsenceWarningService;
+use App\Services\StudentAttendanceSummary;
 use Illuminate\Http\Request;
 
 class StudentDashboardController extends Controller
 {
-    public function index(Request $request, StudentAbsenceWarningService $absenceWarnings)
+    public function index(
+        Request $request,
+        StudentAbsenceWarningService $absenceWarnings,
+        StudentAttendanceSummary $attendanceSummary,
+    )
     {
         $student = $request->user()->student?->load(['course.department', 'section']);
 
@@ -24,33 +29,34 @@ class StudentDashboardController extends Controller
 
         $dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
-        $myAttendance = AttendanceLog::where('user_id', $request->user()->id)
+        $myAttendance = AttendanceLog::canonical()->where('user_id', $request->user()->id)
             ->with(['schedule.subject', 'schoolEvent'])
             ->latest('scan_time')
             ->take(10)
             ->get();
 
-        $stats = [
-            'present' => AttendanceLog::where('user_id', $request->user()->id)->where('status', 'present')->count(),
-            'late' => AttendanceLog::where('user_id', $request->user()->id)->where('status', 'late')->count(),
-            'absent' => AttendanceLog::where('user_id', $request->user()->id)->where('status', 'absent')->count(),
-            'excused' => AttendanceLog::where('user_id', $request->user()->id)->where('status', 'excused')->count(),
-        ];
-
         $subjectAbsenceWarnings = $absenceWarnings->forStudent($student);
+        $summary = $attendanceSummary->forStudent($student);
+        $stats = collect(['present', 'late', 'absent', 'excused'])
+            ->mapWithKeys(fn ($status) => [$status => $summary[$status]])
+            ->all();
 
-        return view('student.dashboard', compact('student', 'schedules', 'scheduleByDay', 'dayOrder', 'myAttendance', 'stats', 'subjectAbsenceWarnings'));
+        return view('student.dashboard', compact('student', 'schedules', 'scheduleByDay', 'dayOrder', 'myAttendance', 'stats', 'summary', 'subjectAbsenceWarnings'));
     }
 
-    public function realtime(Request $request)
+    public function realtime(Request $request, StudentAttendanceSummary $attendanceSummary)
     {
-        abort_unless($request->user()->student, 403);
-        $query = AttendanceLog::where('user_id', $request->user()->id);
+        $student = $request->user()->student;
+        abort_unless($student, 403);
+        $query = AttendanceLog::canonical()->where('user_id', $request->user()->id);
         $logs = (clone $query)->with(['schedule.subject', 'schoolEvent'])->latest('scan_time')->take(10)->get();
+
+        $summary = $attendanceSummary->forStudent($student);
 
         return response()->json([
             'stats' => collect(['present', 'late', 'absent', 'excused'])
-                ->mapWithKeys(fn ($status) => [$status => (clone $query)->where('status', $status)->count()]),
+                ->mapWithKeys(fn ($status) => [$status => $summary[$status]]),
+            'summary' => $summary,
             'recent' => $logs->map(fn ($log) => [
                 'code' => $log->schoolEvent ? 'SCHOOL EVENT' : ($log->schedule?->subject?->subject_code ?? '—'),
                 'title' => $log->schoolEvent?->title ?? $log->schedule?->subject?->subject_name ?? 'Attendance record',

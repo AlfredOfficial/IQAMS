@@ -6,9 +6,13 @@ use App\Models\Instructor;
 use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Subject;
+use App\Services\AuditLogger;
+use App\Services\ArchiveService;
+use App\Rules\ValidScheduleTimeWindow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class ScheduleController extends Controller
@@ -18,7 +22,7 @@ class ScheduleController extends Controller
      */
     public function index()
     {
-        $schedules = Schedule::with(['subject', 'instructor', 'section', 'recurringSchedules:id,recurring_schedule_group_id,day'])
+        $schedules = Schedule::active()->with(['subject', 'instructor', 'section', 'recurringSchedules:id,recurring_schedule_group_id,day'])
             ->latest()->paginate(10);
 
         $dayOrder = array_flip(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']);
@@ -30,11 +34,11 @@ class ScheduleController extends Controller
             $schedule->setAttribute('recurring_days', $days->all());
         });
 
-        $subjects = Subject::orderBy('subject_name')->get();
+        $subjects = Subject::active()->orderBy('subject_name')->get();
 
         $instructors = Instructor::orderBy('first_name')->get();
 
-        $sections = Section::with('course')->orderBy('section_name')->get();
+        $sections = Section::active()->with('course')->orderBy('section_name')->get();
 
         return view('schedules.index', compact('schedules', 'subjects', 'instructors', 'sections'));
     }
@@ -54,12 +58,13 @@ class ScheduleController extends Controller
     {
         $validated = $this->validateSchedule($request);
 
-        DB::transaction(function () use ($validated) {
+        DB::transaction(function () use ($validated, $request) {
             $this->ensureNoDuplicates($validated);
             $groupId = (string) Str::uuid();
 
             foreach ($validated['days'] as $day) {
-                Schedule::create($this->attributesForDay($validated, $day, $groupId));
+                $schedule = Schedule::create($this->attributesForDay($validated, $day, $groupId));
+                app(AuditLogger::class)->record('record.created', $schedule, ['record' => 'schedule'], $request->user(), $request);
             }
         });
 
@@ -92,7 +97,7 @@ class ScheduleController extends Controller
     {
         $validated = $this->validateSchedule($request);
 
-        DB::transaction(function () use ($validated, $schedule) {
+        DB::transaction(function () use ($validated, $schedule, $request) {
             $schedule = Schedule::query()->lockForUpdate()->findOrFail($schedule->getKey());
             $group = $schedule->recurring_schedule_group_id
                 ? Schedule::query()
@@ -111,6 +116,7 @@ class ScheduleController extends Controller
                         $groupSchedule->day,
                         $schedule->recurring_schedule_group_id,
                     ));
+                    app(AuditLogger::class)->record('record.updated', $groupSchedule, ['record' => 'schedule', 'scope' => 'recurring_group'], $request->user(), $request);
                 }
 
                 return;
@@ -121,9 +127,11 @@ class ScheduleController extends Controller
 
             $days = $validated['days'];
             $schedule->update($this->attributesForDay($validated, array_shift($days), $newGroupId));
+            app(AuditLogger::class)->record('record.updated', $schedule, ['record' => 'schedule'], $request->user(), $request);
 
             foreach ($days as $day) {
-                Schedule::create($this->attributesForDay($validated, $day, $newGroupId));
+                $created = Schedule::create($this->attributesForDay($validated, $day, $newGroupId));
+                app(AuditLogger::class)->record('record.created', $created, ['record' => 'schedule'], $request->user(), $request);
             }
         });
 
@@ -133,23 +141,23 @@ class ScheduleController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Schedule $schedule)
+    public function destroy(Request $request, Schedule $schedule)
     {
-        $schedule->delete();
+        app(ArchiveService::class)->archive($schedule, $request->user(), $request);
 
-        return redirect()->route('schedules.index')->with('success', 'Schedule deleted successfully.');
+        return redirect()->route('schedules.index')->with('success', 'Schedule archived successfully.');
     }
 
     private function validateSchedule(Request $request): array
     {
         return $request->validate([
-            'subject_id' => ['required', 'exists:subjects,id'],
+            'subject_id' => ['required', Rule::exists('subjects', 'id')->whereNull('archived_at')],
             'instructor_id' => ['required', 'exists:instructors,id'],
-            'section_id' => ['required', 'exists:sections,id'],
+            'section_id' => ['required', Rule::exists('sections', 'id')->whereNull('archived_at')],
             'days' => ['required', 'array', 'min:1'],
             'days.*' => ['required', 'distinct', 'in:monday,tuesday,wednesday,thursday,friday,saturday,sunday'],
             'start_time' => ['required', 'date_format:H:i'],
-            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
+            'end_time' => ['required', 'date_format:H:i', new ValidScheduleTimeWindow($request->input('start_time'))],
             'room' => ['required', 'string', 'max:50'],
             'apply_to_recurring' => ['sometimes', 'boolean'],
         ], [
@@ -169,6 +177,7 @@ class ScheduleController extends Controller
             ->whereTime('start_time', $data['start_time'])
             ->whereTime('end_time', $data['end_time'])
             ->where('room', $data['room'])
+            ->whereNull('archived_at')
             ->when($exceptIds !== [], fn ($query) => $query->whereKeyNot($exceptIds))
             ->pluck('day')
             ->map(fn ($day) => ucfirst($day))

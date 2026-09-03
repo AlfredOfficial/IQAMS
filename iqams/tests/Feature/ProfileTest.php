@@ -28,6 +28,7 @@ class ProfileTest extends TestCase
 
         $response = $this
             ->actingAs($user)
+            ->withSession(['auth.password_confirmed_at' => time()])
             ->patch('/profile', [
                 'name' => 'Test User',
                 'email' => 'test@example.com',
@@ -50,6 +51,7 @@ class ProfileTest extends TestCase
 
         $response = $this
             ->actingAs($user)
+            ->withSession(['auth.password_confirmed_at' => time()])
             ->patch('/profile', [
                 'name' => 'Test User',
                 'email' => $user->email,
@@ -65,9 +67,11 @@ class ProfileTest extends TestCase
     public function test_user_can_delete_their_account(): void
     {
         $user = $this->adminUser();
+        $this->adminUser();
 
         $response = $this
             ->actingAs($user)
+            ->withSession(['auth.password_confirmed_at' => time()])
             ->delete('/profile', [
                 'password' => 'password',
             ]);
@@ -77,7 +81,7 @@ class ProfileTest extends TestCase
             ->assertRedirect('/');
 
         $this->assertGuest();
-        $this->assertNull($user->fresh());
+        $this->assertSame('inactive', $user->fresh()->status);
     }
 
     public function test_correct_password_must_be_provided_to_delete_account(): void
@@ -86,6 +90,7 @@ class ProfileTest extends TestCase
 
         $response = $this
             ->actingAs($user)
+            ->withSession(['auth.password_confirmed_at' => time()])
             ->from('/profile')
             ->delete('/profile', [
                 'password' => 'wrong-password',
@@ -93,6 +98,20 @@ class ProfileTest extends TestCase
 
         $response
             ->assertSessionHasErrorsIn('userDeletion', 'password')
+            ->assertRedirect('/profile');
+
+        $this->assertNotNull($user->fresh());
+    }
+
+    public function test_final_admin_cannot_delete_their_account(): void
+    {
+        $user = $this->adminUser();
+
+        $this->actingAs($user)
+            ->withSession(['auth.password_confirmed_at' => time()])
+            ->from('/profile')
+            ->delete('/profile', ['password' => 'password'])
+            ->assertSessionHasErrors('admin')
             ->assertRedirect('/profile');
 
         $this->assertNotNull($user->fresh());

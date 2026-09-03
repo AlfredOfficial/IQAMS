@@ -14,25 +14,20 @@
             editModal: { show: false, id: null, course_id: '', section_id: '', first_name: '', last_name: '', middle_name: '', status: '', avatar_url: '' },
             deleteModal: { show: false, id: null, name: '' },
             statusModal: { show: false, userId: null, name: '', status: '' },
-            qrModal: { show: false, value: '', label: '' }
+            qrModal: { show: false, value: '', label: '' },
+            selectedIds: []
         }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
-            @if (session('generated_username'))
-                <div class="mb-4 bg-indigo-50 border border-indigo-200 text-indigo-800 px-4 py-3 rounded">
-                    <p class="font-medium">Login credentials for this student (shown once — share it with them now):</p>
-                    <p class="text-sm mt-1">Username: <span class="font-mono font-semibold">{{ session('generated_username') }}</span></p>
-                    <p class="text-sm">Password: <span class="font-mono font-semibold">{{ session('generated_password') }}</span></p>
-                </div>
-            @endif
+            <x-temporary-credentials-alert role="student" />
 
             <div class="bg-white shadow-sm rounded-lg">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                     <span class="text-sm text-gray-500">{{ $students->total() }} total</span>
-                    <button @click="showCreateModal = true"
+                    <div class="flex items-center gap-2"><button type="button" @click="window.printIqamsIdCards(selectedIds.map(id => '{{ url('admin/id-cards') }}/' + id)).catch(error => window.alert(error.message))" :disabled="selectedIds.length === 0" class="rounded border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">Print selected ID cards</button><button @click="showCreateModal = true"
                        class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
                         + Add Student
-                    </button>
+                    </button></div>
                 </div>
 
                 <div class="overflow-x-auto">
@@ -40,7 +35,7 @@
                     <colgroup><col class="w-40"><col class="w-20"><col class="w-48"><col class="w-28"><col class="w-32"><col class="w-36"><col class="w-20"></colgroup>
                     <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
                         <tr>
-                            <th class="px-6 py-3">Student No.</th>
+                            <th class="px-6 py-3">Select</th><th class="px-6 py-3">Student No.</th>
                             <th class="px-6 py-3">Profile</th>
                             <th class="px-6 py-3">Name</th>
                             <th class="px-6 py-3">Course</th>
@@ -52,20 +47,23 @@
                     <tbody class="divide-y divide-gray-100">
                         @forelse ($students as $student)
                             <tr class="transition-colors hover:bg-gray-50/80">
-                                <td class="whitespace-nowrap px-6 py-3 font-medium text-gray-800">{{ $student->student_no }}</td>
+                                <td class="px-6 py-3"><input type="checkbox" value="{{ $student->user_id }}" @change="selectedIds = $event.target.checked ? [...selectedIds, {{ $student->user_id }}] : selectedIds.filter(id => id !== {{ $student->user_id }})" class="rounded border-gray-300 text-indigo-600"></td><td class="whitespace-nowrap px-6 py-3 font-medium text-gray-800">{{ $student->student_no }}</td>
                                 <td class="px-6 py-3"><img src="{{ $student->user->avatar_url ?? asset('images/default-avatar.svg') }}" alt="Profile photo" class="h-10 w-10 rounded-full object-cover"></td>
                                 <td class="whitespace-nowrap px-6 py-3 text-gray-600">{{ $student->first_name }} {{ $student->last_name }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $student->course->course_code ?? '—' }}</td>
                                 <td class="whitespace-nowrap px-6 py-3 text-gray-600">{{ $student->section->section_name ?? '—' }}</td>
-                                <td class="px-6 py-3">
-                                    <span @class([
-                                        'px-2 py-1 rounded text-xs font-medium',
-                                        'bg-green-50 text-green-700' => $student->user->status === 'active',
-                                        'bg-red-50 text-red-700' => $student->user->status === 'inactive',
-                                    ])>
-                                        {{ ucfirst($student->user->status) }}
-                                    </span>
-                                </td>
+                                    <td class="px-6 py-3">
+                                        <span @class([
+                                            'px-2 py-1 rounded text-xs font-medium',
+                                            'bg-green-50 text-green-700' => $student->user->status === 'active',
+                                            'bg-red-50 text-red-700' => $student->user->status === 'inactive',
+                                        ])>
+                                            {{ ucfirst($student->user->status) }}
+                                        </span>
+                                        @if ($student->user->must_change_password)
+                                            <span class="mt-1 block text-xs font-medium text-amber-700">Initial password</span>
+                                        @endif
+                                    </td>
                                 <td class="px-6 py-3 text-right">
                                     <x-action-menu
                                         :delete-action="route('students.destroy', $student)"
@@ -73,14 +71,20 @@
                                         :next-status="$student->user->isAccountActive() ? 'inactive' : 'active'"
                                         :is-active="$student->user->isAccountActive()"
                                         :delete-name="$student->fullName()">
+                                        <x-slot:reset>
+                                            <form method="POST" action="{{ route('users.password.reset', $student->user) }}" onsubmit="return confirm('Reset this account to its temporary password?')">
+                                                @csrf
+                                                <button type="submit">Reset temporary password</button>
+                                            </form>
+                                        </x-slot:reset>
+                                        <x-slot:qr><button type="button" @click="fetch('{{ url('admin/id-cards') }}/{{ $student->user_id }}', { headers: { Accept: 'application/json' }, credentials: 'same-origin' }).then(response => response.json().then(data => { if (!response.ok) throw new Error(data.message || 'QR unavailable.'); qrModal = { show: true, value: data.qr_code, label: data.name }; })).catch(error => window.alert(error.message))">View QR</button><button type="button" @click="window.printIqamsIdCard('{{ url('admin/id-cards') }}/{{ $student->user_id }}').catch(error => window.alert(error.message))">Print ID Card</button></x-slot:qr>
                                         <x-slot:edit><button type="button" @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $student->id, 'course_id' => (string) $student->course_id, 'section_id' => (string) $student->section_id, 'first_name' => $student->first_name, 'last_name' => $student->last_name, 'middle_name' => $student->middle_name, 'status' => $student->status, 'avatar_url' => $student->user->avatar_url ?? asset('images/default-avatar.svg')]) }}">Edit</button></x-slot:edit>
-                                        <x-slot:qr><button type="button" @click="qrModal = {{ Illuminate\Support\Js::from(['show' => true, 'value' => $student->student_no, 'label' => $student->fullName()]) }}">View QR</button></x-slot:qr>
                                     </x-action-menu>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-6 py-8 text-center text-gray-400">
+                                <td colspan="8" class="px-6 py-8 text-center text-gray-400">
                                     No students yet. Add your first one.
                                 </td>
                             </tr>
@@ -301,10 +305,10 @@
             <div @click.outside="deleteModal.show = false"
                  class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
 
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Delete Student</h3>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Deactivate Student</h3>
                 <p class="text-sm text-gray-500 mb-6">
-                    Are you sure you want to delete <span class="font-medium text-gray-700" x-text="deleteModal.name"></span>?
-                    This also deletes their login account and attendance history. This can't be undone.
+                    Are you sure you want to deactivate <span class="font-medium text-gray-700" x-text="deleteModal.name"></span>?
+                    Their login will be disabled and attendance history will be retained.
                 </p>
 
                 <form method="POST" :action="'{{ url('students') }}/' + deleteModal.id">
@@ -316,7 +320,7 @@
                             Cancel
                         </button>
                         <button type="submit" class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded">
-                            Delete
+                            Deactivate / Archive
                         </button>
                     </div>
                 </form>
