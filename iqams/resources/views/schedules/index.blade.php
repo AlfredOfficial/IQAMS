@@ -9,6 +9,9 @@
             dayNames: { monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday', thursday: 'Thursday', friday: 'Friday', saturday: 'Saturday', sunday: 'Sunday' },
             showCreateModal: {{ $errors->any() && old('_form') !== 'edit' ? 'true' : 'false' }},
             createDays: @js(old('_form') === 'create' ? old('days', []) : []),
+            createSubjectId: @js(old('_form') === 'create' ? (string) old('subject_id', '') : ''),
+            createInstructorId: @js(old('_form') === 'create' ? (string) old('instructor_id', '') : ''),
+            createSectionId: @js(old('_form') === 'create' ? (string) old('section_id', '') : ''),
             editModal: {
                 show: {{ $errors->any() && old('_form') === 'edit' ? 'true' : 'false' }},
                 id: @js(old('_form') === 'edit' ? old('_schedule_id') : null),
@@ -94,7 +97,7 @@
                                             'start_time' => \Illuminate\Support\Carbon::parse($schedule->start_time)->format('H:i'),
                                             'end_time' => \Illuminate\Support\Carbon::parse($schedule->end_time)->format('H:i'),
                                             'room' => $schedule->room,
-                                        ]) }}"
+                                        ]) }}; $nextTick(() => $dispatch('lookup-refresh', { key: 'schedule-edit', values: {{ Illuminate\Support\Js::from(['subject_id' => (string) $schedule->subject_id, 'instructor_id' => (string) $schedule->instructor_id, 'section_id' => (string) $schedule->section_id]) }} }))"
                                         class="text-indigo-600 hover:text-indigo-800">Edit</button>
 
                                     <button type="button"
@@ -143,14 +146,14 @@
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                        <select name="subject_id" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">-- Select Subject --</option>
-                            @foreach ($subjects as $subject)
-                                <option value="{{ $subject->id }}" @selected(old('subject_id') == $subject->id)>
-                                    {{ $subject->subject_code }} - {{ $subject->subject_name }}
-                                </option>
-                            @endforeach
-                        </select>
+                        <x-admin-lookup-field
+                            :endpoint="route('admin.lookups.subjects')"
+                            name="subject_id"
+                            model="createSubjectId"
+                            :selected="old('_form') === 'create' ? old('subject_id') : null"
+                            placeholder="Search subjects..."
+                            empty-label="-- Select Subject --"
+                        />
                         @error('subject_id')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
@@ -158,14 +161,14 @@
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Instructor</label>
-                        <select name="instructor_id" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">-- Select Instructor --</option>
-                            @foreach ($instructors as $instructor)
-                                <option value="{{ $instructor->id }}" @selected(old('instructor_id') == $instructor->id)>
-                                    {{ $instructor->first_name }} {{ $instructor->last_name }}
-                                </option>
-                            @endforeach
-                        </select>
+                        <x-admin-lookup-field
+                            :endpoint="route('admin.lookups.instructors')"
+                            name="instructor_id"
+                            model="createInstructorId"
+                            :selected="old('_form') === 'create' ? old('instructor_id') : null"
+                            placeholder="Search instructors..."
+                            empty-label="-- Select Instructor --"
+                        />
                         @error('instructor_id')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
@@ -173,14 +176,14 @@
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Section</label>
-                        <select name="section_id" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">-- Select Section --</option>
-                            @foreach ($sections as $section)
-                                <option value="{{ $section->id }}" @selected(old('section_id') == $section->id)>
-                                    {{ $section->section_name }} ({{ $section->course->course_code ?? '—' }})
-                                </option>
-                            @endforeach
-                        </select>
+                        <x-admin-lookup-field
+                            :endpoint="route('admin.lookups.sections')"
+                            name="section_id"
+                            model="createSectionId"
+                            :selected="old('_form') === 'create' ? old('section_id') : null"
+                            placeholder="Search sections..."
+                            empty-label="-- Select Section --"
+                        />
                         @error('section_id')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
@@ -287,37 +290,43 @@
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                        <select name="subject_id" x-model="editModal.subject_id"
-                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">-- Select Subject --</option>
-                            @foreach ($subjects as $subject)
-                                <option value="{{ $subject->id }}">{{ $subject->subject_code }} - {{ $subject->subject_name }}</option>
-                            @endforeach
-                        </select>
+                        <x-admin-lookup-field
+                            :endpoint="route('admin.lookups.subjects')"
+                            name="subject_id"
+                            model="editModal.subject_id"
+                            :selected="old('_form') === 'edit' ? old('subject_id') : null"
+                            placeholder="Search subjects..."
+                            empty-label="-- Select Subject --"
+                            lookup-key="schedule-edit"
+                        />
                         @if (old('_form') === 'edit') @error('subject_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror @endif
                     </div>
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Instructor</label>
-                        <select name="instructor_id" x-model="editModal.instructor_id"
-                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">-- Select Instructor --</option>
-                            @foreach ($instructors as $instructor)
-                                <option value="{{ $instructor->id }}">{{ $instructor->first_name }} {{ $instructor->last_name }}</option>
-                            @endforeach
-                        </select>
+                        <x-admin-lookup-field
+                            :endpoint="route('admin.lookups.instructors')"
+                            name="instructor_id"
+                            model="editModal.instructor_id"
+                            :selected="old('_form') === 'edit' ? old('instructor_id') : null"
+                            placeholder="Search instructors..."
+                            empty-label="-- Select Instructor --"
+                            lookup-key="schedule-edit"
+                        />
                         @if (old('_form') === 'edit') @error('instructor_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror @endif
                     </div>
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Section</label>
-                        <select name="section_id" x-model="editModal.section_id"
-                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">-- Select Section --</option>
-                            @foreach ($sections as $section)
-                                <option value="{{ $section->id }}">{{ $section->section_name }} ({{ $section->course->course_code ?? '—' }})</option>
-                            @endforeach
-                        </select>
+                        <x-admin-lookup-field
+                            :endpoint="route('admin.lookups.sections')"
+                            name="section_id"
+                            model="editModal.section_id"
+                            :selected="old('_form') === 'edit' ? old('section_id') : null"
+                            placeholder="Search sections..."
+                            empty-label="-- Select Section --"
+                            lookup-key="schedule-edit"
+                        />
                         @if (old('_form') === 'edit') @error('section_id')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror @endif
                     </div>
 

@@ -4,7 +4,7 @@
     Open it by setting: qrModal = { show: true, value: '<the qr_code>', label: '<display name>' }
 --}}
 <div x-show="qrModal.show" x-cloak
-     x-effect="if (qrModal.show && qrModal.value && $refs.qrTarget) { $refs.qrTarget.innerHTML = ''; new QRCode($refs.qrTarget, { text: qrModal.value, width: 200, height: 200 }); }"
+     x-effect="if (qrModal.show && qrModal.value && $refs.qrTarget) { window.ensureIqamsQrCode().then(() => { if (!qrModal.show || !qrModal.value || !$refs.qrTarget || $refs.qrTarget.dataset.qrValue === qrModal.value) return; $refs.qrTarget.replaceChildren(); $refs.qrTarget.dataset.qrValue = qrModal.value; new window.QRCode($refs.qrTarget, { text: qrModal.value, width: 200, height: 200 }); }); }"
      class="fixed inset-0 z-[70] flex items-center justify-center px-4"
      style="background: rgba(0,0,0,0.4);">
     <div @click.outside="qrModal.show = false" class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6 text-center">

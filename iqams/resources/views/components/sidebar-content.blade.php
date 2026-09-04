@@ -255,7 +255,7 @@
         :aria-expanded="userMenuOpen"
     >
         @if (Auth::user()->avatar_url)
-            <img src="{{ Auth::user()->avatar_url }}" alt="" class="w-8 h-8 rounded-full object-cover shrink-0">
+             <img loading="lazy" width="32" height="32" src="{{ Auth::user()->avatar_thumbnail_url }}" alt="" class="w-8 h-8 rounded-full object-cover shrink-0">
         @else
             <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-medium shrink-0">
                 {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\LeaveRequest;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -13,11 +14,15 @@ class LeaveOverlapService
 
     public function conflictingQuery(int $userId, string $startDate, string $endDate, ?int $exceptId = null): Builder
     {
+        $endExclusive = Carbon::createFromFormat('!Y-m-d', $endDate, config('app.timezone'))
+            ->addDay()
+            ->toDateString();
+
         return LeaveRequest::query()
             ->where('user_id', $userId)
             ->whereIn('status', self::ACTIVE_STATUSES)
-            ->whereDate('start_date', '<=', $endDate)
-            ->whereDate('end_date', '>=', $startDate)
+            ->where('start_date', '<', $endExclusive)
+            ->where('end_date', '>=', $startDate)
             ->when($exceptId, fn (Builder $query) => $query->whereKeyNot($exceptId));
     }
 

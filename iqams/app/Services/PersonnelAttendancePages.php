@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\ValidationException;
 
 class PersonnelAttendancePages
@@ -25,7 +26,23 @@ class PersonnelAttendancePages
             $days = $days->where('punctuality', $punctuality)->values();
         }
 
-        return compact('days', 'from', 'to');
+        $perPage = min(max((int) ($filters['per_page'] ?? 15), 1), 50);
+        $page = max((int) ($filters['page'] ?? 1), 1);
+        $daysPaginator = new LengthAwarePaginator(
+            $days->forPage($page, $perPage)->values(),
+            $days->count(),
+            $perPage,
+            $page,
+            [
+                'path' => request()->url(),
+                'query' => request()->query(),
+            ],
+        );
+
+        return compact('days', 'from', 'to') + [
+            'paginatedDays' => $daysPaginator->getCollection(),
+            'daysPaginator' => $daysPaginator,
+        ];
     }
 
     /**

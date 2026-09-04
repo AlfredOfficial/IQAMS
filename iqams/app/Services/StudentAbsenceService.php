@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Schedule;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class StudentAbsenceService
@@ -23,7 +24,7 @@ class StudentAbsenceService
             ->map(fn (Carbon $date) => strtolower($date->format('l')))
             ->all();
 
-        $schedules = Schedule::active()->whereIn('day', $candidateDays)->get()
+        $occurrences = Schedule::active()->whereIn('day', $candidateDays)->get()
             ->flatMap(function (Schedule $schedule) use ($candidateDates): array {
                 foreach ($candidateDates as $date) {
                     if ($occurrence = $this->occurrences->forDate($schedule, $date)) {
@@ -35,12 +36,31 @@ class StudentAbsenceService
             })
             ->filter(fn ($occurrence) => $at->greaterThan($occurrence->presentUntil));
 
-        foreach ($schedules as $occurrence) {
-            $event = $this->events->affectingOccurrence($occurrence);
+        $eventContext = $this->eventContext($at, $occurrences);
+
+        foreach ($occurrences as $occurrence) {
+            $event = $this->events->affectingOccurrence($occurrence, $eventContext);
 
             $created += DB::transaction(fn () => $this->writer->forSchedule($occurrence, $event));
         }
 
         return $created;
+    }
+
+    private function eventContext(Carbon $at, Collection $occurrences): ?SchoolEventContext
+    {
+        if ($occurrences->isEmpty()) {
+            return null;
+        }
+
+        $from = $at->copy();
+        $to = $at->copy();
+
+        foreach ($occurrences as $occurrence) {
+            $from = $occurrence->startsAt->lt($from) ? $occurrence->startsAt->copy() : $from;
+            $to = $occurrence->endsAt->gt($to) ? $occurrence->endsAt->copy() : $to;
+        }
+
+        return $this->events->context($from, $to);
     }
 }

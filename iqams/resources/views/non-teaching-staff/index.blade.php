@@ -1,7 +1,4 @@
 <x-app-layout>
-    @push('scripts')
-        @vite('resources/js/qrcode.js')
-    @endpush
     <x-slot name="header">
         <div>
             <h1 class="text-2xl font-bold tracking-tight text-gray-900">Manage Staff</h1>
@@ -24,7 +21,7 @@
             <div class="bg-white shadow-sm rounded-lg">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                     <span class="text-sm text-gray-500">{{ $staffMembers->total() }} total</span>
-                    <div class="flex items-center gap-2"><button type="button" @click="window.printIqamsIdCards(selectedIds.map(id => '{{ url('admin/id-cards') }}/' + id)).catch(error => window.alert(error.message))" :disabled="selectedIds.length === 0" class="rounded border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">Print selected ID cards</button><button @click="showCreateModal = true"
+                    <div class="flex items-center gap-2"><button type="button" @click="window.ensureIqamsQrCode().then(() => window.printIqamsIdCards(selectedIds.map(id => '{{ url('admin/id-cards') }}/' + id))).catch(error => window.alert(error.message))" :disabled="selectedIds.length === 0" class="rounded border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">Print selected ID cards</button><button @click="showCreateModal = true"
                        class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
                         + Add Staff
                     </button></div>
@@ -48,7 +45,7 @@
                         @forelse ($staffMembers as $staff)
                             <tr class="transition-colors hover:bg-gray-50/80">
                                 <td class="px-6 py-3"><input type="checkbox" value="{{ $staff->user_id }}" @change="selectedIds = $event.target.checked ? [...selectedIds, {{ $staff->user_id }}] : selectedIds.filter(id => id !== {{ $staff->user_id }})" class="rounded border-gray-300 text-indigo-600"></td><td class="whitespace-nowrap px-6 py-3 font-medium text-gray-800">{{ $staff->employee_no }}</td>
-                                <td class="px-6 py-3"><img src="{{ $staff->user->avatar_url ?? asset('images/default-avatar.svg') }}" alt="Profile photo" class="h-10 w-10 rounded-full object-cover"></td>
+                                    <td class="px-6 py-3"><img loading="lazy" width="40" height="40" src="{{ $staff->user->avatar_thumbnail_url ?? asset('images/default-avatar.svg') }}" alt="Profile photo" class="h-10 w-10 rounded-full object-cover"></td>
                                 <td class="break-words px-6 py-3 text-gray-600">{{ $staff->fullName() }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $staff->officeUnit?->name ?? 'Not assigned' }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $staff->user->email ?? '—' }}</td>
@@ -71,8 +68,8 @@
                                                 <button type="submit">Reset temporary password</button>
                                             </form>
                                         </x-slot:reset>
-                                        <x-slot:qr><button type="button" @click="fetch('{{ url('admin/id-cards') }}/{{ $staff->user_id }}', { headers: { Accept: 'application/json' }, credentials: 'same-origin' }).then(response => response.json().then(data => { if (!response.ok) throw new Error(data.message || 'QR unavailable.'); qrModal = { show: true, value: data.qr_code, label: data.name }; })).catch(error => window.alert(error.message))">View QR</button><button type="button" @click="window.printIqamsIdCard('{{ url('admin/id-cards') }}/{{ $staff->user_id }}').catch(error => window.alert(error.message))">Print ID Card</button></x-slot:qr>
-                                        <x-slot:edit><button type="button" @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $staff->id, 'office_unit_id' => (string) $staff->office_unit_id, 'employee_no' => $staff->employee_no, 'name_prefix' => $staff->name_prefix ?? '', 'first_name' => $staff->first_name, 'middle_name' => $staff->middle_name ?? '', 'last_name' => $staff->last_name, 'name_suffix' => $staff->name_suffix ?? '', 'email' => $staff->user->email ?? '', 'avatar_url' => $staff->user->avatar_url ?? asset('images/default-avatar.svg')]) }}">Edit</button></x-slot:edit>
+                                        <x-slot:qr><button type="button" @click="fetch('{{ url('admin/id-cards') }}/{{ $staff->user_id }}', { headers: { Accept: 'application/json' }, credentials: 'same-origin' }).then(response => response.json().then(data => { if (!response.ok) throw new Error(data.message || 'QR unavailable.'); qrModal = { show: true, value: data.qr_code, label: data.name }; })).catch(error => window.alert(error.message))">View QR</button><button type="button" @click="window.ensureIqamsQrCode().then(() => window.printIqamsIdCard('{{ url('admin/id-cards') }}/{{ $staff->user_id }}')).catch(error => window.alert(error.message))">Print ID Card</button></x-slot:qr>
+                                        <x-slot:edit><button type="button" @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $staff->id, 'office_unit_id' => (string) $staff->office_unit_id, 'employee_no' => $staff->employee_no, 'name_prefix' => $staff->name_prefix ?? '', 'first_name' => $staff->first_name, 'middle_name' => $staff->middle_name ?? '', 'last_name' => $staff->last_name, 'name_suffix' => $staff->name_suffix ?? '', 'email' => $staff->user->email ?? '', 'avatar_url' => $staff->user->avatar_thumbnail_url ?? asset('images/default-avatar.svg')]) }}">Edit</button></x-slot:edit>
                                     </x-action-menu>
                                 </td>
                             </tr>

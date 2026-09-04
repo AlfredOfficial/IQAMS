@@ -134,11 +134,30 @@ class AdminDashboardData
 
     private function scanQuery(): Builder
     {
-        return AttendanceLog::canonical()->with([
-            'user.roles', 'user.student.section.course', 'user.student.course',
-            'user.instructor.department', 'user.nonTeachingStaff.officeUnit',
-            'schedule.subject', 'schedule.section.course', 'schedule.instructor.user',
-        ]);
+        return AttendanceLog::canonical()
+            ->select([
+                'attendance_logs.id', 'attendance_logs.user_id', 'attendance_logs.schedule_id',
+                'attendance_logs.school_event_id', 'attendance_logs.attendance_type',
+                'attendance_logs.scan_time', 'attendance_logs.status', 'attendance_logs.scanner_location',
+            ])
+            ->with([
+                'user:id,username,name,avatar_path',
+                'user.roles:id,name,guard_name',
+                'user.student:id,user_id,student_no,section_id,course_id',
+                'user.student.section:id,section_name,course_id',
+                'user.student.section.course:id,course_code',
+                'user.student.course:id,course_code',
+                'user.instructor:id,user_id,department_id,employee_no',
+                'user.instructor.department:id,department_code,department_name',
+                'user.nonTeachingStaff:id,user_id,office_unit_id,employee_no',
+                'user.nonTeachingStaff.officeUnit:id,name',
+                'schedule:id,subject_id,section_id,instructor_id',
+                'schedule.subject:id,subject_code,subject_name',
+                'schedule.section:id,section_name,course_id',
+                'schedule.section.course:id,course_code',
+                'schedule.instructor:id,user_id',
+                'schedule.instructor.user:id,name',
+            ]);
     }
 
     private function deltaScanQuery(): Builder
@@ -156,7 +175,7 @@ class AdminDashboardData
             })
             ->with([
                 'user:id,username,name,avatar_path',
-                'user.roles',
+                'user.roles:id,name,guard_name',
                 'user.student:id,user_id,student_no,section_id,course_id',
                 'user.student.section:id,section_name,course_id',
                 'user.student.section.course:id,course_code',
@@ -459,7 +478,7 @@ class AdminDashboardData
             'identifier' => $student?->student_no ?? $instructor?->employee_no ?? $staff?->employee_no ?? $log->user?->username ?? '—',
             'name' => $displayName,
             'initials' => collect(explode(' ', $displayName))->filter()->take(2)->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))->implode(''),
-            'avatar' => $log->user?->avatar_url, 'role_key' => $role,
+            'avatar' => $log->user?->avatar_thumbnail_url, 'role_key' => $role,
             'role' => match ($role) {
                 'instructor' => 'Teaching Personnel', 'staff' => 'Non-teaching Personnel', 'student' => 'Student', default => ucfirst($role)
             },

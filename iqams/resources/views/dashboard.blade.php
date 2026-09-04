@@ -4,7 +4,7 @@
             data: {{ Illuminate\Support\Js::from($dashboardData) }},
             endpoint: {{ Illuminate\Support\Js::from(route('admin.dashboard.delta')) }},
             analyticsEndpoint: {{ Illuminate\Support\Js::from(route('admin.dashboard.analytics')) }},
-            loading: false, analyticsLoading: false, online: true, cursor: {{ Illuminate\Support\Js::from($dashboardData['cursor']) }},
+             loading: false, analyticsLoading: false, analyticsEtag: null, online: true, cursor: {{ Illuminate\Support\Js::from($dashboardData['cursor']) }},
             confirmation: null, confirmTimer: null, timer: null, analyticsTimer: null, clockTimer: null,
             clockDate: '', clockTime: '', page: 1, perPage: 10,
             filters: { search: '', role: '', department: '', section: '', subject: '', status: '', period: 'today' },
@@ -26,7 +26,7 @@
                 this.clockTime = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
             },
             async refresh() {
-                if (this.loading || this.analyticsLoading || document.hidden) return;
+                if (this.loading || document.hidden) return;
                 this.loading = true;
                 try {
                     const url = new URL(this.endpoint, window.location.href);
@@ -56,12 +56,19 @@
                 finally { this.loading = false; }
             },
             async refreshAnalytics() {
-                if (this.analyticsLoading || this.loading || document.hidden) return;
+                if (this.analyticsLoading || document.hidden) return;
                 this.analyticsLoading = true;
                 try {
-                    const response = await fetch(this.analyticsEndpoint, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+                    const headers = { Accept: 'application/json' };
+                    if (this.analyticsEtag) headers['If-None-Match'] = this.analyticsEtag;
+                    const response = await fetch(this.analyticsEndpoint, { headers, credentials: 'same-origin', cache: 'no-cache' });
+                    if (response.status === 304) {
+                        this.online = true;
+                        return;
+                    }
                     if (!response.ok) throw new Error('Unable to refresh analytics');
                     const fresh = await response.json();
+                    this.analyticsEtag = response.headers.get('ETag') || this.analyticsEtag;
                     this.data = {
                         ...this.data,
                         generated_at: fresh.generated_at ?? this.data.generated_at,

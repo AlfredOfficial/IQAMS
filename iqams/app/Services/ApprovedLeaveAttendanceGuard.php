@@ -20,10 +20,11 @@ class ApprovedLeaveAttendanceGuard
         }
 
         $date = $attendanceAt->copy()->timezone(config('app.timezone'))->toDateString();
+        $nextDate = $attendanceAt->copy()->timezone(config('app.timezone'))->startOfDay()->addDay()->toDateString();
         $hasApprovedLeave = LeaveRequest::where('user_id', $user->id)
             ->where('status', 'approved')
-            ->whereDate('start_date', '<=', $date)
-            ->whereDate('end_date', '>=', $date)
+            ->where('start_date', '<', $nextDate)
+            ->where('end_date', '>=', $date)
             ->exists();
 
         if ($hasApprovedLeave) {

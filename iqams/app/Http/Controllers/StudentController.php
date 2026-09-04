@@ -10,11 +10,11 @@ use App\Services\AdminAccountProtectionService;
 use App\Services\AuditLogger;
 use App\Services\QrCredentialService;
 use App\Services\RoleAssignmentService;
+use App\Services\ProfileImageService;
 use App\Rules\SectionBelongsToCourse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class StudentController extends Controller
@@ -24,11 +24,18 @@ class StudentController extends Controller
      */
     public function index()
     {
-        $students = Student::with(['user', 'course', 'section'])->latest()->paginate(10);
+        $students = Student::query()
+            ->select(['id', 'user_id', 'course_id', 'section_id', 'student_no', 'first_name', 'last_name', 'middle_name', 'status', 'created_at'])
+            ->with([
+                'user:id,username,name,email,avatar_path',
+                'course:id,course_code,course_name',
+                'section:id,section_name,course_id',
+            ])
+            ->latest('students.created_at')->paginate(10);
 
-        $courses = Course::active()->orderBy('course_name')->get();
+        $courses = Course::active()->orderBy('course_name')->get(['id', 'department_id', 'course_code', 'course_name']);
 
-        $sections = Section::active()->with('course')->orderBy('section_name')->get();
+        $sections = Section::active()->with('course:id,course_code')->orderBy('section_name')->get(['id', 'course_id', 'section_name']);
 
         return view('students.index', compact('students', 'courses', 'sections'));
 
@@ -58,7 +65,7 @@ class StudentController extends Controller
             'avatar' => 'required|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
-        $avatarPath = $request->file('avatar')->store('avatars', 'public');
+        $avatarPath = app(ProfileImageService::class)->store($request->file('avatar'));
 
         $plainPassword = 'Student@'.$validated['student_no'];
         $administrator = $request->user();
@@ -98,7 +105,7 @@ class StudentController extends Controller
                 return $user;
             });
         } catch (\Throwable $exception) {
-            Storage::disk('public')->delete($avatarPath);
+            app(ProfileImageService::class)->delete($avatarPath);
             throw $exception;
         }
 
@@ -142,7 +149,9 @@ class StudentController extends Controller
         ]);
 
         $oldAvatarPath = $student->user->avatar_path;
-        $newAvatarPath = $request->hasFile('avatar') ? $request->file('avatar')->store('avatars', 'public') : null;
+        $newAvatarPath = $request->hasFile('avatar')
+            ? app(ProfileImageService::class)->store($request->file('avatar'))
+            : null;
 
         try {
             DB::transaction(function () use ($validated, $student, $newAvatarPath) {
@@ -154,13 +163,13 @@ class StudentController extends Controller
             });
         } catch (\Throwable $exception) {
             if ($newAvatarPath) {
-                Storage::disk('public')->delete($newAvatarPath);
+                app(ProfileImageService::class)->delete($newAvatarPath);
             }
             throw $exception;
         }
 
         if ($newAvatarPath && $oldAvatarPath) {
-            Storage::disk('public')->delete($oldAvatarPath);
+            app(ProfileImageService::class)->delete($oldAvatarPath);
         }
 
         app(AuditLogger::class)->record('account.profile_updated', $student->user, [

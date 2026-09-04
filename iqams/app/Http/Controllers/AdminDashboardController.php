@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\AdminDashboardData;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
@@ -41,8 +42,19 @@ class AdminDashboardController extends Controller
         return response()->json($dashboard->buildDelta($cursor));
     }
 
-    public function analytics(AdminDashboardData $dashboard): JsonResponse
+    public function analytics(Request $request, AdminDashboardData $dashboard): JsonResponse|Response
     {
-        return response()->json($dashboard->analytics());
+        $payload = $dashboard->analytics();
+        $etag = '"'.sha1((string) json_encode($payload)).'"';
+
+        if ($request->header('If-None-Match') === $etag) {
+            return response()->noContent(Response::HTTP_NOT_MODIFIED)
+                ->header('ETag', $etag)
+                ->header('Cache-Control', 'private, no-cache');
+        }
+
+        return response()->json($payload)
+            ->header('ETag', $etag)
+            ->header('Cache-Control', 'private, no-cache');
     }
 }

@@ -7,6 +7,9 @@
 
     <div class="py-8" x-data="{
             showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
+            filterUserId: @js((string) request('user_id', '')),
+            createUserId: @js((string) old('user_id', '')),
+            createScheduleId: @js((string) old('schedule_id', '')),
             editModal: { show: false, id: null, user_id: '', schedule_id: '', attendance_type: '', scan_time: '', status_override: '', scanner_location: '', remarks: '' },
             deleteModal: { show: false, id: null, name: '' }
         }">
@@ -33,14 +36,14 @@
 
                 <div>
                     <label class="block text-xs font-medium text-gray-500 mb-1">Person</label>
-                    <select name="user_id" class="rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <option value="">All</option>
-                        @foreach ($people as $person)
-                            <option value="{{ $person['user_id'] }}" @selected((string) request('user_id') === (string) $person['user_id'])>
-                                {{ $person['label'] }}
-                            </option>
-                        @endforeach
-                    </select>
+                    <x-admin-lookup-field
+                        :endpoint="route('admin.lookups.people')"
+                        name="user_id"
+                        model="filterUserId"
+                        :selected="request('user_id')"
+                        placeholder="Search people..."
+                        empty-label="All"
+                    />
                 </div>
 
                 <div class="flex items-center gap-2">
@@ -106,7 +109,7 @@
                                             'status_override' => $log->status,
                                             'scanner_location' => $log->scanner_location,
                                             'remarks' => $log->remarks,
-                                        ]) }}"
+                                        ]) }}; $nextTick(() => $dispatch('lookup-refresh', { key: 'attendance-edit', values: {{ Illuminate\Support\Js::from(['user_id' => (string) $log->user_id, 'schedule_id' => (string) $log->schedule_id]) }} }))"
                                         class="text-indigo-600 hover:text-indigo-800">Edit</button>
 
                                     <button type="button"
@@ -150,14 +153,14 @@
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Person</label>
-                        <select name="user_id" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">-- Select Person --</option>
-                            @foreach ($people as $person)
-                                <option value="{{ $person['user_id'] }}" @selected(old('user_id') == $person['user_id'])>
-                                    {{ $person['label'] }}
-                                </option>
-                            @endforeach
-                        </select>
+                        <x-admin-lookup-field
+                            :endpoint="route('admin.lookups.people')"
+                            name="user_id"
+                            model="createUserId"
+                            :selected="old('user_id')"
+                            placeholder="Search people..."
+                            empty-label="-- Select Person --"
+                        />
                         @error('user_id')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
@@ -165,14 +168,14 @@
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Schedule</label>
-                        <select name="schedule_id" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">-- Select Schedule --</option>
-                            @foreach ($schedules as $schedule)
-                                <option value="{{ $schedule->id }}" @selected(old('schedule_id') == $schedule->id)>
-                                    {{ $schedule->subject->subject_code ?? '—' }} - {{ ucfirst($schedule->day) }} ({{ $schedule->section->section_name ?? '—' }})
-                                </option>
-                            @endforeach
-                        </select>
+                        <x-admin-lookup-field
+                            :endpoint="route('admin.lookups.schedules')"
+                            name="schedule_id"
+                            model="createScheduleId"
+                            :selected="old('schedule_id')"
+                            placeholder="Search schedules..."
+                            empty-label="-- Select Schedule --"
+                        />
                         @error('schedule_id')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
@@ -267,26 +270,28 @@
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Person</label>
-                        <select name="user_id" x-model="editModal.user_id"
-                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">-- Select Person --</option>
-                            @foreach ($people as $person)
-                                <option value="{{ $person['user_id'] }}">{{ $person['label'] }}</option>
-                            @endforeach
-                        </select>
+                        <x-admin-lookup-field
+                            :endpoint="route('admin.lookups.people')"
+                            name="user_id"
+                            model="editModal.user_id"
+                            :selected="old('_form') === 'edit' ? old('user_id') : null"
+                            placeholder="Search people..."
+                            empty-label="-- Select Person --"
+                            lookup-key="attendance-edit"
+                        />
                     </div>
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Schedule</label>
-                        <select name="schedule_id" x-model="editModal.schedule_id"
-                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">-- Select Schedule --</option>
-                            @foreach ($schedules as $schedule)
-                                <option value="{{ $schedule->id }}">
-                                    {{ $schedule->subject->subject_code ?? '—' }} - {{ ucfirst($schedule->day) }} ({{ $schedule->section->section_name ?? '—' }})
-                                </option>
-                            @endforeach
-                        </select>
+                        <x-admin-lookup-field
+                            :endpoint="route('admin.lookups.schedules')"
+                            name="schedule_id"
+                            model="editModal.schedule_id"
+                            :selected="old('_form') === 'edit' ? old('schedule_id') : null"
+                            placeholder="Search schedules..."
+                            empty-label="-- Select Schedule --"
+                            lookup-key="attendance-edit"
+                        />
                     </div>
 
                     <div class="mb-4">

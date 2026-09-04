@@ -16,8 +16,11 @@ class CourseController extends Controller
      */
     public function index()
     {
-        $courses = Course::active()->with('department')->latest()->paginate(10);
-        $departments = Department::active()->orderBy('department_name')->get();
+        $courses = Course::active()
+            ->select(['id', 'department_id', 'course_code', 'course_name', 'created_at'])
+            ->with('department:id,department_code,department_name')
+            ->latest('courses.created_at')->paginate(10);
+        $departments = Department::active()->orderBy('department_name')->get(['id', 'department_code', 'department_name']);
 
         return view('courses.index', compact('courses', 'departments'));
     }
@@ -27,7 +30,7 @@ class CourseController extends Controller
      */
     public function create()
     {
-        $departments = Department::active()->orderBy('department_name')->get();
+        $departments = Department::active()->orderBy('department_name')->get(['id', 'department_code', 'department_name']);
 
         return view('courses.create', compact('departments'));
     }
@@ -62,7 +65,7 @@ class CourseController extends Controller
      */
     public function edit(Course $course)
     {
-        $departments = Department::active()->orderBy('department_name')->get();
+        $departments = Department::active()->orderBy('department_name')->get(['id', 'department_code', 'department_name']);
 
         return view('courses.edit', compact('course', 'departments'));
     }

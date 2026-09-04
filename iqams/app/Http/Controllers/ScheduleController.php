@@ -2,10 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Instructor;
 use App\Models\Schedule;
-use App\Models\Section;
-use App\Models\Subject;
 use App\Services\AuditLogger;
 use App\Services\ArchiveService;
 use App\Rules\ValidScheduleTimeWindow;
@@ -22,8 +19,15 @@ class ScheduleController extends Controller
      */
     public function index()
     {
-        $schedules = Schedule::active()->with(['subject', 'instructor', 'section', 'recurringSchedules:id,recurring_schedule_group_id,day'])
-            ->latest()->paginate(10);
+        $schedules = Schedule::query()->active()
+            ->select(['id', 'subject_id', 'instructor_id', 'section_id', 'day', 'start_time', 'end_time', 'room', 'recurring_schedule_group_id', 'created_at'])
+            ->with([
+                'subject:id,subject_code,subject_name',
+                'instructor:id,first_name,last_name',
+                'section:id,section_name',
+                'recurringSchedules:id,recurring_schedule_group_id,day',
+            ])
+            ->latest('schedules.created_at')->paginate(10);
 
         $dayOrder = array_flip(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']);
         $schedules->getCollection()->each(function (Schedule $schedule) use ($dayOrder) {
@@ -34,13 +38,7 @@ class ScheduleController extends Controller
             $schedule->setAttribute('recurring_days', $days->all());
         });
 
-        $subjects = Subject::active()->orderBy('subject_name')->get();
-
-        $instructors = Instructor::orderBy('first_name')->get();
-
-        $sections = Section::active()->with('course')->orderBy('section_name')->get();
-
-        return view('schedules.index', compact('schedules', 'subjects', 'instructors', 'sections'));
+        return view('schedules.index', compact('schedules'));
     }
 
     /**

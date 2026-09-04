@@ -3,10 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AttendanceLog;
-use App\Models\Instructor;
-use App\Models\NonTeachingStaff;
 use App\Models\Schedule;
-use App\Models\Student;
 use App\Models\User;
 use App\Services\AccountStatusService;
 use App\Services\ApprovedLeaveAttendanceGuard;
@@ -14,6 +11,7 @@ use App\Services\AuditLogger;
 use App\Services\AttendanceScheduleValidator;
 use App\Services\PersonnelAttendanceClassifier;
 use App\Services\StudentAttendanceWindow;
+use App\Support\LocalTimeRange;
 use App\ValueObjects\ScheduleOccurrence;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -27,10 +25,26 @@ class AttendanceLogController extends Controller
      */
     public function index(Request $request)
     {
-        $query = AttendanceLog::canonical()->with(['user.nonTeachingStaff', 'schedule.subject', 'schedule.section', 'schoolEvent']);
+        $query = AttendanceLog::canonical()
+            ->select([
+                'attendance_logs.id', 'attendance_logs.user_id', 'attendance_logs.schedule_id',
+                'attendance_logs.school_event_id', 'attendance_logs.attendance_type',
+                'attendance_logs.scan_time', 'attendance_logs.status',
+                'attendance_logs.scanner_location', 'attendance_logs.remarks',
+            ])
+            ->with([
+                'user:id,name,username',
+                'user.nonTeachingStaff:id,user_id,name_prefix,first_name,middle_name,last_name,name_suffix',
+                'schedule:id,subject_id,section_id',
+                'schedule.subject:id,subject_code,subject_name',
+                'schedule.section:id,section_name',
+                'schoolEvent:id,title',
+            ]);
 
         if ($request->filled('date')) {
-            $query->whereDate('scan_time', $request->date('date'));
+            [$start, $end] = LocalTimeRange::day((string) $request->input('date'));
+            $query->where('scan_time', '>=', $start)
+                ->where('scan_time', '<', $end);
         }
 
         if ($request->filled('status')) {
@@ -43,30 +57,7 @@ class AttendanceLogController extends Controller
 
         $logs = $query->latest('scan_time')->paginate(15)->withQueryString();
 
-        $schedules = Schedule::active()->with(['subject', 'section'])->orderBy('day')->get();
-
-        // build a combined list of loggable people
-        // for the person dropdown each carrying their linked user_id
-
-        $people = collect()
-            ->concat(Student::with('user')->get()->map(fn ($s) => [
-                'user_id' => $s->user_id,
-                'label' => "{$s->first_name} {$s->last_name} (Student)",
-            ]))
-
-            ->concat(Instructor::with('user')->get()->map(fn ($i) => [
-                'user_id' => $i->user_id,
-                'label' => "{$i->first_name} {$i->last_name} (Instructor)",
-            ]))
-
-            ->concat(NonTeachingStaff::with('user')->get()->map(fn ($s) => [
-                'user_id' => $s->user_id,
-                'label' => $s->fullName().' (Staff)',
-            ]))
-            ->sortBy('label')
-            ->values();
-
-        return view('attendance-logs.index', compact(['logs', 'schedules', 'people']));
+        return view('attendance-logs.index', compact('logs'));
     }
 
     /**
@@ -234,8 +225,10 @@ class AttendanceLogController extends Controller
 
     private function ensurePersonnelPeriodIsUnique(User $user, Carbon $scanTime, string $period, ?AttendanceLog $except = null): void
     {
+        [$start, $end] = LocalTimeRange::day($scanTime);
         $exists = AttendanceLog::canonical()->where('user_id', $user->id)
-            ->whereDate('scan_time', $scanTime->toDateString())
+            ->where('scan_time', '>=', $start)
+            ->where('scan_time', '<', $end)
             ->where('attendance_period', $period)
             ->when($except, fn ($query) => $query->whereKeyNot($except->getKey()))
             ->exists();

@@ -15,7 +15,10 @@ class StudentScheduleController extends Controller
         }
 
         $schedules = $student->section
-            ? $student->section->schedules()->with(['subject', 'instructor'])->orderBy('start_time')->get()
+            ? $student->section->schedules()
+                ->select(['id', 'subject_id', 'instructor_id', 'section_id', 'day', 'start_time', 'end_time', 'room'])
+                ->with(['subject:id,subject_code,subject_name', 'instructor:id,first_name,last_name'])
+                ->orderBy('start_time')->get()
             : collect();
 
         $scheduleByDay = $schedules->groupBy('day');

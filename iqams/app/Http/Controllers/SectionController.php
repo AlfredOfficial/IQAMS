@@ -16,9 +16,17 @@ class SectionController extends Controller
      */
     public function index()
     {
-        $sections = Section::active()->with(['course', 'schedules.subject', 'schedules.instructor'])->latest()->paginate(10);
+        $sections = Section::active()
+            ->select(['id', 'course_id', 'section_name', 'school_year', 'semester', 'created_at'])
+            ->with([
+                'course:id,course_code,course_name',
+                'schedules:id,subject_id,instructor_id,section_id,day,start_time,end_time,room',
+                'schedules.subject:id,subject_code,subject_name',
+                'schedules.instructor:id,first_name,last_name',
+            ])
+            ->latest('sections.created_at')->paginate(10);
         
-        $courses = Course::active()->orderBy('course_name')->get();
+        $courses = Course::active()->orderBy('course_name')->get(['id', 'department_id', 'course_code', 'course_name']);
 
         return view('sections.index', compact('sections', 'courses'));
     }

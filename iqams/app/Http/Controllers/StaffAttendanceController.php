@@ -10,7 +10,7 @@ class StaffAttendanceController extends Controller
     public function history(Request $request, PersonnelAttendancePages $pages)
     {
         return view('staff.attendance.history', $pages->history($request->user(), $request->only([
-            'from', 'to', 'status', 'punctuality',
+            'from', 'to', 'status', 'punctuality', 'page', 'per_page',
         ])));
     }
 

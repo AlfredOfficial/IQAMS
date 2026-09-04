@@ -18,7 +18,7 @@ class AttendanceScannerController extends Controller
 {
     public function index(Request $request): View
     {
-        $terminals = ScannerTerminal::where('is_active', true)->orderBy('name')->get();
+        $terminals = ScannerTerminal::where('is_active', true)->orderBy('name')->get(['id', 'name', 'location']);
         $terminal = $terminals->firstWhere('id', (int) $request->session()->get('scanner_terminal_id'));
 
         return view('attendance-scanner.index', compact('terminals', 'terminal'));

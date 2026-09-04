@@ -1,9 +1,20 @@
 
 
 import Alpine from 'alpinejs';
-import './qrcode';
 
 window.Alpine = Alpine;
+
+let qrCodeModulePromise = null;
+
+window.ensureIqamsQrCode = () => {
+    if (window.QRCode && window.downloadIqamsIdCard && window.printIqamsIdCard) {
+        return Promise.resolve();
+    }
+
+    qrCodeModulePromise ??= import('./qrcode');
+
+    return qrCodeModulePromise;
+};
 
 Alpine.data('schoolEventsModal', (initialState = {}) => {
     const emptyForm = () => ({
@@ -90,29 +101,83 @@ Alpine.data('toastNotifications', (initialNotifications = []) => ({
     },
 }));
 
+Alpine.data('lookupField', (initialState = {}) => ({
+    endpoint: initialState.endpoint,
+    search: '',
+    selectedId: initialState.selected ? String(initialState.selected) : '',
+    selectedLabel: initialState.selectedLabel || 'Selected option',
+    options: initialState.selected
+        ? [{ id: String(initialState.selected), label: initialState.selectedLabel || 'Selected option' }]
+        : [],
+    loading: false,
+    searched: false,
+    controller: null,
+    requestId: 0,
+
+    async load(selectedOverride = null) {
+        this.controller?.abort();
+        this.controller = new AbortController();
+        const requestId = ++this.requestId;
+        const url = new URL(this.endpoint, window.location.href);
+        const selected = selectedOverride || this.$refs.select?.value;
+        const selectedOption = selected
+            ? this.options.find((option) => String(option.id) === String(selected))
+            : null;
+
+        if (selected) this.selectedId = String(selected);
+
+        if (this.search.trim() !== '') {
+            url.searchParams.set('search', this.search.trim());
+        }
+        if (selected) {
+            url.searchParams.append('selected[]', selected);
+        }
+
+        this.loading = true;
+        try {
+            const response = await fetch(url, {
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                signal: this.controller.signal,
+            });
+            if (!response.ok) throw new Error('Lookup failed');
+
+            const data = await response.json();
+            if (requestId === this.requestId) {
+                const options = data.data || [];
+                if (this.selectedId && !options.some((option) => String(option.id) === this.selectedId)) {
+                    options.unshift(selectedOption || { id: this.selectedId, label: this.selectedLabel });
+                }
+                this.options = options;
+                this.searched = true;
+            }
+        } catch (error) {
+            if (error.name !== 'AbortError' && requestId === this.requestId) {
+                // Keep the last valid options available when a lookup fails.
+                this.searched = true;
+            }
+        } finally {
+            if (requestId === this.requestId) {
+                this.loading = false;
+            }
+        }
+    },
+}));
+
 Alpine.data('instructorWorkspace', () => ({
     refreshTimer: null,
-    qrReadyHandler: null,
     downloadingIdCard: false,
     qrCode: null,
 
     init() {
         this.refreshTimer = window.setInterval(() => this.refresh(), 3000);
 
-        this.qrReadyHandler = () => this.renderQrCode();
-
-        if (window.QRCode) {
-            this.renderQrCode();
-        } else {
-            window.addEventListener('qrcode:ready', this.qrReadyHandler, { once: true });
-        }
-
+        window.ensureIqamsQrCode().then(() => this.renderQrCode()).catch(() => {});
         this.loadQrCode();
     },
 
     destroy() {
         window.clearInterval(this.refreshTimer);
-        window.removeEventListener('qrcode:ready', this.qrReadyHandler);
     },
 
     renderQrCode() {
@@ -161,6 +226,7 @@ Alpine.data('instructorWorkspace', () => ({
         this.downloadingIdCard = true;
 
         try {
+            await window.ensureIqamsQrCode();
             await window.downloadIqamsIdCard(this.$root.dataset.idCardUrl);
         } catch (error) {
             window.alert(error.message || 'The ID card could not be downloaded.');
@@ -302,26 +368,17 @@ Alpine.data('staffWorkspace', () => ({
             body.append(label, date); detail.append(time, status); article.append(body, detail); return article;
         }));
     }),
-    qrReadyHandler: null,
     qrCode: null,
 
     init() {
         this.refreshTimer = window.setInterval(() => this.refresh(), 3000);
-        this.qrReadyHandler = () => this.renderQrCode();
-
-        if (window.QRCode) {
-            this.renderQrCode();
-        } else {
-            window.addEventListener('qrcode:ready', this.qrReadyHandler, { once: true });
-        }
-
+        window.ensureIqamsQrCode().then(() => this.renderQrCode()).catch(() => {});
         this.loadQrCode();
     },
 
     destroy() {
         window.clearInterval(this.refreshTimer);
         this.refreshTimer = null;
-        window.removeEventListener('qrcode:ready', this.qrReadyHandler);
     },
 
     renderQrCode() {
@@ -387,23 +444,15 @@ Alpine.data('studentWorkspace', () => pollingWorkspace((root, data) => {
 }));
 
 Alpine.data('studentQr', () => ({
-    qrReadyHandler: null,
     downloadingIdCard: false,
     qrCode: null,
 
     init() {
-        this.qrReadyHandler = () => this.renderQrCode();
-        if (window.QRCode) {
-            this.renderQrCode();
-        } else {
-            window.addEventListener('qrcode:ready', this.qrReadyHandler, { once: true });
-        }
-
+        window.ensureIqamsQrCode().then(() => this.renderQrCode()).catch(() => {});
         this.loadQrCode();
     },
 
     destroy() {
-        window.removeEventListener('qrcode:ready', this.qrReadyHandler);
     },
 
     renderQrCode() {
@@ -447,6 +496,7 @@ Alpine.data('studentQr', () => ({
         if (this.downloadingIdCard) return;
         this.downloadingIdCard = true;
         try {
+            await window.ensureIqamsQrCode();
             await window.downloadIqamsIdCard(this.$root.dataset.idCardUrl);
         } catch (error) {
             window.alert(error.message || 'The ID card could not be downloaded.');

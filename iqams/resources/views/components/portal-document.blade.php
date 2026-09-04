@@ -1,7 +1,6 @@
 @props([
     'title' => config('app.name', 'IQAMS'),
     'bodyClass' => 'font-sans antialiased',
-    'includeQrCode' => false,
     'alpineData' => '{}',
 ])
 
@@ -16,9 +15,6 @@
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @if($includeQrCode)
-        @vite('resources/js/qrcode.js')
-    @endif
 </head>
 <body {{ $attributes->class($bodyClass) }} x-data="{{ $alpineData }}">
     {{ $slot }}

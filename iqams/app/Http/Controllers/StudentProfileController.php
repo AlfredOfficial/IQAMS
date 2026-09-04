@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\ProfileImageService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
@@ -56,18 +56,18 @@ class StudentProfileController extends Controller
             'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ]);
 
-        $newPath = $validated['avatar']->store('avatars', 'public');
+        $newPath = app(ProfileImageService::class)->store($validated['avatar']);
         $oldPath = $user->avatar_path;
 
         try {
             $user->update(['avatar_path' => $newPath]);
         } catch (Throwable $exception) {
-            Storage::disk('public')->delete($newPath);
+            app(ProfileImageService::class)->delete($newPath);
             throw $exception;
         }
 
         if ($oldPath) {
-            Storage::disk('public')->delete($oldPath);
+            app(ProfileImageService::class)->delete($oldPath);
         }
 
         return back()->with('success', 'Profile photo updated successfully.');
@@ -81,7 +81,7 @@ class StudentProfileController extends Controller
         $user->update(['avatar_path' => null]);
 
         if ($oldPath) {
-            Storage::disk('public')->delete($oldPath);
+            app(ProfileImageService::class)->delete($oldPath);
         }
 
         return back()->with('success', 'Profile photo removed.');

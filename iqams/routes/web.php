@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\AdminLookupController;
 use App\Http\Controllers\AdminLeaveRequestController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AttendanceLogController;
@@ -76,6 +77,13 @@ Route::middleware(['auth', 'active', 'password.changed', 'role:admin'])->prefix(
     Route::get('dashboard/realtime', [AdminDashboardController::class, 'realtime'])->middleware('permission:view-reports')->name('dashboard.realtime');
     Route::get('dashboard/delta', [AdminDashboardController::class, 'delta'])->middleware('permission:view-reports')->name('dashboard.delta');
     Route::get('dashboard/analytics', [AdminDashboardController::class, 'analytics'])->middleware('permission:view-reports')->name('dashboard.analytics');
+    Route::prefix('lookups')->name('lookups.')->group(function () {
+        Route::get('people', [AdminLookupController::class, 'people'])->middleware('permission:manage-attendance')->name('people');
+        Route::get('schedules', [AdminLookupController::class, 'schedules'])->middleware('permission:manage-attendance')->name('schedules');
+        Route::get('subjects', [AdminLookupController::class, 'subjects'])->middleware('permission:manage-schedules')->name('subjects');
+        Route::get('instructors', [AdminLookupController::class, 'instructors'])->middleware('permission:manage-schedules')->name('instructors');
+        Route::get('sections', [AdminLookupController::class, 'sections'])->middleware('permission:manage-schedules')->name('sections');
+    });
     Route::get('audit-logs', [AuditLogController::class, 'index'])->middleware('permission:view-audit-logs')->name('audit-logs.index');
     Route::middleware('permission:view-reports')->prefix('reports/daily-personnel')->name('reports.daily-personnel.')->group(function () {
         Route::get('/', [DailyPersonnelAttendanceReportController::class, 'index'])->name('index');
@@ -96,26 +104,26 @@ Route::middleware(['auth', 'active', 'password.changed', 'role:admin'])->group(f
     });
     Route::middleware('permission:manage-scanner-security')->group(function () {
         Route::get('scanner-security', [ScannerSecurityController::class, 'index'])->name('scanner-security.index');
-        Route::post('scanner-security/terminals', [ScannerSecurityController::class, 'storeTerminal'])->middleware('password.confirm')->name('scanner-security.terminals.store');
+        Route::post('scanner-security/terminals', [ScannerSecurityController::class, 'storeTerminal'])->name('scanner-security.terminals.store');
         Route::patch('scanner-security/terminals/{terminal}', [ScannerSecurityController::class, 'updateTerminal'])->middleware('password.confirm')->name('scanner-security.terminals.update');
         Route::post('scanner-security/users/{user}/qr/regenerate', [ScannerSecurityController::class, 'regenerate'])->middleware('password.confirm')->name('scanner-security.qr.regenerate');
         Route::post('scanner-security/qr/batch', [ScannerSecurityController::class, 'queueQrBatch'])->middleware('password.confirm')->name('scanner-security.qr.batch');
         Route::patch('scanner-security/flags/{flag}', [ScannerSecurityController::class, 'reviewFlag'])->middleware('password.confirm')->name('scanner-security.flags.update');
     });
-    Route::resource('departments', DepartmentController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('permission:manage-academic-structure')->middlewareFor(['store', 'update', 'destroy'], 'password.confirm');
-    Route::resource('courses', CourseController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('permission:manage-academic-structure')->middlewareFor(['store', 'update', 'destroy'], 'password.confirm');
-    Route::resource('instructors', InstructorController::class)->except(['create', 'edit', 'show'])->middleware('permission:manage-users')->middlewareFor(['store', 'update', 'destroy'], 'password.confirm');
+    Route::resource('departments', DepartmentController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('permission:manage-academic-structure')->middlewareFor(['update', 'destroy'], 'password.confirm');
+    Route::resource('courses', CourseController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('permission:manage-academic-structure')->middlewareFor(['update', 'destroy'], 'password.confirm');
+    Route::resource('instructors', InstructorController::class)->except(['create', 'edit', 'show'])->middleware('permission:manage-users')->middlewareFor(['update', 'destroy'], 'password.confirm');
     Route::get('roles', [RoleController::class, 'index'])->middleware('permission:manage-role-assignments')->name('roles.index');
     Route::patch('roles/users/{user}', [RoleController::class, 'assign'])->middleware(['permission:manage-role-assignments', 'password.confirm'])->name('roles.assign');
-    Route::resource('non-teaching-staff', NonTeachingStaffController::class)->except(['create', 'edit', 'show'])->middleware('permission:manage-users')->middlewareFor(['store', 'update', 'destroy'], 'password.confirm');
-    Route::resource('office-units', OfficeUnitController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('permission:manage-office-units')->middlewareFor(['store', 'update', 'destroy'], 'password.confirm');
-    Route::resource('subjects', SubjectController::class)->except('create', 'edit', 'show')->middleware('permission:manage-academic-structure')->middlewareFor(['store', 'update', 'destroy'], 'password.confirm');
-    Route::resource('sections', SectionController::class)->except(['create', 'edit', 'show'])->middleware('permission:manage-academic-structure')->middlewareFor(['store', 'update', 'destroy'], 'password.confirm');
-    Route::resource('students', StudentController::class)->except(['create', 'edit', 'show'])->middleware('permission:manage-users')->middlewareFor(['store', 'update', 'destroy'], 'password.confirm');
-    Route::resource('schedules', ScheduleController::class)->except(['create', 'edit', 'show'])->middleware('permission:manage-schedules')->middlewareFor(['store', 'update', 'destroy'], 'password.confirm');
-    Route::resource('attendance-logs', AttendanceLogController::class)->except(['create', 'edit', 'show'])->middleware('permission:manage-attendance')->middlewareFor(['store', 'update', 'destroy'], 'password.confirm');
+    Route::resource('non-teaching-staff', NonTeachingStaffController::class)->except(['create', 'edit', 'show'])->middleware('permission:manage-users')->middlewareFor(['update', 'destroy'], 'password.confirm');
+    Route::resource('office-units', OfficeUnitController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('permission:manage-office-units')->middlewareFor(['update', 'destroy'], 'password.confirm');
+    Route::resource('subjects', SubjectController::class)->except('create', 'edit', 'show')->middleware('permission:manage-academic-structure')->middlewareFor(['update', 'destroy'], 'password.confirm');
+    Route::resource('sections', SectionController::class)->except(['create', 'edit', 'show'])->middleware('permission:manage-academic-structure')->middlewareFor(['update', 'destroy'], 'password.confirm');
+    Route::resource('students', StudentController::class)->except(['create', 'edit', 'show'])->middleware('permission:manage-users')->middlewareFor(['update', 'destroy'], 'password.confirm');
+    Route::resource('schedules', ScheduleController::class)->except(['create', 'edit', 'show'])->middleware('permission:manage-schedules')->middlewareFor(['update', 'destroy'], 'password.confirm');
+    Route::resource('attendance-logs', AttendanceLogController::class)->except(['create', 'edit', 'show'])->middleware('permission:manage-attendance')->middlewareFor(['update', 'destroy'], 'password.confirm');
     Route::resource('school-events', SchoolEventController::class)
-        ->parameters(['school-events' => 'schoolEvent'])->except(['show', 'create', 'edit'])->middleware('permission:manage-school-events')->middlewareFor(['store', 'update', 'destroy'], 'password.confirm');
+        ->parameters(['school-events' => 'schoolEvent'])->except(['show', 'create', 'edit'])->middleware('permission:manage-school-events')->middlewareFor(['update', 'destroy'], 'password.confirm');
     Route::patch('school-events/{schoolEvent}/publish', [SchoolEventController::class, 'publish'])->middleware(['permission:manage-school-events', 'password.confirm'])->name('school-events.publish');
     Route::patch('school-events/{schoolEvent}/cancel', [SchoolEventController::class, 'cancel'])->middleware(['permission:manage-school-events', 'password.confirm'])->name('school-events.cancel');
     Route::patch('users/{user}/status', [UserAccountStatusController::class, 'update'])->middleware(['permission:manage-users', 'password.confirm'])->name('users.status.update');

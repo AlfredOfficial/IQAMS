@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Schedule;
 use App\Models\User;
+use App\Support\LocalTimeRange;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -36,8 +37,16 @@ class AuditLogController extends Controller
             ->when($filters['actor_id'] ?? null, fn ($query, $value) => $query->where('actor_id', $value))
             ->when($filters['subject_type'] ?? null, fn ($query, $value) => $query->where('subject_type', $value))
             ->when($filters['subject_id'] ?? null, fn ($query, $value) => $query->where('subject_id', $value))
-            ->when($filters['from'] ?? null, fn ($query, $value) => $query->whereDate('created_at', '>=', $value))
-            ->when($filters['to'] ?? null, fn ($query, $value) => $query->whereDate('created_at', '<=', $value))
+            ->when($filters['from'] ?? null, function ($query, $value) {
+                [$start] = LocalTimeRange::day((string) $value);
+
+                return $query->where('created_at', '>=', $start);
+            })
+            ->when($filters['to'] ?? null, function ($query, $value) {
+                [, $end] = LocalTimeRange::day((string) $value);
+
+                return $query->where('created_at', '<', $end);
+            })
             ->latest('created_at')
             ->latest('id')
             ->paginate(50)

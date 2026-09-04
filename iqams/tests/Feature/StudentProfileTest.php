@@ -63,6 +63,35 @@ class StudentProfileTest extends TestCase
         Storage::disk('public')->assertMissing($path);
     }
 
+    public function test_uploaded_photo_has_bounded_primary_and_thumbnail_derivatives(): void
+    {
+        if (! function_exists('imagecreatetruecolor') || ! function_exists('imagejpeg')) {
+            $this->markTestSkipped('GD is required to verify avatar resizing.');
+        }
+
+        Storage::fake('public');
+        [$user] = $this->studentAccount('2026-004A');
+
+        $source = imagecreatetruecolor(1200, 800);
+        ob_start();
+        imagejpeg($source, null, 95);
+        $contents = ob_get_clean();
+        imagedestroy($source);
+
+        $image = UploadedFile::fake()->createWithContent('large-avatar.jpg', $contents)->mimeType('image/jpeg');
+
+        $this->actingAs($user)->put(route('student.profile.photo'), ['avatar' => $image])->assertSessionHasNoErrors();
+
+        $path = $user->refresh()->avatar_path;
+        $thumbnailPath = \App\Services\ProfileImageService::thumbnailPath($path);
+        $primarySize = getimagesizefromstring(Storage::disk('public')->get($path));
+        $thumbnailSize = getimagesizefromstring(Storage::disk('public')->get($thumbnailPath));
+
+        $this->assertLessThanOrEqual(512, max($primarySize[0], $primarySize[1]));
+        $this->assertLessThanOrEqual(192, max($thumbnailSize[0], $thumbnailSize[1]));
+        Storage::disk('public')->assertExists($thumbnailPath);
+    }
+
     public function test_current_password_is_verified(): void
     {
         [$user] = $this->studentAccount('2026-005');

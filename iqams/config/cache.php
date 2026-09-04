@@ -131,6 +131,15 @@ return [
     |
     */
 
-    'serializable_classes' => false,
+    // Personnel attendance summaries contain these value objects and models.
+    // Keep the allow-list narrow so cached data can be restored without
+    // enabling arbitrary PHP class unserialization.
+    'serializable_classes' => [
+        \App\Models\AttendanceLog::class,
+        \App\Models\LeaveRequest::class,
+        \Carbon\Carbon::class,
+        \Illuminate\Support\Carbon::class,
+        \Illuminate\Support\Collection::class,
+    ],
 
 ];

@@ -9,10 +9,10 @@ use App\Services\AdminAccountProtectionService;
 use App\Services\AuditLogger;
 use App\Services\QrCredentialService;
 use App\Services\RoleAssignmentService;
+use App\Services\ProfileImageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class NonTeachingStaffController extends Controller
@@ -22,9 +22,15 @@ class NonTeachingStaffController extends Controller
      */
     public function index()
     {
-        $staffMembers = NonTeachingStaff::with(['user', 'officeUnit'])->latest()->paginate(10);
+        $staffMembers = NonTeachingStaff::query()
+            ->select(['id', 'user_id', 'office_unit_id', 'employee_no', 'name_prefix', 'first_name', 'middle_name', 'last_name', 'name_suffix', 'created_at'])
+            ->with([
+                'user:id,username,name,email,avatar_path',
+                'officeUnit:id,code,name',
+            ])
+            ->latest('non_teaching_staff.created_at')->paginate(10);
 
-        $officeUnits = OfficeUnit::where('is_active', true)->orderBy('name')->get();
+        $officeUnits = OfficeUnit::where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']);
 
         return view('non-teaching-staff.index', compact('staffMembers', 'officeUnits'));
     }
@@ -56,7 +62,7 @@ class NonTeachingStaffController extends Controller
 
         $validated = $this->normalizeOptionalNameParts($validated);
 
-        $avatarPath = $request->file('avatar')->store('avatars', 'public');
+        $avatarPath = app(ProfileImageService::class)->store($request->file('avatar'));
 
         $plainPassword = 'Staff@'.$validated['employee_no'];
         $administrator = $request->user();
@@ -95,7 +101,7 @@ class NonTeachingStaffController extends Controller
                 return $user;
             });
         } catch (\Throwable $exception) {
-            Storage::disk('public')->delete($avatarPath);
+            app(ProfileImageService::class)->delete($avatarPath);
             throw $exception;
         }
 
@@ -142,7 +148,9 @@ class NonTeachingStaffController extends Controller
         $validated = $this->normalizeOptionalNameParts($validated);
 
         $oldAvatarPath = $nonTeachingStaff->user->avatar_path;
-        $newAvatarPath = $request->hasFile('avatar') ? $request->file('avatar')->store('avatars', 'public') : null;
+        $newAvatarPath = $request->hasFile('avatar')
+            ? app(ProfileImageService::class)->store($request->file('avatar'))
+            : null;
 
         try {
             DB::transaction(function () use ($validated, $nonTeachingStaff, $newAvatarPath) {
@@ -154,13 +162,13 @@ class NonTeachingStaffController extends Controller
             });
         } catch (\Throwable $exception) {
             if ($newAvatarPath) {
-                Storage::disk('public')->delete($newAvatarPath);
+                app(ProfileImageService::class)->delete($newAvatarPath);
             }
             throw $exception;
         }
 
         if ($newAvatarPath && $oldAvatarPath) {
-            Storage::disk('public')->delete($oldAvatarPath);
+            app(ProfileImageService::class)->delete($oldAvatarPath);
         }
 
         app(AuditLogger::class)->record('account.profile_updated', $nonTeachingStaff->user, [

@@ -36,6 +36,15 @@ class AttendanceSummaryCache
         );
     }
 
+    public function rememberPersonnelDashboard(int $userId, Carbon $from, Carbon $to, Closure $callback): array
+    {
+        return Cache::remember(
+            $this->personnelDashboardKey($userId, $from, $to),
+            now()->addSeconds(self::PERSONNEL_TTL),
+            $callback,
+        );
+    }
+
     public function rememberAdminAnalytics(Closure $callback): array
     {
         return Cache::remember(
@@ -114,6 +123,19 @@ class AttendanceSummaryCache
             $from->toDateString(),
             $to->toDateString(),
             $includeEmpty ? '1' : '0',
+        ]);
+    }
+
+    private function personnelDashboardKey(int $userId, Carbon $from, Carbon $to): string
+    {
+        return implode(':', [
+            'attendance-summary.personnel-dashboard.v1',
+            $this->generation(self::PERSONNEL_GENERATION),
+            $this->generation($this->personnelUserGenerationKey($userId)),
+            $userId,
+            $from->toDateString(),
+            $to->toDateString(),
+            '1',
         ]);
     }
 

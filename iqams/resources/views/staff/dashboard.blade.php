@@ -83,7 +83,7 @@
                         <h2 class="font-semibold text-gray-900">My profile</h2>
                         <div class="mt-4 flex items-center gap-4">
                             <div class="h-20 w-20 shrink-0 overflow-hidden rounded-full bg-indigo-100 text-indigo-700">
-                                @if (Auth::user()->avatar_url)<img src="{{ Auth::user()->avatar_url }}" alt="{{ $staff->fullName() }}" class="h-full w-full object-cover">@else<div class="grid h-full place-items-center font-bold">{{ strtoupper(substr($staff->first_name, 0, 1).substr($staff->last_name, 0, 1)) }}</div>@endif
+                                 @if (Auth::user()->avatar_thumbnail_url)<img loading="lazy" width="80" height="80" src="{{ Auth::user()->avatar_thumbnail_url }}" alt="{{ $staff->fullName() }}" class="h-full w-full object-cover">@else<div class="grid h-full place-items-center font-bold">{{ strtoupper(substr($staff->first_name, 0, 1).substr($staff->last_name, 0, 1)) }}</div>@endif
                             </div>
                             <div class="min-w-0 text-sm leading-6"><p class="break-words text-base font-extrabold text-gray-900">{{ $staff->fullName() }}</p><p class="text-gray-600">Staff ID: {{ $staff->employee_no }}</p><p class="break-words text-gray-600">Office/Unit: {{ $staff->officeUnit?->name ?? 'N/A' }}</p><p class="text-gray-600">Position: Non-Teaching Personnel</p></div>
                         </div>
@@ -94,7 +94,7 @@
                         </div>
                         <div class="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
                             {{-- <a href="{{ route('staff.profile.edit') }}" class="rounded-lg bg-indigo-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-indigo-700">Edit profile</a> --}}
-                            <button type="button" @click="window.downloadIqamsIdCard(@js(route('id-card.show'))).catch(error => window.alert(error.message))" class="inline-flex items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"><x-heroicon-o-arrow-down-tray class="h-5 w-5" />Download ID Card</button>
+                            <button type="button" @click="window.ensureIqamsQrCode().then(() => window.downloadIqamsIdCard(@js(route('id-card.show')))).catch(error => window.alert(error.message))" class="inline-flex items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"><x-heroicon-o-arrow-down-tray class="h-5 w-5" />Download ID Card</button>
                         </div>
                     </section>
 

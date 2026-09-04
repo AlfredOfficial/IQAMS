@@ -128,6 +128,21 @@ class AdminDashboardPerformanceTest extends TestCase
             ->assertJsonMissingPath('filters');
     }
 
+    public function test_analytics_endpoint_returns_not_modified_for_the_same_payload(): void
+    {
+        $admin = $this->user('admin');
+
+        $first = $this->actingAs($admin)->getJson(route('admin.dashboard.analytics'))->assertOk();
+        $etag = $first->headers->get('ETag');
+
+        $this->assertNotEmpty($etag);
+        $this->actingAs($admin)
+            ->withHeader('If-None-Match', $etag)
+            ->getJson(route('admin.dashboard.analytics'))
+            ->assertStatus(304)
+            ->assertHeader('ETag', $etag);
+    }
+
     public function test_analytics_cache_is_reused_and_invalidated_after_attendance_changes(): void
     {
         Carbon::setTestNow('2026-08-19 10:00:00');

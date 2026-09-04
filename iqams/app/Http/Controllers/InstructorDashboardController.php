@@ -13,17 +13,24 @@ class InstructorDashboardController extends Controller
 {
     public function index(Request $request, PersonnelAttendanceSummary $summary, ScheduleOccurrenceResolver $occurrences)
     {
-        $instructor = $request->user()->instructor?->load('department');
+        $user = $request->user()->load([
+            'instructor:id,user_id,department_id,employee_no,name_prefix,first_name,middle_name,last_name,professional_credentials',
+            'instructor.department:id,department_code,department_name',
+        ]);
+        $instructor = $user->instructor;
         abort_unless($instructor, 403, 'No instructor profile linked to this account.');
-        $today = $summary->day(today(), $this->todayLogs($request));
-        $monthDays = $summary->days($request->user(), now()->startOfMonth(), today(), true);
-        $totals = $summary->totals($monthDays);
         $at = now(config('app.timezone'));
+        $month = $summary->dashboardMonth($request->user(), $at);
+        $today = $month['today'];
+        $monthDays = $month['monthDays'];
+        $totals = $month['totals'];
         $candidateDates = $occurrences->candidateSessionDates($at);
         $candidateDays = collect($candidateDates)
             ->map(fn (Carbon $date) => strtolower($date->format('l')))
             ->all();
-        $scheduleCandidates = $instructor->schedules()->with(['subject', 'section'])
+        $scheduleCandidates = $instructor->schedules()
+            ->select(['id', 'subject_id', 'instructor_id', 'section_id', 'day', 'start_time', 'end_time', 'room', 'archived_at'])
+            ->with(['subject:id,subject_code,subject_name', 'section:id,section_name,course_id'])
             ->whereIn('day', $candidateDays)->orderBy('start_time')->get();
         $occurrenceRows = $scheduleCandidates->flatMap(function (Schedule $schedule) use ($candidateDates, $occurrences): array {
             foreach ($candidateDates as $date) {
@@ -57,15 +64,10 @@ class InstructorDashboardController extends Controller
 
     public function realtime(Request $request, PersonnelAttendanceSummary $summary)
     {
-        $today = $summary->day(today(), $this->todayLogs($request));
-        $totals = $summary->totals($summary->days($request->user(), now()->startOfMonth(), today(), true));
+        $month = $summary->dashboardMonth($request->user(), now(config('app.timezone')));
+        $today = $month['today'];
+        $totals = $month['totals'];
         return response()->json(['today' => $this->serializeDay($today), 'totals' => $totals, 'updated_at' => now()->format('g:i:s A')]);
-    }
-
-    private function todayLogs(Request $request)
-    {
-        return AttendanceLog::canonical()->where('user_id', $request->user()->id)->whereNull('schedule_id')
-            ->whereDate('scan_time', today())->orderBy('scan_time')->get();
     }
 
     private function serializeDay(array $day): array

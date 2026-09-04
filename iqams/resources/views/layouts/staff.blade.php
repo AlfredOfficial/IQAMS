@@ -17,7 +17,6 @@
 <x-portal-document
     :title="$title"
     body-class="bg-[#f5f7fb] font-sans text-slate-800 antialiased"
-    :include-qr-code="true"
     alpine-data="{ sidebarOpen: false, userMenuOpen: false }"
     x-on:keydown.escape.window="sidebarOpen=false;userMenuOpen=false"
 >
@@ -57,7 +56,7 @@
                         <p class="flex items-center gap-2 font-semibold"><x-heroicon-o-calendar-days class="h-4 w-4 text-blue-600" />{{ now()->format('l, F j, Y') }}</p>
                     </div>
                     <x-leave-notification-bell />
-                    <a href="{{ route('staff.profile.edit') }}" class="relative h-12 w-12 overflow-hidden rounded-full bg-blue-100 text-blue-800 ring-1 ring-slate-200" aria-label="Open profile">@if($portalUser->avatar_url)<img src="{{ $portalUser->avatar_url }}" class="h-full w-full object-cover" alt="{{ $portalName }}">@else<span class="grid h-full place-items-center font-bold">{{ $initials }}</span>@endif</a>
+                     <a href="{{ route('staff.profile.edit') }}" class="relative h-12 w-12 overflow-hidden rounded-full bg-blue-100 text-blue-800 ring-1 ring-slate-200" aria-label="Open profile">@if($portalUser->avatar_thumbnail_url)<img loading="lazy" width="48" height="48" src="{{ $portalUser->avatar_thumbnail_url }}" class="h-full w-full object-cover" alt="{{ $portalName }}">@else<span class="grid h-full place-items-center font-bold">{{ $initials }}</span>@endif</a>
                 </div>
             </header>
             <main id="app-content" class="p-3 sm:p-5 lg:p-6">{{ $slot }}</main>

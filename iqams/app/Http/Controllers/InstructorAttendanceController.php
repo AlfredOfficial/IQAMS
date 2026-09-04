@@ -17,7 +17,7 @@ class InstructorAttendanceController extends Controller
     public function history(Request $request, PersonnelAttendancePages $pages)
     {
         return view('instructor.history', $pages->history($request->user(), $request->only([
-            'from', 'to', 'status', 'punctuality',
+            'from', 'to', 'status', 'punctuality', 'page', 'per_page',
         ])));
     }
 
@@ -40,7 +40,9 @@ class InstructorAttendanceController extends Controller
         $instructor = $request->user()->instructor;
         abort_unless($instructor, 403);
         $dayOrder = collect(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']);
-        $scheduleGroups = $instructor->schedules()->with(['subject', 'section'])
+        $scheduleGroups = $instructor->schedules()
+            ->select(['id', 'subject_id', 'instructor_id', 'section_id', 'day', 'start_time', 'end_time', 'room', 'recurring_schedule_group_id'])
+            ->with(['subject:id,subject_code,subject_name', 'section:id,section_name'])
             ->orderBy('start_time')->get()
             ->groupBy(fn (Schedule $schedule) => $schedule->recurring_schedule_group_id ?? implode('|', [
                 'legacy',
@@ -95,8 +97,9 @@ class InstructorAttendanceController extends Controller
             ]);
         }
 
-        $schedule->loadMissing(['subject', 'section']);
-        $students = Student::with('user')
+        $schedule->loadMissing(['subject:id,subject_code,subject_name', 'section:id,section_name']);
+        $students = Student::query()
+            ->select(['id', 'user_id', 'student_no', 'first_name', 'last_name', 'middle_name', 'section_id', 'status'])
             ->where('section_id', $schedule->section_id)
             ->where('status', 'active')
             ->whereHas('user', fn ($query) => $query->where('status', 'active'))
@@ -106,6 +109,7 @@ class InstructorAttendanceController extends Controller
             ->whereBetween('scan_time', [$occurrence->opensAt, $occurrence->endsAt])
             ->where('attendance_type', 'time_in')
             ->whereIn('user_id', $students->pluck('user_id'))
+            ->select(['id', 'user_id', 'scan_time', 'status'])
             ->orderBy('scan_time')->get()->keyBy('user_id');
         $cutoffPassed = now(config('app.timezone'))->greaterThan($occurrence->presentUntil);
 

@@ -22,7 +22,7 @@ class ScannerSecurityController extends Controller
 {
     public function index()
     {
-        $terminals = ScannerTerminal::latest()->get();
+        $terminals = ScannerTerminal::latest()->get(['id', 'name', 'location', 'is_active']);
         $audits = AttendanceScanAudit::latest()->paginate(20, ['*'], 'audits');
         $flags = SecurityFlag::latest('detected_at')->paginate(20, ['*'], 'flags');
         $qrBatches = AuditLog::query()
@@ -31,7 +31,9 @@ class ScannerSecurityController extends Controller
             ->latest('created_at')
             ->limit(20)
             ->get();
-        $qrUsers = User::with('roles')
+        $qrUsers = User::query()
+            ->select(['users.id', 'users.name'])
+            ->with('roles:id,name,guard_name')
             ->where('status', 'active')
             ->whereHas('roles', fn ($q) => $q->whereIn('name', ['student', 'instructor', 'staff'])->where('guard_name', 'web'))
             ->orderBy('name')

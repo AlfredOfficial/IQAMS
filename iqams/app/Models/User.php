@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\DashboardReferenceCache;
+use App\Services\ProfileImageService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -113,6 +114,28 @@ class User extends Authenticatable
         $disk = Storage::disk('public');
 
         return $disk->url($this->avatar_path);
+    }
+
+    public function getAvatarThumbnailUrlAttribute(): ?string
+    {
+        if (! $this->avatar_path) {
+            return null;
+        }
+
+        if (array_key_exists('avatar_thumbnail_url', $this->attributes)) {
+            return $this->attributes['avatar_thumbnail_url'];
+        }
+
+        $disk = Storage::disk('public');
+        $thumbnailPath = ProfileImageService::thumbnailPath($this->avatar_path);
+
+        $url = $disk->exists($thumbnailPath)
+            ? $disk->url($thumbnailPath)
+            : $this->avatar_url;
+
+        $this->attributes['avatar_thumbnail_url'] = $url;
+
+        return $url;
     }
 
     // Convenience helpers for role checks in middleware/blade

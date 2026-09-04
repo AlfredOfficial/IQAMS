@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AttendanceLog;
 use App\Models\LeaveRequest;
 use App\Models\User;
+use App\Support\LocalTimeRange;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -40,14 +41,59 @@ class PersonnelAttendanceSummary
         );
     }
 
+    /**
+     * Build the current personnel dashboard from one monthly attendance query.
+     * The daily and period totals are deliberately calculated through the same
+     * rule methods used by the history pages.
+     */
+    public function dashboardMonth(User $user, Carbon $today): array
+    {
+        $today = $today->copy()->timezone(config('app.timezone'))->startOfDay();
+        $from = $today->copy()->startOfMonth();
+        $to = $today->copy();
+
+        return $this->cache->rememberPersonnelDashboard(
+            $user->id,
+            $from,
+            $to,
+            fn (): array => $this->calculateDashboardMonth($user, $from, $to),
+        );
+    }
+
     private function calculateDays(User $user, Carbon $from, Carbon $to, bool $includeEmpty): Collection
     {
+        return $this->calculatePeriod($user, $from, $to, $includeEmpty)['days'];
+    }
+
+    /**
+     * Calculate the dashboard payload while sharing the monthly attendance
+     * rows between today's progress and the monthly totals.
+     */
+    private function calculateDashboardMonth(User $user, Carbon $from, Carbon $to): array
+    {
+        $period = $this->calculatePeriod($user, $from, $to, true, $to);
+        $days = $period['days'];
+
+        return [
+            'today' => $period['today'],
+            'monthDays' => $days,
+            'totals' => $this->totals($days),
+        ];
+    }
+
+    /**
+     * @return array{days: Collection, today: array|null}
+     */
+    private function calculatePeriod(User $user, Carbon $from, Carbon $to, bool $includeEmpty, ?Carbon $dashboardToday = null): array
+    {
+        [$start, $end] = LocalTimeRange::dates($from, $to);
         $logs = AttendanceLog::canonical()->where('user_id', $user->id)
             ->whereNull('schedule_id')->whereNull('school_event_id')
-            ->whereBetween('scan_time', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
+            ->where('scan_time', '>=', $start)
+            ->where('scan_time', '<', $end)
             ->orderBy('scan_time')
             ->get(['id', 'attendance_period', 'scan_time', 'punctuality_status'])
-            ->groupBy(fn ($log) => $log->scan_time->toDateString());
+            ->groupBy(fn ($log) => $log->scan_time->copy()->timezone(config('app.timezone'))->toDateString());
         $leavesByDate = $this->approvedLeavesByDate($user, $from, $to);
 
         $days = collect();
@@ -70,7 +116,12 @@ class PersonnelAttendanceSummary
             }
         }
 
-        return $days;
+        return [
+            'days' => $days,
+            'today' => $dashboardToday
+                ? $this->day($dashboardToday, $logs->get($dashboardToday->toDateString(), collect()))
+                : null,
+        ];
     }
 
     public function day(Carbon $date, Collection $logs, ?LeaveRequest $leave = null): array

@@ -205,8 +205,8 @@ php artisan roles:reconcile
 
 Administrator role, status, and deletion operations lock the relevant active
 administrator rows and preserve the final-administrator invariant. Persistent
-administrator mutations require Laravel password confirmation, configured for
-15 minutes by `AUTH_PASSWORD_TIMEOUT=900`. Review the append-only audit trail
+administrator security mutations require Laravel password confirmation, configured for
+15 minutes by `AUTH_PASSWORD_TIMEOUT=900`; routine record creation does not. Review the append-only audit trail
 at `/admin/audit-logs`; records are retained with attendance and leave history
 until an institutional retention period is approved.
 

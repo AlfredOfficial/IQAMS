@@ -7,8 +7,10 @@ use App\Models\AttendanceLog;
 use App\Models\Schedule;
 use App\Models\SchoolEvent;
 use App\Models\User;
+use App\Support\LocalTimeRange;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -54,10 +56,6 @@ class QrAttendanceService
             $this->deny('Attendance is denied because this student has no assigned section.');
         }
 
-        if ($event = $this->eventResolver->activeAttendanceEvent($student, $scannedAt)) {
-            return $this->recordEvent($user, $event, $scannedAt, $location);
-        }
-
         $candidateDates = $this->occurrences->candidateSessionDates($scannedAt);
         $candidateDays = collect($candidateDates)
             ->map(fn (Carbon $date) => strtolower($date->format('l')))
@@ -67,13 +65,20 @@ class QrAttendanceService
             ->whereIn('day', $candidateDays)
             ->get();
 
-        $matches = $schedules
+        $candidates = $schedules
             ->map(fn (Schedule $schedule) => [
                 'schedule' => $schedule,
                 'occurrence' => $this->occurrences->resolveAt($schedule, $scannedAt),
             ])
-            ->filter(fn (array $candidate) => $candidate['occurrence'] !== null)
-            ->reject(fn (array $candidate) => $this->eventResolver->affectingOccurrence($candidate['occurrence']))
+            ->filter(fn (array $candidate) => $candidate['occurrence'] !== null);
+        $eventContext = $this->eventContext($scannedAt, $candidates);
+
+        if ($event = $this->eventResolver->activeAttendanceEvent($student, $scannedAt, $eventContext)) {
+            return $this->recordEvent($user, $event, $scannedAt, $location);
+        }
+
+        $matches = $candidates
+            ->reject(fn (array $candidate) => $this->eventResolver->affectingOccurrence($candidate['occurrence'], $eventContext))
             ->sortByDesc(fn (array $candidate) => [
                 $this->studentWindow->isPresent($candidate['occurrence'], $scannedAt) ? 1 : 0,
                 $candidate['occurrence']->startsAt->getTimestamp(),
@@ -162,6 +167,25 @@ class QrAttendanceService
         }
     }
 
+    /**
+     * Build one event collection for the scan and all resolved candidate
+     * occurrences. The resolver expands the range by its existing matching
+     * window before querying published events.
+     */
+    private function eventContext(Carbon $scannedAt, Collection $candidates): SchoolEventContext
+    {
+        $from = $scannedAt->copy();
+        $to = $scannedAt->copy();
+
+        foreach ($candidates as $candidate) {
+            $occurrence = $candidate['occurrence'];
+            $from = $occurrence->startsAt->lt($from) ? $occurrence->startsAt->copy() : $from;
+            $to = $occurrence->endsAt->gt($to) ? $occurrence->endsAt->copy() : $to;
+        }
+
+        return $this->eventResolver->context($from, $to);
+    }
+
     private function recordEvent(User $user, SchoolEvent $event, Carbon $scannedAt, ?string $location): AttendanceLog
     {
         $scanKey = "event:{$user->id}:{$event->id}";
@@ -201,9 +225,11 @@ class QrAttendanceService
             $this->deny('This QR code does not belong to a supported attendance profile.');
         }
 
+        [$dayStart, $dayEnd] = LocalTimeRange::day($scannedAt);
         $todayLogs = AttendanceLog::canonical()->where('user_id', $user->id)
             ->whereNull('schedule_id')
-            ->whereDate('scan_time', $scannedAt->toDateString())
+            ->where('scan_time', '>=', $dayStart)
+            ->where('scan_time', '<', $dayEnd)
             ->orderBy('scan_time')
             ->lockForUpdate()
             ->get();

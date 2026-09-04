@@ -24,8 +24,11 @@ class SchoolEventController extends Controller
 
         return view('school-events.index', [
             'events' => $events,
-            'sections' => Section::active()->orderBy('section_name')->get(),
-            'schedules' => Schedule::active()->with(['subject', 'section'])->orderBy('day')->orderBy('start_time')->get(),
+            'sections' => Section::active()->orderBy('section_name')->get(['id', 'course_id', 'section_name', 'school_year', 'semester']),
+            'schedules' => Schedule::active()
+                ->select(['id', 'subject_id', 'section_id', 'day', 'start_time', 'end_time'])
+                ->with(['subject:id,subject_code', 'section:id,section_name'])
+                ->orderBy('day')->orderBy('start_time')->get(),
         ]);
     }
 
@@ -130,7 +133,11 @@ class SchoolEventController extends Controller
             }
         }
         if ($event->target_scope === 'schedules') {
-            $schedules = Schedule::active()->whereIn('id', array_unique($data['schedule_ids'] ?? []))->get();
+            $schedules = Schedule::active()
+                ->whereIn('id', array_unique($data['schedule_ids'] ?? []))
+                ->select(['id', 'subject_id', 'section_id', 'day', 'start_time', 'end_time'])
+                ->with('subject:id,subject_code')
+                ->get();
             foreach ($schedules as $schedule) {
                 if (! $this->scheduleOverlaps($schedule, Carbon::parse($event->starts_at), Carbon::parse($event->ends_at))) {
                     throw ValidationException::withMessages(['schedule_ids' => "{$schedule->subject?->subject_code} does not overlap the event date and time."]);

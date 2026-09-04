@@ -9,10 +9,10 @@ use App\Services\AdminAccountProtectionService;
 use App\Services\AuditLogger;
 use App\Services\QrCredentialService;
 use App\Services\RoleAssignmentService;
+use App\Services\ProfileImageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class InstructorController extends Controller
@@ -22,9 +22,15 @@ class InstructorController extends Controller
      */
     public function index()
     {
-        $instructors = Instructor::with(['user', 'department'])->latest()->paginate(10);
+        $instructors = Instructor::query()
+            ->select(['id', 'user_id', 'department_id', 'employee_no', 'name_prefix', 'first_name', 'middle_name', 'last_name', 'professional_credentials', 'created_at'])
+            ->with([
+                'user:id,username,name,email,avatar_path',
+                'department:id,department_code,department_name',
+            ])
+            ->latest('instructors.created_at')->paginate(10);
 
-        $departments = Department::active()->orderBy('department_name')->get();
+        $departments = Department::active()->orderBy('department_name')->get(['id', 'department_code', 'department_name']);
 
         return view('instructors.index', compact('instructors', 'departments'));
     }
@@ -54,7 +60,7 @@ class InstructorController extends Controller
             'avatar' => 'required|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
-        $avatarPath = $request->file('avatar')->store('avatars', 'public');
+        $avatarPath = app(ProfileImageService::class)->store($request->file('avatar'));
 
         $plainPassword = 'Instructor@'.$validated['employee_no'];
         $administrator = $request->user();
@@ -93,7 +99,7 @@ class InstructorController extends Controller
                 return $user;
             });
         } catch (\Throwable $exception) {
-            Storage::disk('public')->delete($avatarPath);
+            app(ProfileImageService::class)->delete($avatarPath);
             throw $exception;
         }
 
@@ -139,7 +145,7 @@ class InstructorController extends Controller
 
         $oldAvatarPath = $instructor->user->avatar_path;
         $newAvatarPath = $request->hasFile('avatar')
-            ? $request->file('avatar')->store('avatars', 'public')
+            ? app(ProfileImageService::class)->store($request->file('avatar'))
             : null;
 
         try {
@@ -152,13 +158,13 @@ class InstructorController extends Controller
             });
         } catch (\Throwable $exception) {
             if ($newAvatarPath) {
-                Storage::disk('public')->delete($newAvatarPath);
+                app(ProfileImageService::class)->delete($newAvatarPath);
             }
             throw $exception;
         }
 
         if ($newAvatarPath && $oldAvatarPath) {
-            Storage::disk('public')->delete($oldAvatarPath);
+            app(ProfileImageService::class)->delete($oldAvatarPath);
         }
 
         app(AuditLogger::class)->record('account.profile_updated', $instructor->user, [

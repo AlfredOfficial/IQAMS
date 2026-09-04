@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\ProfileImageService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
@@ -62,7 +62,7 @@ class MyProfileController extends Controller
         $newAvatarPath = null;
 
         if ($request->hasFile('avatar')) {
-            $newAvatarPath = $request->file('avatar')->store('avatars', 'public');
+            $newAvatarPath = app(ProfileImageService::class)->store($request->file('avatar'));
         }
 
         $passwordChanged = ! empty($validated['password']);
@@ -92,14 +92,14 @@ class MyProfileController extends Controller
             $user->save();
         } catch (Throwable $exception) {
             if ($newAvatarPath !== null) {
-                Storage::disk('public')->delete($newAvatarPath);
+                app(ProfileImageService::class)->delete($newAvatarPath);
             }
 
             throw $exception;
         }
 
         if ($newAvatarPath !== null && $oldAvatarPath !== null && $oldAvatarPath !== $newAvatarPath) {
-            Storage::disk('public')->delete($oldAvatarPath);
+            app(ProfileImageService::class)->delete($oldAvatarPath);
         }
 
         if ($passwordChanged) {
