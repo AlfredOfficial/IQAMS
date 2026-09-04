@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\AttendanceLog;
 use App\Models\SchoolEvent;
 use App\Models\Student;
 use App\ValueObjects\ScheduleOccurrence;
@@ -15,7 +14,10 @@ class AttendanceAbsenceWriter
 {
     private const INSERT_CHUNK = 500;
 
-    public function __construct(private IntegrityKeyService $keys) {}
+    public function __construct(
+        private IntegrityKeyService $keys,
+        private AttendanceSummaryCache $cache,
+    ) {}
 
     public function forSchedule(ScheduleOccurrence $occurrence, ?SchoolEvent $event = null): int
     {
@@ -127,9 +129,24 @@ class AttendanceAbsenceWriter
 
             if ($rows !== []) {
                 $created += DB::table('attendance_logs')->insertOrIgnore($rows);
+                $userIds = $students->pluck('user_id')->map(fn ($id) => (int) $id)->values()->all();
+                $this->afterCommit(function () use ($userIds): void {
+                    foreach ($userIds as $userId) {
+                        $this->cache->invalidateAttendance($userId);
+                    }
+                });
             }
         }, 'students.id', 'student_id');
 
         return $created;
+    }
+
+    private function afterCommit(\Closure $callback): void
+    {
+        $callback();
+
+        if (DB::connection()->transactionLevel() > 0) {
+            DB::afterCommit($callback);
+        }
     }
 }

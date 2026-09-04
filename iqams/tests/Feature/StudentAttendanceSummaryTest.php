@@ -83,6 +83,24 @@ class StudentAttendanceSummaryTest extends TestCase
         $this->assertSame(0.0, $summary['percentage']);
     }
 
+    public function test_cached_summary_is_invalidated_when_attendance_is_created(): void
+    {
+        [$student, $schedule] = $this->fixture();
+        $service = app(StudentAttendanceSummary::class);
+
+        $this->assertSame(0, $service->forStudent($student->fresh())['present']);
+
+        $log = $this->log($student->user, $schedule, Carbon::parse('2026-08-03 08:05', 'Asia/Manila'), 'present');
+
+        $this->assertSame(1, $service->forStudent($student->fresh())['present']);
+
+        $log->update(['status' => 'late']);
+        $this->assertSame(1, $service->forStudent($student->fresh())['late']);
+
+        $log->update(['record_state' => 'voided']);
+        $this->assertSame(0, $service->forStudent($student->fresh())['scheduled']);
+    }
+
     /** @return array{0: Student, 1: Schedule} */
     private function fixture(): array
     {
@@ -121,9 +139,9 @@ class StudentAttendanceSummaryTest extends TestCase
         return [$student, $schedule];
     }
 
-    private function log(User $user, Schedule $schedule, Carbon $at, string $status): void
+    private function log(User $user, Schedule $schedule, Carbon $at, string $status): AttendanceLog
     {
-        AttendanceLog::create([
+        return AttendanceLog::create([
             'user_id' => $user->id,
             'schedule_id' => $schedule->id,
             'attendance_type' => 'time_in',

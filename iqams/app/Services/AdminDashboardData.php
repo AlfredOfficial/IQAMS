@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\AttendanceLog;
 use App\Models\User;
-use App\Services\ScheduleOccurrenceResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -14,7 +13,10 @@ class AdminDashboardData
 {
     private const SCAN_LIMIT = 250;
 
-    public function __construct(private ScheduleOccurrenceResolver $occurrences) {}
+    public function __construct(
+        private ScheduleOccurrenceResolver $occurrences,
+        private AttendanceSummaryCache $cache,
+    ) {}
 
     public function build(?Carbon $cursor = null, bool $includeFilters = false): array
     {
@@ -34,48 +36,15 @@ class AdminDashboardData
             ->limit(self::SCAN_LIMIT)
             ->get();
 
-        $roleMetrics = $this->roleMetrics($today, $tomorrow);
-        $statusMetrics = $this->statusMetrics($today, $tomorrow);
-        $personnelRows = $this->personnelRows($today, $tomorrow);
-        [$incompleteUsers, $missingTimeout, $incompleteByRole] = $this->personnelExceptions($personnelRows, $generatedAt->hour);
-
-        $stats = [
-            'total_scanned' => $roleMetrics->sum('users'),
-            'students' => (int) ($roleMetrics->get('student')['users'] ?? 0),
-            'instructors' => (int) ($roleMetrics->get('instructor')['users'] ?? 0),
-            'staff' => (int) ($roleMetrics->get('staff')['users'] ?? 0),
-            'present' => $this->currentlyPresentCount($generatedAt),
-            'absent' => $this->absentUserCount($today, $generatedAt),
-            'late' => (int) ($statusMetrics->get('late') ?? 0),
-            'missing_timeout' => $missingTimeout,
-            'incomplete' => $incompleteUsers,
-        ];
+        $analytics = $this->analyticsSnapshot($generatedAt, $today, $tomorrow, $weekStart, $references);
 
         $payload = [
             'generated_at' => $generatedAt->toIso8601String(),
             'cursor' => $nextCursor->toIso8601String(),
-            'stats' => $stats,
+            'stats' => $analytics['stats'],
             'scans' => $scans->map(fn (AttendanceLog $log) => $this->formatLog($log))->values()->all(),
-            'charts' => [
-                'hourly' => $this->hourly($today, $tomorrow),
-                'roles' => [
-                    ['label' => 'Students', 'value' => (int) ($roleMetrics->get('student')['scans'] ?? 0)],
-                    ['label' => 'Teaching', 'value' => (int) ($roleMetrics->get('instructor')['scans'] ?? 0)],
-                    ['label' => 'Non-teaching', 'value' => (int) ($roleMetrics->get('staff')['scans'] ?? 0)],
-                ],
-                'statuses' => collect(['present', 'late', 'absent', 'incomplete', 'missing'])->map(fn ($status) => [
-                    'label' => ucfirst($status),
-                    'value' => $status === 'incomplete' ? $incompleteUsers : ($status === 'missing' ? $missingTimeout : (int) ($statusMetrics->get($status) ?? 0)),
-                ])->all(),
-                'departments' => $this->departments($today, $tomorrow),
-                'subjects' => $this->subjects($today, $tomorrow),
-                'weekly' => $this->weekly($weekStart, $generatedAt->copy()->endOfDay()),
-            ],
-            'overview' => [
-                $this->overviewRow('Students', 'student', $roleMetrics, $references['totals']['student'], false),
-                $this->overviewRow('Teaching Personnel', 'instructor', $roleMetrics, $references['totals']['instructor'], true, $incompleteByRole['instructor']),
-                $this->overviewRow('Non-teaching Personnel', 'staff', $roleMetrics, $references['totals']['staff'], true, $incompleteByRole['staff']),
-            ],
+            'charts' => $analytics['charts'],
+            'overview' => $analytics['overview'],
         ];
 
         if ($includeFilters) {
@@ -85,6 +54,84 @@ class AdminDashboardData
         return $payload;
     }
 
+    public function buildDelta(?Carbon $cursor = null): array
+    {
+        $generatedAt = now();
+        $nextCursor = $generatedAt->copy()->subSecond()->startOfSecond();
+        $effectiveCursor = $cursor ?? $generatedAt->copy()->subDay();
+
+        $scans = $this->deltaScanQuery()
+            ->where('attendance_logs.updated_at', '>=', $effectiveCursor)
+            ->where('attendance_logs.updated_at', '<=', $generatedAt)
+            ->orderByDesc('attendance_logs.updated_at')
+            ->orderByDesc('attendance_logs.id')
+            ->limit(self::SCAN_LIMIT)
+            ->get();
+
+        return [
+            'generated_at' => $generatedAt->toIso8601String(),
+            'cursor' => $nextCursor->toIso8601String(),
+            'scans' => $scans->map(fn (AttendanceLog $log) => $this->formatLog($log))->values()->all(),
+        ];
+    }
+
+    public function analytics(): array
+    {
+        $generatedAt = now();
+        $today = $generatedAt->copy()->startOfDay();
+        $tomorrow = $today->copy()->addDay();
+        $weekStart = $generatedAt->copy()->startOfWeek()->startOfDay();
+        $references = DashboardReferenceCache::data();
+
+        return $this->analyticsSnapshot($generatedAt, $today, $tomorrow, $weekStart, $references);
+    }
+
+    private function analyticsSnapshot(Carbon $generatedAt, Carbon $today, Carbon $tomorrow, Carbon $weekStart, array $references): array
+    {
+        return $this->cache->rememberAdminAnalytics(function () use ($generatedAt, $today, $tomorrow, $weekStart, $references): array {
+            $roleMetrics = $this->roleMetrics($today, $tomorrow);
+            $statusMetrics = $this->statusMetrics($today, $tomorrow);
+            $personnelRows = $this->personnelRows($today, $tomorrow);
+            [$incompleteUsers, $missingTimeout, $incompleteByRole] = $this->personnelExceptions($personnelRows, $generatedAt->hour);
+
+            $stats = [
+                'total_scanned' => $roleMetrics->sum('users'),
+                'students' => (int) ($roleMetrics->get('student')['users'] ?? 0),
+                'instructors' => (int) ($roleMetrics->get('instructor')['users'] ?? 0),
+                'staff' => (int) ($roleMetrics->get('staff')['users'] ?? 0),
+                'present' => $this->currentlyPresentCount($generatedAt),
+                'absent' => $this->absentUserCount($today, $generatedAt),
+                'late' => (int) ($statusMetrics->get('late') ?? 0),
+                'missing_timeout' => $missingTimeout,
+                'incomplete' => $incompleteUsers,
+            ];
+
+            return [
+                'stats' => $stats,
+                'charts' => [
+                    'hourly' => $this->hourly($today, $tomorrow),
+                    'roles' => [
+                        ['label' => 'Students', 'value' => (int) ($roleMetrics->get('student')['scans'] ?? 0)],
+                        ['label' => 'Teaching', 'value' => (int) ($roleMetrics->get('instructor')['scans'] ?? 0)],
+                        ['label' => 'Non-teaching', 'value' => (int) ($roleMetrics->get('staff')['scans'] ?? 0)],
+                    ],
+                    'statuses' => collect(['present', 'late', 'absent', 'incomplete', 'missing'])->map(fn ($status) => [
+                        'label' => ucfirst($status),
+                        'value' => $status === 'incomplete' ? $incompleteUsers : ($status === 'missing' ? $missingTimeout : (int) ($statusMetrics->get($status) ?? 0)),
+                    ])->all(),
+                    'departments' => $this->departments($today, $tomorrow),
+                    'subjects' => $this->subjects($today, $tomorrow),
+                    'weekly' => $this->weekly($weekStart, $generatedAt->copy()->endOfDay()),
+                ],
+                'overview' => [
+                    $this->overviewRow('Students', 'student', $roleMetrics, $references['totals']['student'], false),
+                    $this->overviewRow('Teaching Personnel', 'instructor', $roleMetrics, $references['totals']['instructor'], true, $incompleteByRole['instructor']),
+                    $this->overviewRow('Non-teaching Personnel', 'staff', $roleMetrics, $references['totals']['staff'], true, $incompleteByRole['staff']),
+                ],
+            ];
+        });
+    }
+
     private function scanQuery(): Builder
     {
         return AttendanceLog::canonical()->with([
@@ -92,6 +139,39 @@ class AdminDashboardData
             'user.instructor.department', 'user.nonTeachingStaff.officeUnit',
             'schedule.subject', 'schedule.section.course', 'schedule.instructor.user',
         ]);
+    }
+
+    private function deltaScanQuery(): Builder
+    {
+        return AttendanceLog::query()
+            ->select([
+                'attendance_logs.id', 'attendance_logs.user_id', 'attendance_logs.schedule_id',
+                'attendance_logs.school_event_id', 'attendance_logs.attendance_type',
+                'attendance_logs.scan_time', 'attendance_logs.status', 'attendance_logs.scanner_location',
+                'attendance_logs.updated_at',
+            ])
+            ->where(function ($query): void {
+                $query->where('attendance_logs.record_state', 'canonical')
+                    ->orWhereNull('attendance_logs.record_state');
+            })
+            ->with([
+                'user:id,username,name,avatar_path',
+                'user.roles',
+                'user.student:id,user_id,student_no,section_id,course_id',
+                'user.student.section:id,section_name,course_id',
+                'user.student.section.course:id,course_code',
+                'user.student.course:id,course_code',
+                'user.instructor:id,user_id,department_id,employee_no',
+                'user.instructor.department:id,department_name',
+                'user.nonTeachingStaff:id,user_id,office_unit_id,employee_no',
+                'user.nonTeachingStaff.officeUnit:id,name',
+                'schedule:id,subject_id,section_id,instructor_id',
+                'schedule.subject:id,subject_code,subject_name',
+                'schedule.section:id,section_name,course_id',
+                'schedule.section.course:id,course_code',
+                'schedule.instructor:id,user_id',
+                'schedule.instructor.user:id,name',
+            ]);
     }
 
     private function roleMetrics(Carbon $from, Carbon $to): Collection
@@ -161,7 +241,10 @@ class AdminDashboardData
         $from = $at->copy()->startOfDay()->subDay();
 
         return AttendanceLog::canonical()
-            ->with(['schedule', 'schoolEvent'])
+            ->with([
+                'schedule:id,section_id,day,start_time,end_time,archived_at',
+                'schoolEvent:id,attendance_mode,starts_at,ends_at',
+            ])
             ->whereBetween('scan_time', [$from, $at])
             ->whereNotExists(function ($query) use ($from, $at): void {
                 $query->selectRaw('1')
@@ -180,6 +263,9 @@ class AdminDashboardData
                             });
                     });
             })
+            ->where('attendance_type', 'time_in')
+            ->whereIn('status', ['present', 'late'])
+            ->select(['id', 'user_id', 'schedule_id', 'school_event_id', 'attendance_type', 'scan_time', 'status'])
             ->get()
             ->filter(fn (AttendanceLog $log) => $this->isCurrentlyPresent($log, $at))
             ->count();
@@ -188,7 +274,8 @@ class AdminDashboardData
     private function absentUserCount(Carbon $date, Carbon $at): int
     {
         $studentAbsent = AttendanceLog::canonical()
-            ->whereDate('scan_time', $date->toDateString())
+            ->where('scan_time', '>=', $date->copy()->startOfDay())
+            ->where('scan_time', '<', $date->copy()->addDay()->startOfDay())
             ->where('status', 'absent')
             ->where(function ($query): void {
                 $query->whereNotNull('schedule_id')->orWhereNotNull('school_event_id');
@@ -196,38 +283,56 @@ class AdminDashboardData
             ->whereHas('user', fn ($query) => $query
                 ->where('status', 'active')
                 ->whereHas('student', fn ($student) => $student->where('status', 'active')))
-            ->with(['schedule', 'schoolEvent'])
+            ->with(['schedule:id,section_id,day,start_time,end_time,archived_at', 'schoolEvent:id,attendance_mode,starts_at,ends_at'])
+            ->select(['id', 'user_id', 'schedule_id', 'school_event_id', 'attendance_type', 'scan_time', 'status'])
             ->get()
             ->filter(fn (AttendanceLog $log): bool => $this->studentAbsenceCutoffPassed($log, $at))
             ->pluck('user_id')
             ->unique()
             ->count();
 
-        $personnelAbsent = 0;
-        foreach (['instructor', 'staff'] as $role) {
-            if (! $this->personnelCutoffPassed($role, $at)) {
-                continue;
-            }
+        $rolesPastCutoff = collect(['instructor', 'staff'])
+            ->filter(fn (string $role): bool => $this->personnelCutoffPassed($role, $at))
+            ->values();
 
-            $profileRelation = $role === 'instructor' ? 'instructor' : 'nonTeachingStaff';
-            $personnelAbsent += User::query()
+        $personnelAbsent = 0;
+        if ($rolesPastCutoff->isNotEmpty()) {
+            $personnelAbsent = User::query()
+                ->join('model_has_roles', function ($join): void {
+                    $join->on('model_has_roles.model_id', '=', 'users.id')
+                        ->where('model_has_roles.model_type', User::class);
+                })
+                ->join('roles', function ($join): void {
+                    $join->on('roles.id', '=', 'model_has_roles.role_id')
+                        ->where('roles.guard_name', 'web');
+                })
                 ->where('status', 'active')
-                ->whereHas('roles', fn ($query) => $query->where('name', $role)->where('guard_name', 'web'))
-                ->whereHas($profileRelation)
+                ->whereIn('roles.name', $rolesPastCutoff->all())
+                ->where(function ($query): void {
+                    $query->where(function ($query): void {
+                        $query->where('roles.name', 'instructor')->whereHas('instructor');
+                    })->orWhere(function ($query): void {
+                        $query->where('roles.name', 'staff')->whereHas('nonTeachingStaff');
+                    });
+                })
                 ->whereDoesntHave('leaveRequests', function ($query) use ($date): void {
                     $query->where('status', 'approved')
-                        ->whereDate('start_date', '<=', $date->toDateString())
-                        ->whereDate('end_date', '>=', $date->toDateString());
+                        ->where('start_date', '<', $date->copy()->addDay()->toDateString())
+                        ->where('end_date', '>=', $date->toDateString());
                 })
                 ->whereDoesntHave('attendanceLogs', function ($query) use ($date): void {
                     $query->where(function ($query): void {
                         $query->where('record_state', 'canonical')->orWhereNull('record_state');
-                    })->whereDate('scan_time', $date->toDateString())
+                    })->where('scan_time', '>=', $date->copy()->startOfDay())
+                        ->where('scan_time', '<', $date->copy()->addDay()->startOfDay())
                         ->where('attendance_period', 'morning_in')
                         ->where('attendance_type', 'time_in')
                         ->whereIn('status', ['present', 'late']);
                 })
-                ->count();
+                ->groupBy('roles.name')
+                ->selectRaw('roles.name as role_name, COUNT(users.id) as aggregate')
+                ->get()
+                ->sum('aggregate');
         }
 
         return $studentAbsent + $personnelAbsent;

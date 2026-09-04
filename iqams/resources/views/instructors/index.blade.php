@@ -22,17 +22,17 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <x-temporary-credentials-alert role="instructor" />
             <div class="overflow-hidden rounded-lg bg-white shadow-sm">
-                <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                <div class="flex flex-col gap-3 border-b border-gray-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <span class="text-sm text-gray-500">{{ $instructors->total() }} total</span>
-                    <div class="flex items-center gap-2"><button type="button" @click="window.printIqamsIdCards(selectedIds.map(id => '{{ url('admin/id-cards') }}/' + id)).catch(error => window.alert(error.message))" :disabled="selectedIds.length === 0" class="rounded border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">Print selected ID cards</button><button type="button" @click="showCreateModal = true"
+                    <div class="flex flex-wrap items-center gap-2"><button type="button" @click="window.printIqamsIdCards(selectedIds.map(id => '{{ url('admin/id-cards') }}/' + id)).catch(error => window.alert(error.message))" :disabled="selectedIds.length === 0" class="whitespace-nowrap rounded border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">Print selected ID cards</button><button type="button" @click="showCreateModal = true"
                             class="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
                         + Add Instructor
                     </button></div>
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="min-w-[1040px] w-full table-fixed text-left text-sm [&_th]:px-5 [&_th]:py-4 [&_th]:align-middle [&_th]:font-medium [&_th]:tracking-wide [&_td]:px-5 [&_td]:py-4 [&_td]:align-top">
-                        <colgroup><col class="w-40"><col class="w-20"><col class="w-44"><col class="w-48"><col class="w-52"><col class="w-28"><col class="w-20"></colgroup>
+                    <table class="min-w-[1200px] w-full table-fixed text-left text-sm [&_th]:px-5 [&_th]:py-4 [&_th]:align-middle [&_th]:font-medium [&_th]:tracking-wide [&_td]:px-5 [&_td]:py-4 [&_td]:align-top [&_td:nth-child(6)]:break-all [&_td:nth-child(7)]:whitespace-nowrap [&_td:nth-child(8)]:whitespace-nowrap">
+                        <colgroup><col class="w-20"><col class="w-32"><col class="w-24"><col class="w-48"><col class="w-52"><col class="w-64"><col class="w-36"><col class="w-32"></colgroup>
                         <thead class="bg-gray-50 text-xs uppercase text-gray-500">
                             <tr>
                                 <th class="px-6 py-3">Select</th><th class="px-6 py-3">Instructor ID</th> {{-- keep the employee no in the data base nevermind the table --}}
@@ -41,7 +41,7 @@
                                 <th class="px-6 py-3">Department</th>
                                 <th class="px-6 py-3">Email</th>
                                 <th class="px-6 py-3">Status</th>
-                                <th class="px-6 py-3 text-right">Actions</th>
+                                <th class="whitespace-nowrap px-6 py-3 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
@@ -58,7 +58,7 @@
                                             <span class="mt-1 block text-xs font-medium text-amber-700">Initial password</span>
                                         @endif
                                     </td>
-                                    <td class="px-6 py-3 text-right">
+                                    <td class="whitespace-nowrap px-6 py-3 text-right">
                                         <x-action-menu
                                             :delete-action="route('instructors.destroy', $instructor)"
                                             :toggle-action="route('users.status.update', $instructor->user)"

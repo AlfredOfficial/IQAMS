@@ -13,26 +13,44 @@ class PersonnelAttendanceSummary
 {
     public const PERIODS = ['morning_in', 'lunch_out', 'afternoon_in', 'final_out'];
 
-    public function __construct(private PersonnelWorkCalendar $calendar) {}
+    public function __construct(
+        private PersonnelWorkCalendar $calendar,
+        private AttendanceSummaryCache $cache,
+    ) {}
 
     public function days(User $user, Carbon $from, Carbon $to, bool $includeEmpty = false): Collection
     {
-        $logs = AttendanceLog::canonical()->where('user_id', $user->id)
-            ->whereNull('schedule_id')->whereNull('school_event_id')
-            ->whereBetween('scan_time', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
-            ->orderBy('scan_time')->get()->groupBy(fn ($log) => $log->scan_time->toDateString());
-        $leavesByDate = $this->approvedLeavesByDate($user, $from, $to);
-
-        $days = collect();
         if ($from->gt($to)) {
-            return $days;
+            return collect();
         }
+
         $maximum = (int) config('attendance.max_report_days', 366);
         if ($from->diffInDays($to) + 1 > $maximum) {
             throw ValidationException::withMessages([
                 'to' => "The attendance summary range cannot exceed {$maximum} days.",
             ]);
         }
+
+        return $this->cache->rememberPersonnel(
+            $user->id,
+            $from,
+            $to,
+            $includeEmpty,
+            fn (): Collection => $this->calculateDays($user, $from, $to, $includeEmpty),
+        );
+    }
+
+    private function calculateDays(User $user, Carbon $from, Carbon $to, bool $includeEmpty): Collection
+    {
+        $logs = AttendanceLog::canonical()->where('user_id', $user->id)
+            ->whereNull('schedule_id')->whereNull('school_event_id')
+            ->whereBetween('scan_time', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
+            ->orderBy('scan_time')
+            ->get(['id', 'attendance_period', 'scan_time', 'punctuality_status'])
+            ->groupBy(fn ($log) => $log->scan_time->toDateString());
+        $leavesByDate = $this->approvedLeavesByDate($user, $from, $to);
+
+        $days = collect();
         $calendar = $this->calendar->context($user, $from, $to);
         for ($date = $from->copy()->startOfDay(); $date->lte($to); $date->addDay()) {
             $dateLogs = $logs->get($date->toDateString(), collect());
@@ -149,8 +167,10 @@ class PersonnelAttendanceSummary
         return LeaveRequest::query()
             ->where('user_id', $user->id)
             ->where('status', 'approved')
-            ->whereDate('start_date', '<=', $rangeEnd->toDateString())
-            ->whereDate('end_date', '>=', $rangeStart->toDateString())
+            // The upper bound is exclusive so this remains correct for both
+            // native DATE columns and legacy datetime-like values.
+            ->where('start_date', '<', $rangeEnd->copy()->addDay()->toDateString())
+            ->where('end_date', '>=', $rangeStart->toDateString())
             ->get()
             ->reduce(function (Collection $dates, LeaveRequest $leave) use ($rangeStart, $rangeEnd) {
                 $start = Carbon::parse($leave->start_date->toDateString())->max($rangeStart);

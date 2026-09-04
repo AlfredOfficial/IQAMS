@@ -199,6 +199,45 @@ class PersonnelAttendanceCalculationTest extends TestCase
         $this->assertSame(0, app(PersonnelAttendanceSummary::class)->totals($days)['absentDays']);
     }
 
+    public function test_cached_calendar_is_invalidated_when_attendance_is_created(): void
+    {
+        Carbon::setTestNow('2026-08-01 09:00:00');
+        $staff = $this->staff();
+        Carbon::setTestNow('2026-08-10 09:00:00');
+        $service = app(PersonnelAttendanceSummary::class);
+        $from = Carbon::parse('2026-08-03');
+        $to = Carbon::parse('2026-08-03');
+
+        $this->assertSame('Absent', $service->days($staff, $from, $to, true)->first()['status']);
+
+        $this->log($staff, '2026-08-03 08:15:00', 'on_time');
+
+        $this->assertSame('Present', $service->days($staff, $from, $to, true)->first()['status']);
+    }
+
+    public function test_cached_calendar_is_invalidated_when_leave_is_approved(): void
+    {
+        Carbon::setTestNow('2026-08-01 09:00:00');
+        $staff = $this->staff();
+        Carbon::setTestNow('2026-08-10 09:00:00');
+        $service = app(PersonnelAttendanceSummary::class);
+        $from = Carbon::parse('2026-08-03');
+        $to = Carbon::parse('2026-08-03');
+
+        $this->assertSame('Absent', $service->days($staff, $from, $to, true)->first()['status']);
+
+        LeaveRequest::create([
+            'user_id' => $staff->id,
+            'leave_type' => 'vacation',
+            'start_date' => '2026-08-03',
+            'end_date' => '2026-08-03',
+            'reason' => 'Approved leave.',
+            'status' => 'approved',
+        ]);
+
+        $this->assertSame('On Leave', $service->days($staff, $from, $to, true)->first()['status']);
+    }
+
     private function staff(string $status = 'active'): User
     {
         $user = $this->user('staff', $status);

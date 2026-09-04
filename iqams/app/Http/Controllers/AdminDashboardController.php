@@ -28,4 +28,21 @@ class AdminDashboardController extends Controller
 
         return response()->json($dashboard->build($cursor, includeFilters: $cursor === null));
     }
+
+    public function delta(Request $request, AdminDashboardData $dashboard): JsonResponse
+    {
+        $validated = $request->validate([
+            'cursor' => ['nullable', 'date'],
+        ]);
+        $cursor = isset($validated['cursor'])
+            ? Carbon::parse($validated['cursor'], config('app.timezone'))
+            : null;
+
+        return response()->json($dashboard->buildDelta($cursor));
+    }
+
+    public function analytics(AdminDashboardData $dashboard): JsonResponse
+    {
+        return response()->json($dashboard->analytics());
+    }
 }

@@ -2,15 +2,23 @@
     <div class="min-h-full bg-slate-50 pb-6"
          x-data="{
             data: {{ Illuminate\Support\Js::from($dashboardData) }},
-            endpoint: {{ Illuminate\Support\Js::from(route('admin.dashboard.realtime')) }},
-            loading: false, online: true, cursor: {{ Illuminate\Support\Js::from($dashboardData['cursor']) }},
-            confirmation: null, confirmTimer: null, timer: null, clockTimer: null,
+            endpoint: {{ Illuminate\Support\Js::from(route('admin.dashboard.delta')) }},
+            analyticsEndpoint: {{ Illuminate\Support\Js::from(route('admin.dashboard.analytics')) }},
+            loading: false, analyticsLoading: false, online: true, cursor: {{ Illuminate\Support\Js::from($dashboardData['cursor']) }},
+            confirmation: null, confirmTimer: null, timer: null, analyticsTimer: null, clockTimer: null,
             clockDate: '', clockTime: '', page: 1, perPage: 10,
             filters: { search: '', role: '', department: '', section: '', subject: '', status: '', period: 'today' },
             init() {
                 this.tick();
                 this.clockTimer = setInterval(() => this.tick(), 1000);
                 this.timer = setInterval(() => this.refresh(), 4000);
+                this.analyticsTimer = setInterval(() => this.refreshAnalytics(), 15000);
+            },
+            destroy() {
+                clearInterval(this.timer);
+                clearInterval(this.analyticsTimer);
+                clearInterval(this.clockTimer);
+                clearTimeout(this.confirmTimer);
             },
             tick() {
                 const now = new Date();
@@ -18,7 +26,7 @@
                 this.clockTime = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
             },
             async refresh() {
-                if (this.loading || document.hidden) return;
+                if (this.loading || this.analyticsLoading || document.hidden) return;
                 this.loading = true;
                 try {
                     const url = new URL(this.endpoint, window.location.href);
@@ -46,6 +54,25 @@
                     this.online = true;
                 } catch (error) { this.online = false; }
                 finally { this.loading = false; }
+            },
+            async refreshAnalytics() {
+                if (this.analyticsLoading || this.loading || document.hidden) return;
+                this.analyticsLoading = true;
+                try {
+                    const response = await fetch(this.analyticsEndpoint, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+                    if (!response.ok) throw new Error('Unable to refresh analytics');
+                    const fresh = await response.json();
+                    this.data = {
+                        ...this.data,
+                        generated_at: fresh.generated_at ?? this.data.generated_at,
+                        stats: fresh.stats,
+                        overview: fresh.overview,
+                        charts: fresh.charts,
+                    };
+                    this.online = true;
+                } catch (error) {
+                    // Keep the last valid analytics snapshot visible during a transient failure.
+                } finally { this.analyticsLoading = false; }
             },
             get filteredScans() {
                 const query = this.filters.search.toLowerCase().trim();

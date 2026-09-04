@@ -9,12 +9,29 @@ use App\Services\AuditLogger;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 class MakeAdmin extends Command
 {
     protected $signature = 'make:admin';
 
     protected $description = 'Interactively create a permanent admin account';
+
+    private const ADMIN_PERMISSIONS = [
+        'manage-users',
+        'manage-role-assignments',
+        'manage-academic-structure',
+        'manage-office-units',
+        'manage-schedules',
+        'manage-attendance',
+        'operate-scanner',
+        'manage-scanner-security',
+        'review-leave-requests',
+        'manage-school-events',
+        'view-reports',
+        'view-audit-logs',
+    ];
 
     public function handle(): int
     {
@@ -51,15 +68,15 @@ class MakeAdmin extends Command
             return self::FAILURE;
         }
 
-        $adminRole = Role::query()
-            ->where('name', 'admin')
-            ->where('guard_name', 'web')
-            ->first();
-
-        if (! $adminRole) {
-            $this->error("The 'admin' role does not exist yet. Run your role seeder first.");
-            return self::FAILURE;
-        }
+        $adminRole = Role::firstOrCreate(
+            ['name' => 'admin', 'guard_name' => 'web'],
+            ['role_name' => 'admin'],
+        );
+        $permissions = collect(self::ADMIN_PERMISSIONS)->map(
+            fn (string $name) => Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']),
+        );
+        $adminRole->syncPermissions($permissions);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $user = User::create([
             'username' => $username,

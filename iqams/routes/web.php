@@ -74,6 +74,8 @@ Route::post('/leave-notifications/read', [LeaveNotificationController::class, 'r
 Route::middleware(['auth', 'active', 'password.changed', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('dashboard', [AdminDashboardController::class, 'index'])->middleware('permission:view-reports')->name('dashboard');
     Route::get('dashboard/realtime', [AdminDashboardController::class, 'realtime'])->middleware('permission:view-reports')->name('dashboard.realtime');
+    Route::get('dashboard/delta', [AdminDashboardController::class, 'delta'])->middleware('permission:view-reports')->name('dashboard.delta');
+    Route::get('dashboard/analytics', [AdminDashboardController::class, 'analytics'])->middleware('permission:view-reports')->name('dashboard.analytics');
     Route::get('audit-logs', [AuditLogController::class, 'index'])->middleware('permission:view-audit-logs')->name('audit-logs.index');
     Route::middleware('permission:view-reports')->prefix('reports/daily-personnel')->name('reports.daily-personnel.')->group(function () {
         Route::get('/', [DailyPersonnelAttendanceReportController::class, 'index'])->name('index');

@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\AdminDashboardData;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -89,6 +90,68 @@ class AdminDashboardPerformanceTest extends TestCase
 
         $this->getJson(route('admin.dashboard.realtime', ['cursor' => 'not-a-date']))
             ->assertUnprocessable()->assertJsonValidationErrors(['cursor']);
+    }
+
+    public function test_delta_endpoint_returns_only_changed_scan_data(): void
+    {
+        Carbon::setTestNow('2026-08-19 10:00:00');
+        $admin = $this->user('admin');
+        $student = $this->user('student');
+        $log = AttendanceLog::create([
+            'user_id' => $student->id,
+            'attendance_type' => 'time_in',
+            'scan_time' => now(),
+            'status' => 'present',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->getJson(route('admin.dashboard.delta', ['cursor' => now()->subSecond()->toIso8601String()]))
+            ->assertOk()
+            ->assertJsonStructure(['generated_at', 'cursor', 'scans'])
+            ->assertJsonMissingPath('stats')
+            ->assertJsonMissingPath('charts')
+            ->assertJsonMissingPath('overview')
+            ->assertJsonMissingPath('filters');
+
+        $this->assertSame([$log->id], collect($response->json('scans'))->pluck('id')->all());
+    }
+
+    public function test_analytics_endpoint_returns_only_analytics_sections(): void
+    {
+        $admin = $this->user('admin');
+
+        $this->actingAs($admin)
+            ->getJson(route('admin.dashboard.analytics'))
+            ->assertOk()
+            ->assertJsonStructure(['stats', 'overview', 'charts'])
+            ->assertJsonMissingPath('scans')
+            ->assertJsonMissingPath('filters');
+    }
+
+    public function test_analytics_cache_is_reused_and_invalidated_after_attendance_changes(): void
+    {
+        Carbon::setTestNow('2026-08-19 10:00:00');
+        Cache::forget('admin-dashboard.analytics.v2');
+        $student = $this->user('student');
+        $dashboard = app(AdminDashboardData::class);
+
+        $this->assertSame(0, $dashboard->analytics()['stats']['total_scanned']);
+
+        $queries = 0;
+        DB::listen(function () use (&$queries): void {
+            $queries++;
+        });
+        $dashboard->analytics();
+        $this->assertLessThanOrEqual(1, $queries, 'A warm analytics request should not rerun historical aggregates.');
+
+        AttendanceLog::create([
+            'user_id' => $student->id,
+            'attendance_type' => 'time_in',
+            'scan_time' => now(),
+            'status' => 'present',
+        ]);
+
+        $this->assertSame(1, $dashboard->analytics()['stats']['total_scanned']);
     }
 
     public function test_warm_incremental_dashboard_has_a_bounded_query_count(): void

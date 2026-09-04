@@ -32,6 +32,7 @@ class RoleAssignmentService
 
         $user->unsetRelation('role')->unsetRelation('roles');
         DashboardReferenceCache::forget();
+        app(AttendanceSummaryCache::class)->invalidateAll();
         app(PermissionRegistrar::class)->forgetCachedPermissions();
         app(AuditLogger::class)->record('role.assigned', $user, [
             'role' => $roleName,

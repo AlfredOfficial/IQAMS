@@ -8,6 +8,7 @@ use App\Models\Schedule;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\AttendanceSummaryCache;
 use App\Services\AuditLogger;
 use App\Services\IntegrityKeyService;
 use App\Services\IntegrityReportService;
@@ -72,6 +73,10 @@ class IntegrityReconcile extends Command
             $this->reconcileSections($reporter, $manifest['sections'] ?? [], $audit);
             $this->reconcileSchedules($reporter, $manifest['schedules'] ?? [], $audit);
             $this->backfillReferenceKeys($keys);
+            // Several reconciliation writes intentionally use saveQuietly() or
+            // query-builder updates, so model observers cannot invalidate the
+            // summary caches for them.
+            app(AttendanceSummaryCache::class)->invalidateAll();
             $audit->record('integrity.reconciled', null, [
                 'attendance_groups' => count($manifest['attendance'] ?? []),
                 'leave_groups' => count($manifest['leave'] ?? []),
