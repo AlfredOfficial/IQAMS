@@ -103,7 +103,13 @@ class PersonnelAttendanceSummary
             $leave = $leavesByDate->get($date->toDateString());
             $exclusionReason = $this->calendar->exclusionReason($date, $calendar);
 
-            if ($dateLogs->isNotEmpty()) {
+            // Weekends are always non-working for personnel. Attendance scans
+            // recorded on these dates must not turn them into rated workdays.
+            if ($exclusionReason === 'Weekend') {
+                if ($includeEmpty) {
+                    $days->push($this->excludedDay($date->copy(), $exclusionReason));
+                }
+            } elseif ($dateLogs->isNotEmpty()) {
                 $days->push($this->day($date->copy(), $dateLogs));
             } elseif ($leave) {
                 $days->push($this->day($date->copy(), $dateLogs, $leave));
@@ -116,11 +122,19 @@ class PersonnelAttendanceSummary
             }
         }
 
+        $today = null;
+        if ($dashboardToday) {
+            $todayLogs = $logs->get($dashboardToday->toDateString(), collect());
+            $todayLeave = $leavesByDate->get($dashboardToday->toDateString());
+            $todayExclusion = $this->calendar->exclusionReason($dashboardToday, $calendar);
+            $today = $todayExclusion
+                ? $this->excludedDay($dashboardToday->copy(), $todayExclusion)
+                : $this->day($dashboardToday->copy(), $todayLogs, $todayLeave);
+        }
+
         return [
             'days' => $days,
-            'today' => $dashboardToday
-                ? $this->day($dashboardToday, $logs->get($dashboardToday->toDateString(), collect()))
-                : null,
+            'today' => $today,
         ];
     }
 
@@ -239,10 +253,12 @@ class PersonnelAttendanceSummary
     {
         return array_replace($this->day($date, collect()), [
             'status' => 'Excluded',
+            'summaryStatus' => 'Excluded',
             'punctuality' => 'Excluded',
             'notes' => collect([$reason]),
             'isExcluded' => true,
             'exclusionReason' => $reason,
+            'nextPeriod' => null,
         ]);
     }
 

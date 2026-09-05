@@ -10,7 +10,7 @@ class AttendanceSummaryCache
 {
     private const STUDENT_GENERATION = 'attendance-summary.student-generation.v1';
 
-    private const PERSONNEL_GENERATION = 'attendance-summary.personnel-generation.v1';
+    private const PERSONNEL_GENERATION = 'attendance-summary.personnel-generation.v2';
 
     private const STUDENT_TTL = 60;
 
@@ -116,7 +116,7 @@ class AttendanceSummaryCache
     private function personnelKey(int $userId, Carbon $from, Carbon $to, bool $includeEmpty): string
     {
         return implode(':', [
-            'attendance-summary.personnel.v2',
+            'attendance-summary.personnel.v3',
             $this->generation(self::PERSONNEL_GENERATION),
             $this->generation($this->personnelUserGenerationKey($userId)),
             $userId,
@@ -129,7 +129,7 @@ class AttendanceSummaryCache
     private function personnelDashboardKey(int $userId, Carbon $from, Carbon $to): string
     {
         return implode(':', [
-            'attendance-summary.personnel-dashboard.v1',
+            'attendance-summary.personnel-dashboard.v2',
             $this->generation(self::PERSONNEL_GENERATION),
             $this->generation($this->personnelUserGenerationKey($userId)),
             $userId,

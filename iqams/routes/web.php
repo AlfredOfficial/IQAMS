@@ -168,6 +168,7 @@ Route::middleware(['auth', 'active', 'password.changed', 'role:instructor'])->pr
     Route::get('issues', [InstructorAttendanceController::class, 'issues'])->name('issues');
     Route::get('schedule', [InstructorAttendanceController::class, 'schedule'])->name('schedule');
     Route::get('schedule/{schedule}/attendance', [InstructorAttendanceController::class, 'classAttendance'])->name('schedule.attendance');
+    Route::get('schedule/{schedule}/attendance/download', [InstructorAttendanceController::class, 'downloadClassAttendance'])->name('schedule.attendance.download');
 });
 
 require __DIR__.'/auth.php';

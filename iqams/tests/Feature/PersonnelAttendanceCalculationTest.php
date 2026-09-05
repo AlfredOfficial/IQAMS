@@ -86,6 +86,33 @@ class PersonnelAttendanceCalculationTest extends TestCase
         $this->assertSame('Employee inactive', $day['exclusionReason']);
     }
 
+    public function test_weekend_dashboard_status_is_excluded_for_staff(): void
+    {
+        Carbon::setTestNow('2026-08-08 18:00:00'); // Saturday
+        $staff = $this->staff();
+
+        $dashboard = app(PersonnelAttendanceSummary::class)->dashboardMonth($staff, now('Asia/Manila'));
+
+        $this->assertSame('Excluded', $dashboard['today']['status']);
+        $this->assertSame('Excluded', $dashboard['today']['summaryStatus']);
+        $this->assertSame('Weekend', $dashboard['today']['exclusionReason']);
+        $this->assertNull($dashboard['today']['nextPeriod']);
+    }
+
+    public function test_saturday_schedule_does_not_make_an_instructor_work_on_a_weekend(): void
+    {
+        Carbon::setTestNow('2026-08-01 09:00:00');
+        [$user, $instructor] = $this->instructor();
+        $this->schedule($instructor, 'saturday');
+        Carbon::setTestNow('2026-08-08 18:00:00');
+
+        $dashboard = app(PersonnelAttendanceSummary::class)->dashboardMonth($user, now('Asia/Manila'));
+
+        $this->assertSame('Excluded', $dashboard['today']['status']);
+        $this->assertSame('Weekend', $dashboard['today']['exclusionReason']);
+        $this->assertSame(0, app(PersonnelAttendanceSummary::class)->totals(collect([$dashboard['today']]))['absentDays']);
+    }
+
     public function test_daily_progress_uses_only_recorded_attendance_periods(): void
     {
         $service = app(PersonnelAttendanceSummary::class);
@@ -170,7 +197,7 @@ class PersonnelAttendanceCalculationTest extends TestCase
         $this->assertSame(88.24, $totals['percentage']);
     }
 
-    public function test_instructor_expected_days_follow_existing_teaching_schedule(): void
+    public function test_instructor_expected_days_are_not_limited_to_teaching_schedule_days(): void
     {
         Carbon::setTestNow('2026-08-01 09:00:00');
         [$user, $instructor] = $this->instructor();
@@ -182,10 +209,11 @@ class PersonnelAttendanceCalculationTest extends TestCase
         )->keyBy(fn ($day) => $day['date']->toDateString());
 
         $this->assertSame('Absent', $days['2026-08-03']['status']);
-        $this->assertSame('Not scheduled', $days['2026-08-04']['exclusionReason']);
+        $this->assertSame('Absent', $days['2026-08-04']['status']);
+        $this->assertFalse($days['2026-08-04']['isExcluded']);
     }
 
-    public function test_instructor_with_no_schedule_has_no_absence(): void
+    public function test_instructor_with_no_teaching_schedule_is_absent_on_a_past_weekday(): void
     {
         Carbon::setTestNow('2026-08-01 09:00:00');
         [$user] = $this->instructor();
@@ -195,8 +223,9 @@ class PersonnelAttendanceCalculationTest extends TestCase
             $user, Carbon::parse('2026-08-03'), Carbon::parse('2026-08-03'), true,
         );
 
-        $this->assertSame('Not scheduled', $days->first()['exclusionReason']);
-        $this->assertSame(0, app(PersonnelAttendanceSummary::class)->totals($days)['absentDays']);
+        $this->assertSame('Absent', $days->first()['status']);
+        $this->assertFalse($days->first()['isExcluded']);
+        $this->assertSame(1, app(PersonnelAttendanceSummary::class)->totals($days)['absentDays']);
     }
 
     public function test_cached_calendar_is_invalidated_when_attendance_is_created(): void

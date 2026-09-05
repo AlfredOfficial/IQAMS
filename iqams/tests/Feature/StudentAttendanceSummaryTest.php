@@ -101,6 +101,27 @@ class StudentAttendanceSummaryTest extends TestCase
         $this->assertSame(0, $service->forStudent($student->fresh())['scheduled']);
     }
 
+    public function test_attendance_overview_uses_the_same_rated_session_rules_as_the_summary(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-20 12:00', 'Asia/Manila'));
+        try {
+            [$student, $schedule] = $this->fixture();
+            $this->log($student->user, $schedule, Carbon::parse('2026-08-03 08:05', 'Asia/Manila'), 'present');
+            $this->log($student->user, $schedule, Carbon::parse('2026-08-10 08:05', 'Asia/Manila'), 'absent');
+            $this->log($student->user, $schedule, Carbon::parse('2026-08-17 08:05', 'Asia/Manila'), 'late');
+
+            $overview = app(StudentAttendanceSummary::class)->overviewForStudent($student->fresh());
+
+            $this->assertSame([
+                ['label' => 'Week 1', 'percentage' => 100.0],
+                ['label' => 'Week 2', 'percentage' => 0.0],
+                ['label' => 'Week 3', 'percentage' => 100.0],
+            ], $overview['semester']);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
     /** @return array{0: Student, 1: Schedule} */
     private function fixture(): array
     {

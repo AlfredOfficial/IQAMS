@@ -116,6 +116,25 @@ class InstructorClassAttendanceTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_instructor_can_download_their_subject_attendance_as_an_excel_report(): void
+    {
+        Carbon::setTestNow('2026-08-28 12:00:00');
+        [$instructorUser, , $subject, $section] = $this->classroom();
+        $schedule = $this->schedule($instructorUser->instructor, $subject, $section, 'monday');
+        $student = $this->student($section, 'STU-011', 'Export', 'Student');
+        $this->log($student, $schedule, '2026-08-24 10:02:00', 'present');
+
+        $response = $this->actingAs($instructorUser)
+            ->get(route('instructor.schedule.attendance.download', $schedule).'?date=2026-08-24');
+
+        $response
+            ->assertOk()
+            ->assertDownload('class-attendance-it301-bsit-3a-2026-08-24.xlsx')
+            ->assertHeader('cache-control', 'no-store, private');
+
+        $this->assertStringStartsWith('PK', $response->streamedContent());
+    }
+
     public function test_date_must_match_the_selected_schedule_weekday(): void
     {
         [$instructorUser, , $subject, $section] = $this->classroom();

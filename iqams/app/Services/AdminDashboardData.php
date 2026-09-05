@@ -310,9 +310,12 @@ class AdminDashboardData
             ->unique()
             ->count();
 
-        $rolesPastCutoff = collect(['instructor', 'staff'])
-            ->filter(fn (string $role): bool => $this->personnelCutoffPassed($role, $at))
-            ->values();
+        // Personnel do not have required attendance periods on Saturdays or Sundays.
+        $rolesPastCutoff = $date->isWeekend()
+            ? collect()
+            : collect(['instructor', 'staff'])
+                ->filter(fn (string $role): bool => $this->personnelCutoffPassed($role, $at))
+                ->values();
 
         $personnelAbsent = 0;
         if ($rolesPastCutoff->isNotEmpty()) {

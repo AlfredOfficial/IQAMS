@@ -27,17 +27,6 @@ class StudentDashboardController extends Controller
             abort(403, 'No student profile linked to this account.');
         }
 
-        $schedules = $student->section
-            ? $student->section->schedules()
-                ->select(['id', 'subject_id', 'instructor_id', 'section_id', 'day', 'start_time', 'end_time', 'room'])
-                ->with(['subject:id,subject_code,subject_name', 'instructor:id,first_name,last_name'])
-                ->orderBy('start_time')->get()
-            : collect();
-
-        $scheduleByDay = $schedules->groupBy('day');
-
-        $dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-
         $myAttendance = AttendanceLog::canonical()->where('user_id', $request->user()->id)
             ->select(['id', 'schedule_id', 'school_event_id', 'attendance_type', 'scan_time', 'status'])
             ->with(['schedule:id,subject_id', 'schedule.subject:id,subject_code,subject_name', 'schoolEvent:id,title'])
@@ -47,11 +36,12 @@ class StudentDashboardController extends Controller
 
         $subjectAbsenceWarnings = $absenceWarnings->forStudent($student);
         $summary = $attendanceSummary->forStudent($student);
+        $attendanceOverview = $attendanceSummary->overviewForStudent($student);
         $stats = collect(['present', 'late', 'absent', 'excused'])
             ->mapWithKeys(fn ($status) => [$status => $summary[$status]])
             ->all();
 
-        return view('student.dashboard', compact('student', 'schedules', 'scheduleByDay', 'dayOrder', 'myAttendance', 'stats', 'summary', 'subjectAbsenceWarnings'));
+        return view('student.dashboard', compact('student', 'myAttendance', 'stats', 'summary', 'attendanceOverview', 'subjectAbsenceWarnings'));
     }
 
     public function realtime(Request $request, StudentAttendanceSummary $attendanceSummary)

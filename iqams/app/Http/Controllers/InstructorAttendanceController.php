@@ -10,7 +10,14 @@ use App\Services\ScheduleOccurrenceResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class InstructorAttendanceController extends Controller
 {
@@ -83,6 +90,92 @@ class InstructorAttendanceController extends Controller
         Schedule $schedule,
         ScheduleOccurrenceResolver $occurrences,
     ): JsonResponse {
+        return response()->json($this->classAttendanceData($request, $schedule, $occurrences))
+            ->header('Cache-Control', 'no-store');
+    }
+
+    public function downloadClassAttendance(
+        Request $request,
+        Schedule $schedule,
+        ScheduleOccurrenceResolver $occurrences,
+    ): StreamedResponse {
+        $attendance = $this->classAttendanceData($request, $schedule, $occurrences);
+        $class = $attendance['class'];
+        $filename = 'class-attendance-'.Str::slug($class['subject_code']).'-'.Str::slug($class['section']).'-'.$class['date'].'.xlsx';
+
+        return response()->streamDownload(function () use ($attendance, $class): void {
+            $spreadsheet = new Spreadsheet;
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Class Attendance');
+
+            $sheet->mergeCells('A1:E1')->setCellValue('A1', 'CLASS ATTENDANCE REPORT');
+            $sheet->mergeCells('A2:E2')->setCellValue('A2', $class['subject_code'].' - '.$class['subject_name']);
+            $sheet->setCellValue('A3', 'Instructor:');
+            $sheet->mergeCells('B3:E3')->setCellValue('B3', $class['instructor']);
+            $sheet->setCellValue('A4', 'Section:');
+            $sheet->mergeCells('B4:E4')->setCellValue('B4', $class['section']);
+            $sheet->setCellValue('A5', 'Date and time:');
+            $sheet->mergeCells('B5:E5')->setCellValue('B5', $class['date_label'].' | '.$class['time_label']);
+            $sheet->fromArray(['No.', 'Student No.', 'Student Name', 'Time In', 'Status'], null, 'A7');
+
+            $rowNumber = 8;
+            foreach ($attendance['students'] as $index => $student) {
+                $sheet->fromArray([
+                    $index + 1,
+                    $student['student_no'],
+                    $student['name'],
+                    $student['time_in'] ?? '-',
+                    ucfirst($student['status']),
+                ], null, 'A'.$rowNumber++);
+            }
+
+            $summaryRow = $rowNumber + 2;
+            $sheet->setCellValue('A'.$summaryRow, 'Summary');
+            $sheet->setCellValue('A'.($summaryRow + 1), 'Present / Late');
+            $sheet->setCellValue('B'.($summaryRow + 1), $attendance['summary']['present']);
+            $sheet->setCellValue('C'.($summaryRow + 1), 'Absent');
+            $sheet->setCellValue('D'.($summaryRow + 1), $attendance['summary']['absent']);
+            $sheet->setCellValue('A'.($summaryRow + 2), 'Excused');
+            $sheet->setCellValue('B'.($summaryRow + 2), $attendance['summary']['excused']);
+            $sheet->setCellValue('C'.($summaryRow + 2), 'Pending');
+            $sheet->setCellValue('D'.($summaryRow + 2), $attendance['summary']['pending']);
+
+            $sheet->getStyle('A1:E2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('A1:E2')->getFont()->setBold(true);
+            $sheet->getStyle('A1')->getFont()->setSize(16);
+            $sheet->getStyle('A7:E7')->applyFromArray([
+                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1D4ED8']],
+            ]);
+            $sheet->getStyle('A7:E'.max(7, $rowNumber - 1))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+            $sheet->getStyle('A8:A'.max(8, $rowNumber - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('D8:E'.max(8, $rowNumber - 1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('A'.$summaryRow.':D'.$summaryRow)->getFont()->setBold(true);
+            $sheet->getStyle('A'.$summaryRow.':D'.($summaryRow + 2))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+            $sheet->getColumnDimension('A')->setWidth(8);
+            $sheet->getColumnDimension('B')->setWidth(18);
+            $sheet->getColumnDimension('C')->setWidth(34);
+            $sheet->getColumnDimension('D')->setWidth(16);
+            $sheet->getColumnDimension('E')->setWidth(14);
+            $sheet->freezePane('A8');
+
+            try {
+                (new Xlsx($spreadsheet))->save('php://output');
+            } finally {
+                $spreadsheet->disconnectWorksheets();
+            }
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
+    private function classAttendanceData(
+        Request $request,
+        Schedule $schedule,
+        ScheduleOccurrenceResolver $occurrences,
+    ): array {
         $instructor = $request->user()->instructor;
         abort_unless($instructor && $schedule->instructor_id === $instructor->id, 403);
 
@@ -126,11 +219,12 @@ class InstructorAttendanceController extends Controller
             ];
         })->values();
 
-        return response()->json([
+        return [
             'class' => [
                 'schedule_id' => $schedule->id,
                 'subject_code' => $schedule->subject?->subject_code ?? 'Subject',
                 'subject_name' => $schedule->subject?->subject_name ?? 'Unnamed subject',
+                'instructor' => $instructor->fullName(),
                 'section' => $schedule->section?->section_name ?? 'No section',
                 'room' => $schedule->room ?: 'TBD',
                 'date' => $date->toDateString(),
@@ -146,7 +240,7 @@ class InstructorAttendanceController extends Controller
             'has_students' => $rows->isNotEmpty(),
             'has_records' => $logs->isNotEmpty(),
             'students' => $rows,
-        ])->header('Cache-Control', 'no-store');
+        ];
     }
 
     private function shortDay(string $day): string

@@ -452,6 +452,31 @@ Alpine.data('studentWorkspace', () => pollingWorkspace((root, data) => {
     }));
 }));
 
+Alpine.data('attendanceOverview', (series) => ({
+    series,
+    period: 'semester',
+    active: null,
+    get points() {
+        return this.series[this.period] || [];
+    },
+    x(index) {
+        return this.points.length > 1 ? 58 + (index * 672 / (this.points.length - 1)) : 394;
+    },
+    y(value) {
+        return 24 + ((100 - Number(value || 0)) * 210 / 100);
+    },
+    get linePoints() {
+        return this.points.map((point, index) => `${this.x(index)},${this.y(point.percentage)}`).join(' ');
+    },
+    get areaPoints() {
+        if (!this.points.length) return '';
+        return `${this.x(0)},234 ${this.linePoints} ${this.x(this.points.length - 1)},234`;
+    },
+    format(value) {
+        return `${Number(value || 0).toFixed(2).replace(/\.00$/, '')}%`;
+    },
+}));
+
 Alpine.data('studentQr', () => ({
     downloadingIdCard: false,
     qrCode: null,
@@ -525,10 +550,18 @@ Alpine.data('classAttendanceBrowser', () => ({
     error: '',
     today: '',
     endpoint: '',
+    downloadEndpoint: '',
 
     init() {
         this.today = this.$root.dataset.today;
         this.endpoint = this.$root.dataset.attendanceEndpoint;
+        this.downloadEndpoint = this.$root.dataset.downloadEndpoint;
+    },
+
+    get downloadUrl() {
+        if (!this.selectedDay?.schedule_id || !this.selectedDate || !this.downloadEndpoint) return '';
+
+        return `${this.downloadEndpoint.replace('__SCHEDULE__', this.selectedDay.schedule_id)}?date=${encodeURIComponent(this.selectedDate)}`;
     },
 
     get monthLabel() {

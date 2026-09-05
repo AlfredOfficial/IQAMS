@@ -1,5 +1,5 @@
 <x-instructor-layout title="My Teaching Schedule">
-<div x-data="classAttendanceBrowser()" data-today="{{ now()->toDateString() }}" data-attendance-endpoint="{{ url('/instructor/schedule/__SCHEDULE__/attendance') }}" class="mx-auto max-w-[1500px] space-y-5">
+<div x-data="classAttendanceBrowser()" data-today="{{ now()->toDateString() }}" data-attendance-endpoint="{{ url('/instructor/schedule/__SCHEDULE__/attendance') }}" data-download-endpoint="{{ url('/instructor/schedule/__SCHEDULE__/attendance/download') }}" class="mx-auto max-w-[1500px] space-y-5">
     <div>
         <h2 class="text-xl font-extrabold text-[#10294b]">My Teaching Schedule</h2>
         <p class="mt-1 text-sm text-slate-500">Select a class, weekday, and actual date to review student attendance.</p>
@@ -70,6 +70,12 @@
                             <div class="rounded-xl bg-violet-50 px-4 py-3 text-center"><p class="text-[10px] font-bold uppercase text-violet-700">Excused</p><p class="mt-1 text-2xl font-extrabold text-violet-700" x-text="attendance?.summary.excused"></p></div>
                             <div class="rounded-xl bg-amber-50 px-4 py-3 text-center"><p class="text-[10px] font-bold uppercase text-amber-700">Pending</p><p class="mt-1 text-2xl font-extrabold text-amber-700" x-text="attendance?.summary.pending"></p></div>
                         </div>
+                    </div>
+                    <div class="mt-4 flex justify-end">
+                        <a :href="downloadUrl" x-show="downloadUrl" class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700">
+                            <x-heroicon-o-arrow-down-tray class="h-5 w-5" />
+                            Download Excel Report
+                        </a>
                     </div>
 
                     <div x-show="attendance && !attendance.has_students" class="mt-6 rounded-xl bg-slate-50 p-8 text-center"><p class="font-semibold text-slate-700">No students are enrolled in this section.</p></div>

@@ -69,6 +69,30 @@ class AdminDashboardRequirementTest extends TestCase
         $this->assertSame(0, app(AdminDashboardData::class)->build()['stats']['absent']);
     }
 
+    public function test_dashboard_does_not_count_staff_or_instructors_absent_on_weekends(): void
+    {
+        Carbon::setTestNow('2026-08-22 10:00:00'); // Saturday, after both morning cutoffs.
+        $department = Department::create(['department_code' => 'WKND', 'department_name' => 'Weekend Department']);
+        $instructorUser = User::factory()->create(['role_id' => Role::findByName('instructor', 'web')->id]);
+        Instructor::create([
+            'user_id' => $instructorUser->id,
+            'department_id' => $department->id,
+            'employee_no' => 'WKND-INS',
+            'first_name' => 'Weekend',
+            'last_name' => 'Instructor',
+        ]);
+        $staffUser = User::factory()->create(['role_id' => Role::findByName('staff', 'web')->id]);
+        NonTeachingStaff::create([
+            'user_id' => $staffUser->id,
+            'office_unit_id' => OfficeUnit::create(['code' => 'WKND', 'name' => 'Weekend Office', 'is_active' => true])->id,
+            'employee_no' => 'WKND-STAFF',
+            'first_name' => 'Weekend',
+            'last_name' => 'Staff',
+        ]);
+
+        $this->assertSame(0, app(AdminDashboardData::class)->build()['stats']['absent']);
+    }
+
     public function test_student_absence_records_before_the_class_cutoff_are_not_counted_absent(): void
     {
         Carbon::setTestNow('2026-08-19 08:10:00');
