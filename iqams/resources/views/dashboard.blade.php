@@ -11,12 +11,14 @@
             init() {
                 this.tick();
                 this.clockTimer = setInterval(() => this.tick(), 1000);
-                this.timer = setInterval(() => this.refresh(), 4000);
-                this.analyticsTimer = setInterval(() => this.refreshAnalytics(), 15000);
+                this.timer = window.createIqamsPollingTask((signal) => this.refresh(signal), { interval: 4000 });
+                this.analyticsTimer = window.createIqamsPollingTask((signal) => this.refreshAnalytics(signal));
+                this.timer.start();
+                this.analyticsTimer.start();
             },
             destroy() {
-                clearInterval(this.timer);
-                clearInterval(this.analyticsTimer);
+                this.timer?.stop();
+                this.analyticsTimer?.stop();
                 clearInterval(this.clockTimer);
                 clearTimeout(this.confirmTimer);
             },
@@ -25,13 +27,13 @@
                 this.clockDate = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
                 this.clockTime = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
             },
-            async refresh() {
+            async refresh(signal) {
                 if (this.loading || document.hidden) return;
                 this.loading = true;
                 try {
                     const url = new URL(this.endpoint, window.location.href);
                     url.searchParams.set('cursor', this.cursor);
-                    const response = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+                    const response = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin', signal });
                     if (!response.ok) throw new Error('Unable to refresh');
                     const fresh = await response.json();
                     const newest = [...fresh.scans].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
@@ -55,13 +57,13 @@
                 } catch (error) { this.online = false; }
                 finally { this.loading = false; }
             },
-            async refreshAnalytics() {
+            async refreshAnalytics(signal) {
                 if (this.analyticsLoading || document.hidden) return;
                 this.analyticsLoading = true;
                 try {
                     const headers = { Accept: 'application/json' };
                     if (this.analyticsEtag) headers['If-None-Match'] = this.analyticsEtag;
-                    const response = await fetch(this.analyticsEndpoint, { headers, credentials: 'same-origin', cache: 'no-cache' });
+                    const response = await fetch(this.analyticsEndpoint, { headers, credentials: 'same-origin', cache: 'no-cache', signal });
                     if (response.status === 304) {
                         this.online = true;
                         return;

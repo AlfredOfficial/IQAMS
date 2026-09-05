@@ -28,8 +28,8 @@
                 </div>
 
                 <div class="overflow-x-auto">
-                <table class="min-w-[1040px] w-full table-fixed text-left text-sm [&_th]:px-5 [&_th]:py-4 [&_th]:align-middle [&_th]:font-medium [&_th]:tracking-wide [&_td]:h-20 [&_td]:px-5 [&_td]:py-4 [&_td]:align-middle">
-                    <colgroup><col class="w-40"><col class="w-20"><col class="w-44"><col class="w-48"><col class="w-52"><col class="w-28"><col class="w-20"></colgroup>
+                <table class="min-w-[1200px] w-full table-fixed text-left text-sm [&_th]:px-5 [&_th]:py-4 [&_th]:align-middle [&_th]:font-medium [&_th]:tracking-wide [&_td]:h-20 [&_td]:px-5 [&_td]:py-4 [&_td]:align-middle">
+                    <colgroup><col class="w-16"><col class="w-32"><col class="w-20"><col class="w-48"><col class="w-48"><col class="w-64"><col class="w-36"><col class="w-20"></colgroup>
                     <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
                         <tr>
                             <th class="px-6 py-3">Select</th><th class="px-6 py-3">Staff ID</th> {{-- never mind the table keep the employee no in the data base --}}
@@ -49,8 +49,8 @@
                                 <td class="break-words px-6 py-3 text-gray-600">{{ $staff->fullName() }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $staff->officeUnit?->name ?? 'Not assigned' }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $staff->user->email ?? '—' }}</td>
-                                <td class="px-6 py-3">
-                                    <span class="rounded px-2 py-1 text-xs font-medium {{ $staff->user->isAccountActive() ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700' }}">{{ ucfirst($staff->user->status) }}</span>
+                                <td class="whitespace-nowrap px-6 py-3">
+                                    <x-student-status :status="$staff->user->status" />
                                     @if ($staff->user->must_change_password)
                                         <span class="mt-1 block text-xs font-medium text-amber-700">Initial password</span>
                                     @endif
@@ -61,9 +61,10 @@
                                         :toggle-action="route('users.status.update', $staff->user)"
                                         :next-status="$staff->user->isAccountActive() ? 'inactive' : 'active'"
                                         :is-active="$staff->user->isAccountActive()"
+                                        :requires-password-confirmation="true"
                                         :delete-name="$staff->fullName()">
                                         <x-slot:reset>
-                                            <form method="POST" action="{{ route('users.password.reset', $staff->user) }}" onsubmit="return confirm('Reset this account to its temporary password?')">
+                                            <form method="POST" action="{{ route('users.password.reset', $staff->user) }}" onsubmit="return confirm('Reset this account to its temporary password?')" @submit.prevent="open = false; $dispatch('password-confirmation-required', { form: $el })">
                                                 @csrf
                                                 <button type="submit">Reset temporary password</button>
                                             </form>
@@ -302,6 +303,7 @@
         </div>
 
         <x-account-status-modal />
+        <x-password-confirmation-modal />
 
         <x-qr-modal />
     </div>

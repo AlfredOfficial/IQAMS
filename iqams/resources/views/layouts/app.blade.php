@@ -17,7 +17,6 @@
       }"
       x-init="$watch('sidebarCollapsed', value => localStorage.setItem('sidebarCollapsed', value))"
       @keydown.escape.window="mobileOpen = false"
-      @spa-navigated.window="mobileOpen = false"
 >
     <x-toast-notifications />
     <div class="h-screen overflow-hidden">

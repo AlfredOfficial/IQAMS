@@ -31,6 +31,17 @@ class PasswordConfirmationTest extends TestCase
         $response->assertSessionHasNoErrors();
     }
 
+    public function test_password_confirmation_returns_no_content_for_modal_requests(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)
+            ->postJson('/confirm-password', ['password' => 'password']);
+
+        $response->assertNoContent();
+        $response->assertSessionHas('auth.password_confirmed_at');
+    }
+
     public function test_password_is_not_confirmed_with_invalid_password(): void
     {
         $user = User::factory()->create();

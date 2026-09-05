@@ -28,8 +28,8 @@
                 </div>
 
                 <div class="overflow-x-auto">
-                <table class="min-w-[920px] w-full table-fixed text-left text-sm [&_th]:px-5 [&_th]:py-4 [&_th]:align-middle [&_th]:font-medium [&_th]:tracking-wide [&_td]:h-20 [&_td]:px-5 [&_td]:py-4 [&_td]:align-middle">
-                    <colgroup><col class="w-40"><col class="w-20"><col class="w-48"><col class="w-28"><col class="w-32"><col class="w-36"><col class="w-20"></colgroup>
+                <table class="min-w-[1080px] w-full table-fixed text-left text-sm [&_th]:px-5 [&_th]:py-4 [&_th]:align-middle [&_th]:font-medium [&_th]:tracking-wide [&_td]:h-20 [&_td]:px-5 [&_td]:py-4 [&_td]:align-middle">
+                    <colgroup><col class="w-16"><col class="w-32"><col class="w-20"><col class="w-48"><col class="w-32"><col class="w-32"><col class="w-36"><col class="w-20"></colgroup>
                     <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
                         <tr>
                             <th class="px-6 py-3">Select</th><th class="px-6 py-3">Student No.</th>
@@ -49,14 +49,8 @@
                                 <td class="whitespace-nowrap px-6 py-3 text-gray-600">{{ $student->first_name }} {{ $student->last_name }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $student->course->course_code ?? '—' }}</td>
                                 <td class="whitespace-nowrap px-6 py-3 text-gray-600">{{ $student->section->section_name ?? '—' }}</td>
-                                    <td class="px-6 py-3">
-                                        <span @class([
-                                            'px-2 py-1 rounded text-xs font-medium',
-                                            'bg-green-50 text-green-700' => $student->user->status === 'active',
-                                            'bg-red-50 text-red-700' => $student->user->status === 'inactive',
-                                        ])>
-                                            {{ ucfirst($student->user->status) }}
-                                        </span>
+                                    <td class="whitespace-nowrap px-6 py-3">
+                                        <x-student-status :status="$student->user->status" />
                                         @if ($student->user->must_change_password)
                                             <span class="mt-1 block text-xs font-medium text-amber-700">Initial password</span>
                                         @endif
@@ -67,9 +61,10 @@
                                         :toggle-action="route('users.status.update', $student->user)"
                                         :next-status="$student->user->isAccountActive() ? 'inactive' : 'active'"
                                         :is-active="$student->user->isAccountActive()"
+                                        :requires-password-confirmation="true"
                                         :delete-name="$student->fullName()">
                                         <x-slot:reset>
-                                            <form method="POST" action="{{ route('users.password.reset', $student->user) }}" onsubmit="return confirm('Reset this account to its temporary password?')">
+                                            <form method="POST" action="{{ route('users.password.reset', $student->user) }}" onsubmit="return confirm('Reset this account to its temporary password?')" @submit.prevent="open = false; $dispatch('password-confirmation-required', { form: $el })">
                                                 @csrf
                                                 <button type="submit">Reset temporary password</button>
                                             </form>
@@ -325,6 +320,7 @@
         </div>
 
         <x-account-status-modal />
+        <x-password-confirmation-modal />
         <x-qr-modal />
     </div>
 </x-app-layout>

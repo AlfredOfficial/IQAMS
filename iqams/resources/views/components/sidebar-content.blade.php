@@ -101,18 +101,6 @@
                 <x-heroicon-o-check-badge class="w-5 h-5 shrink-0" aria-hidden="true" />
             </x-slot>
         </x-sidebar-link>
-        <div class="px-3 pt-5 pb-2" @if($collapsible) x-show="!sidebarCollapsed" x-cloak @endif>
-            <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Security Management</p>
-        </div>
-        <x-sidebar-link :href="route('scanner-security.index')" :active="request()->routeIs('scanner-security.*')" :collapsible="$collapsible" label="Scanner Security">
-            <x-slot name="icon"><x-heroicon-o-shield-check class="h-5 w-5" /></x-slot>
-        </x-sidebar-link>
-        @can('view-audit-logs')
-            <x-sidebar-link :href="route('admin.audit-logs.index')" :active="request()->routeIs('admin.audit-logs.*')" :collapsible="$collapsible" label="Audit Logs">
-                <x-slot name="icon"><x-heroicon-o-clipboard-document-list class="h-5 w-5" /></x-slot>
-            </x-sidebar-link>
-        @endcan
-
         <div class="px-3 pb-2 pt-5" @if($collapsible) x-show="!sidebarCollapsed" x-cloak @endif>
             <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Reports</p>
         </div>
@@ -240,6 +228,18 @@
                 <x-heroicon-o-check-circle class="w-5 h-5 shrink-0" aria-hidden="true" />
             </x-slot>
         </x-sidebar-link>
+
+        <div class="px-3 pt-5 pb-2" @if($collapsible) x-show="!sidebarCollapsed" x-cloak @endif>
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Security Management</p>
+        </div>
+        <x-sidebar-link :href="route('scanner-security.index')" :active="request()->routeIs('scanner-security.*')" :collapsible="$collapsible" label="Scanner Security">
+            <x-slot name="icon"><x-heroicon-o-shield-check class="h-5 w-5" /></x-slot>
+        </x-sidebar-link>
+        @can('view-audit-logs')
+            <x-sidebar-link :href="route('admin.audit-logs.index')" :active="request()->routeIs('admin.audit-logs.*')" :collapsible="$collapsible" label="Audit Logs">
+                <x-slot name="icon"><x-heroicon-o-clipboard-document-list class="h-5 w-5" /></x-slot>
+            </x-sidebar-link>
+        @endcan
     @endif
 </nav>
 

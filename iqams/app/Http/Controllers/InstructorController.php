@@ -25,7 +25,7 @@ class InstructorController extends Controller
         $instructors = Instructor::query()
             ->select(['id', 'user_id', 'department_id', 'employee_no', 'name_prefix', 'first_name', 'middle_name', 'last_name', 'professional_credentials', 'created_at'])
             ->with([
-                'user:id,username,name,email,avatar_path',
+                'user:id,username,name,email,avatar_path,status,must_change_password',
                 'department:id,department_code,department_name',
             ])
             ->latest('instructors.created_at')->paginate(10);

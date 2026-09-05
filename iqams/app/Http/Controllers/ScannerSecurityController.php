@@ -8,8 +8,8 @@ use App\Models\AuditLog;
 use App\Models\Course;
 use App\Models\Department;
 use App\Models\OfficeUnit;
-use App\Models\Section;
 use App\Models\ScannerTerminal;
+use App\Models\Section;
 use App\Models\SecurityFlag;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -31,20 +31,34 @@ class ScannerSecurityController extends Controller
             ->latest('created_at')
             ->limit(20)
             ->get();
-        $qrUsers = User::query()
-            ->select(['users.id', 'users.name'])
-            ->with('roles:id,name,guard_name')
-            ->where('status', 'active')
-            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['student', 'instructor', 'staff'])->where('guard_name', 'web'))
-            ->orderBy('name')
-            ->get();
 
         $departments = Department::active()->orderBy('department_name')->get(['id', 'department_code', 'department_name']);
         $officeUnits = OfficeUnit::where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']);
         $courses = Course::active()->orderBy('course_code')->get(['id', 'course_code', 'course_name']);
         $sections = Section::active()->orderBy('section_name')->get(['id', 'section_name']);
 
-        return view('scanner-security.index', compact('terminals', 'audits', 'flags', 'qrUsers', 'qrBatches', 'departments', 'officeUnits', 'courses', 'sections'));
+        return view('scanner-security.index', compact('terminals', 'audits', 'flags', 'qrBatches', 'departments', 'officeUnits', 'courses', 'sections'));
+    }
+
+    public function users(Request $request)
+    {
+        $filters = $request->validate(['search' => ['nullable', 'string', 'max:100']]);
+        $search = trim($filters['search'] ?? '');
+        $users = User::query()
+            ->select(['users.id', 'users.name'])
+            ->with('roles:id,name,guard_name')
+            ->where('status', 'active')
+            ->whereHas('roles', fn ($query) => $query->whereIn('name', ['student', 'instructor', 'staff'])->where('guard_name', 'web'))
+            ->when($search !== '', fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
+            ->orderBy('name')
+            ->orderBy('id')
+            ->limit(25)
+            ->get();
+
+        return response()->json(['data' => $users->map(fn (User $user) => [
+            'id' => $user->id,
+            'label' => $user->name.' ('.$user->primaryRoleName().')',
+        ])]);
     }
 
     public function queueQrBatch(Request $request)

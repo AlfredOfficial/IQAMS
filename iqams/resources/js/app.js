@@ -1,6 +1,10 @@
 
 
 import Alpine from 'alpinejs';
+import { installNavigationFeedback } from './navigation';
+import { createPollingTask } from './polling';
+
+window.createIqamsPollingTask = createPollingTask;
 
 window.Alpine = Alpine;
 
@@ -166,18 +170,20 @@ Alpine.data('lookupField', (initialState = {}) => ({
 
 Alpine.data('instructorWorkspace', () => ({
     refreshTimer: null,
+    poller: null,
     downloadingIdCard: false,
     qrCode: null,
 
     init() {
-        this.refreshTimer = window.setInterval(() => this.refresh(), 3000);
+        this.poller = createPollingTask((signal) => this.refresh(signal));
+        this.poller.start();
 
         window.ensureIqamsQrCode().then(() => this.renderQrCode()).catch(() => {});
         this.loadQrCode();
     },
 
     destroy() {
-        window.clearInterval(this.refreshTimer);
+        this.poller?.stop();
     },
 
     renderQrCode() {
@@ -235,12 +241,12 @@ Alpine.data('instructorWorkspace', () => ({
         }
     },
 
-    async refresh() {
+    async refresh(signal) {
         const endpoint = this.$root.dataset.realtimeUrl;
         if (!endpoint) return;
 
         try {
-            const response = await fetch(endpoint, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+            const response = await fetch(endpoint, { headers: { Accept: 'application/json' }, cache: 'no-store', signal });
             if (!response.ok) return;
 
             const data = await response.json();
@@ -303,22 +309,24 @@ Alpine.data('instructorWorkspace', () => ({
 
 const pollingWorkspace = (render) => ({
     refreshTimer: null,
+    poller: null,
     requestInFlight: false,
 
     init() {
-        this.refreshTimer = window.setInterval(() => this.refresh(), 3000);
+        this.poller = createPollingTask((signal) => this.refresh(signal));
+        this.poller.start();
     },
 
     destroy() {
-        window.clearInterval(this.refreshTimer);
+        this.poller?.stop();
         this.refreshTimer = null;
     },
 
-    async refresh() {
+    async refresh(signal) {
         if (this.requestInFlight || !this.$root.dataset.realtimeUrl) return;
         this.requestInFlight = true;
         try {
-            const response = await fetch(this.$root.dataset.realtimeUrl, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+            const response = await fetch(this.$root.dataset.realtimeUrl, { headers: { Accept: 'application/json' }, cache: 'no-store', signal });
             if (response.ok) render(this.$root, await response.json());
         } catch {
             // Preserve the last rendered state while the endpoint is unavailable.
@@ -371,13 +379,14 @@ Alpine.data('staffWorkspace', () => ({
     qrCode: null,
 
     init() {
-        this.refreshTimer = window.setInterval(() => this.refresh(), 3000);
+        this.poller = createPollingTask((signal) => this.refresh(signal));
+        this.poller.start();
         window.ensureIqamsQrCode().then(() => this.renderQrCode()).catch(() => {});
         this.loadQrCode();
     },
 
     destroy() {
-        window.clearInterval(this.refreshTimer);
+        this.poller?.stop();
         this.refreshTimer = null;
     },
 
@@ -610,13 +619,13 @@ Alpine.data('classAttendanceBrowser', () => ({
 Alpine.start();
 
 /**
- * A single delayed loading state for full-page requests and in-app navigation.
- * The interaction shield is active immediately, but the visual treatment waits
- * briefly so quick responses do not flash a spinner.
+ * Delayed, non-blocking feedback for native document navigation.
+ * Never cover a usable page while waiting for secondary resources.
  */
 const pageLoader = (() => {
     const SHOW_DELAY = 200;
     let showTimer = null;
+    let resetTimer = null;
 
     const overlay = document.createElement('div');
     overlay.id = 'global-page-loader';
@@ -639,9 +648,15 @@ const pageLoader = (() => {
             overlay.classList.add('is-visible');
             overlay.setAttribute('aria-hidden', 'false');
         }, SHOW_DELAY);
+        window.clearTimeout(resetTimer);
+        resetTimer = window.setTimeout(() => {
+            stop();
+            window.dispatchEvent(new Event('iqams:navigation-cancelled'));
+        }, 15000);
     };
 
     const stop = () => {
+        window.clearTimeout(resetTimer);
         window.clearTimeout(showTimer);
         overlay.classList.remove('is-visible', 'is-active');
         overlay.setAttribute('aria-hidden', 'true');
@@ -650,133 +665,6 @@ const pageLoader = (() => {
 
     return { start, stop };
 })();
-
-// Cover the remainder of a genuinely slow initial document/resource load.
-if (document.readyState !== 'complete') {
-    pageLoader.start();
-    window.addEventListener('load', pageLoader.stop, { once: true });
-}
-
-// Restore pages returned from the browser's back-forward cache without a stale overlay.
-window.addEventListener('pageshow', pageLoader.stop);
-
-/**
- * Keep the navigation shell in place when a sidebar link is selected.
- * Laravel still renders the destination server-side; only the content area and
- * navigation markup are swapped in the browser.
- */
-const canUseInAppNavigation = (link, event) => {
-    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-        return false;
-    }
-
-    if (link.target || link.hasAttribute('download')) {
-        return false;
-    }
-
-    const destination = new URL(link.href, window.location.href);
-
-    return destination.origin === window.location.origin && destination.pathname !== window.location.pathname;
-};
-
-const replaceNavigation = (documentResponse) => {
-    const currentNavs = [...document.querySelectorAll('[data-sidebar-nav]')];
-    const nextNavs = [...documentResponse.querySelectorAll('[data-sidebar-nav]')];
-
-    currentNavs.forEach((currentNav, index) => {
-        const nextNav = nextNavs[index];
-
-        if (!nextNav) {
-            return;
-        }
-
-        const scrollTop = currentNav.scrollTop;
-        Alpine.destroyTree(currentNav);
-        currentNav.replaceWith(nextNav);
-        Alpine.initTree(nextNav);
-        nextNav.scrollTop = scrollTop;
-    });
-};
-
-const navigateInApp = async (url, pushState = true) => {
-    pageLoader.start();
-
-    try {
-        const response = await fetch(url, {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            credentials: 'same-origin',
-        });
-
-        if (!response.ok || response.redirected) {
-            window.location.assign(url);
-            return;
-        }
-
-        const responseDocument = new DOMParser().parseFromString(await response.text(), 'text/html');
-        const currentContent = document.querySelector('#app-content');
-        const nextContent = responseDocument.querySelector('#app-content');
-
-        if (!currentContent || !nextContent) {
-            window.location.assign(url);
-            return;
-        }
-
-        Alpine.destroyTree(currentContent);
-        currentContent.replaceWith(nextContent);
-        Alpine.initTree(nextContent);
-        replaceNavigation(responseDocument);
-        document.title = responseDocument.title;
-
-        if (pushState) {
-            window.history.pushState({}, '', url);
-        }
-
-        window.dispatchEvent(new CustomEvent('spa-navigated'));
-        window.scrollTo(0, 0);
-        pageLoader.stop();
-    } catch {
-        window.location.assign(url);
-    }
-};
-
-document.addEventListener('click', (event) => {
-    const link = event.target.closest('a[data-sidebar-link]');
-
-    if (!link || !canUseInAppNavigation(link, event)) {
-        return;
-    }
-
-    event.preventDefault();
-    navigateInApp(link.href);
-});
-
-document.addEventListener('click', (event) => {
-    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-        return;
-    }
-
-    const link = event.target.closest('a[href]');
-    if (!link || (link.target && link.target.toLowerCase() !== '_self') || link.hasAttribute('download')) {
-        return;
-    }
-
-    const destination = new URL(link.href, window.location.href);
-    if (!['http:', 'https:'].includes(destination.protocol)) {
-        return;
-    }
-
-    const currentUrl = new URL(window.location.href);
-    const isSameDocumentHash = destination.origin === currentUrl.origin
-        && destination.pathname === currentUrl.pathname
-        && destination.search === currentUrl.search
-        && destination.hash;
-
-    if (!isSameDocumentHash) {
-        pageLoader.start();
-    }
-});
 
 document.addEventListener('submit', (event) => {
     const form = event.target;
@@ -794,14 +682,4 @@ document.addEventListener('submit', (event) => {
     }
 });
 
-document.addEventListener('submit', (event) => {
-    const form = event.target;
-    const navigatesCurrentPage = form instanceof HTMLFormElement
-        && (!form.target || form.target.toLowerCase() === '_self');
-
-    if (!event.defaultPrevented && navigatesCurrentPage && form.checkValidity()) {
-        pageLoader.start();
-    }
-});
-
-window.addEventListener('popstate', () => navigateInApp(window.location.href, false));
+installNavigationFeedback(window, document, pageLoader);

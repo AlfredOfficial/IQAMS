@@ -1,11 +1,11 @@
 <?php
 
 use App\Http\Controllers\AdminDashboardController;
-use App\Http\Controllers\AdminLookupController;
 use App\Http\Controllers\AdminLeaveRequestController;
-use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\AdminLookupController;
 use App\Http\Controllers\AttendanceLogController;
 use App\Http\Controllers\AttendanceScannerController;
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\DailyPersonnelAttendanceReportController;
 use App\Http\Controllers\DepartmentController;
@@ -25,8 +25,8 @@ use App\Http\Controllers\ScannerSecurityController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SchoolEventController;
 use App\Http\Controllers\SectionController;
-use App\Http\Controllers\StaffDashboardController;
 use App\Http\Controllers\StaffAttendanceController;
+use App\Http\Controllers\StaffDashboardController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\StudentDashboardController;
 use App\Http\Controllers\StudentProfileController;
@@ -104,6 +104,7 @@ Route::middleware(['auth', 'active', 'password.changed', 'role:admin'])->group(f
     });
     Route::middleware('permission:manage-scanner-security')->group(function () {
         Route::get('scanner-security', [ScannerSecurityController::class, 'index'])->name('scanner-security.index');
+        Route::get('scanner-security/users', [ScannerSecurityController::class, 'users'])->name('scanner-security.users');
         Route::post('scanner-security/terminals', [ScannerSecurityController::class, 'storeTerminal'])->name('scanner-security.terminals.store');
         Route::patch('scanner-security/terminals/{terminal}', [ScannerSecurityController::class, 'updateTerminal'])->middleware('password.confirm')->name('scanner-security.terminals.update');
         Route::post('scanner-security/users/{user}/qr/regenerate', [ScannerSecurityController::class, 'regenerate'])->middleware('password.confirm')->name('scanner-security.qr.regenerate');

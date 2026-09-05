@@ -4,6 +4,7 @@
     'nextStatus',
     'isActive' => true,
     'deleteName' => 'this record',
+    'requiresPasswordConfirmation' => false,
 ])
 
 <div class="relative inline-flex"
@@ -88,7 +89,7 @@
                 </div>
             @endisset
 
-            <form method="POST" action="{{ $toggleAction }}">
+            <form method="POST" action="{{ $toggleAction }}" @if ($requiresPasswordConfirmation) @submit.prevent="open = false; $dispatch('password-confirmation-required', { form: $el })" @endif>
                 @csrf
                 @method('PATCH')
                 <input type="hidden" name="status" value="{{ $nextStatus }}">
@@ -99,7 +100,7 @@
 
             <div class="my-1 border-t border-gray-100"></div>
 
-            <form method="POST" action="{{ $deleteAction }}" onsubmit='return confirm({{ Illuminate\Support\Js::from("Deactivate {$deleteName}? Their login will be disabled and historical attendance will be retained.") }})'>
+            <form method="POST" action="{{ $deleteAction }}" onsubmit='return confirm({{ Illuminate\Support\Js::from("Deactivate {$deleteName}? Their login will be disabled and historical attendance will be retained.") }})' @if ($requiresPasswordConfirmation) @submit.prevent="open = false; $dispatch('password-confirmation-required', { form: $el })" @endif>
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="block w-full px-4 py-2.5 text-left font-medium text-red-600 hover:bg-red-50">Deactivate / Archive</button>

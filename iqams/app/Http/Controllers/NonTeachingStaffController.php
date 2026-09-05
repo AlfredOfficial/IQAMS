@@ -25,7 +25,7 @@ class NonTeachingStaffController extends Controller
         $staffMembers = NonTeachingStaff::query()
             ->select(['id', 'user_id', 'office_unit_id', 'employee_no', 'name_prefix', 'first_name', 'middle_name', 'last_name', 'name_suffix', 'created_at'])
             ->with([
-                'user:id,username,name,email,avatar_path',
+                'user:id,username,name,email,avatar_path,status,must_change_password',
                 'officeUnit:id,code,name',
             ])
             ->latest('non_teaching_staff.created_at')->paginate(10);

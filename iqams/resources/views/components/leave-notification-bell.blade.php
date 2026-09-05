@@ -1,8 +1,16 @@
 @if (Auth::user()->isAdmin() || Auth::user()->isStaff() || Auth::user()->isInstructor())
 @php
     $notificationType = \App\Notifications\LeaveRequestNotification::class;
-    $leaveNotifications = Auth::user()->notifications()->where('type', $notificationType)->latest()->take(8)->get();
-    $unreadCount = Auth::user()->unreadNotifications()->where('type', $notificationType)->count();
+    $notificationKey = 'iqams.leave-notifications.'.Auth::id();
+    $notificationData = request()->attributes->get($notificationKey);
+    if ($notificationData === null) {
+        $notificationData = [
+            Auth::user()->notifications()->where('type', $notificationType)->latest()->take(8)->get(),
+            Auth::user()->unreadNotifications()->where('type', $notificationType)->count(),
+        ];
+        request()->attributes->set($notificationKey, $notificationData);
+    }
+    [$leaveNotifications, $unreadCount] = $notificationData;
 @endphp
 @php
     $leaveIndexRoute = match (true) {

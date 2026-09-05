@@ -27,7 +27,7 @@ class StudentController extends Controller
         $students = Student::query()
             ->select(['id', 'user_id', 'course_id', 'section_id', 'student_no', 'first_name', 'last_name', 'middle_name', 'status', 'created_at'])
             ->with([
-                'user:id,username,name,email,avatar_path',
+                'user:id,username,name,email,avatar_path,status,must_change_password',
                 'course:id,course_code,course_name',
                 'section:id,section_name,course_id',
             ])

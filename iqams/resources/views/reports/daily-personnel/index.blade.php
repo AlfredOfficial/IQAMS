@@ -128,6 +128,7 @@
                         if (current.status === 'completed' && current.download_url) {
                             const link = document.createElement('a');
                             link.href = current.download_url;
+                            link.download = '';
                             link.textContent = 'Download completed export';
                             link.className = 'ml-2 font-medium text-indigo-600 hover:text-indigo-800';
                             status.appendChild(link);
