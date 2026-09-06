@@ -33,6 +33,15 @@ class ScanSecurityService
                 $this->flag($audit, 'high', 'repeated_invalid_scans', "{$count} invalid scans occurred within one minute.");
             }
         }
+        if ($audit->outcome === 'rejected' && $audit->user_id) {
+            $count = AttendanceScanAudit::where('user_id', $audit->user_id)
+                ->where('outcome', 'rejected')
+                ->where('created_at', '>=', now()->subMinute())
+                ->count();
+            if ($count >= config('attendance.invalid_scan_threshold', 5)) {
+                $this->flag($audit, 'medium', 'repeated_user_rejections', "{$count} rejected scans for this user occurred across all terminals within one minute.", false);
+            }
+        }
         if ($audit->outcome === 'cancelled' && $audit->user_id) {
             $count = AttendanceScanAudit::where('user_id', $audit->user_id)->where('outcome', 'cancelled')->where('created_at', '>=', now()->subMinutes(15))->count();
             if ($count >= 3) {
@@ -47,9 +56,10 @@ class ScanSecurityService
         }
     }
 
-    private function flag(AttendanceScanAudit $audit, string $severity, string $category, string $evidence): void
+    private function flag(AttendanceScanAudit $audit, string $severity, string $category, string $evidence, bool $deduplicateByTerminal = true): void
     {
-        $key = $category.':'.($audit->user_id ?? 'none').':'.($audit->scanner_terminal_id ?? 'none').':'.now()->format('YmdHi');
+        $terminalScope = $deduplicateByTerminal ? ($audit->scanner_terminal_id ?? 'none') : 'all';
+        $key = $category.':'.($audit->user_id ?? 'none').':'.$terminalScope.':'.now()->format('YmdHi');
         SecurityFlag::firstOrCreate(['deduplication_key' => $key, 'status' => 'open'], [
             'severity' => $severity, 'category' => $category, 'user_id' => $audit->user_id, 'admin_id' => $audit->admin_id,
             'scanner_terminal_id' => $audit->scanner_terminal_id, 'attendance_scan_audit_id' => $audit->id,

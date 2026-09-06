@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SecurityFlag extends Model
 {
@@ -11,5 +12,15 @@ class SecurityFlag extends Model
     protected function casts(): array
     {
         return ['detected_at' => 'datetime', 'reviewed_at' => 'datetime'];
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function scannerTerminal(): BelongsTo
+    {
+        return $this->belongsTo(ScannerTerminal::class);
     }
 }

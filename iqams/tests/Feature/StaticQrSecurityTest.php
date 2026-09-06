@@ -9,7 +9,10 @@ use App\Models\ScannerTerminal;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\QrCredentialService;
+use App\Services\ScanSecurityService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Tests\TestCase;
 
 class StaticQrSecurityTest extends TestCase
@@ -62,6 +65,46 @@ class StaticQrSecurityTest extends TestCase
         $this->postJson(route('attendance-scanner.scan'), ['qr_code' => 'INVALID-ONE'])->assertUnprocessable();
         $this->postJson(route('attendance-scanner.scan'), ['qr_code' => 'INVALID-TWO'])->assertUnprocessable();
         $this->assertDatabaseHas('security_flags', ['category' => 'repeated_invalid_scans', 'status' => 'open']);
+    }
+
+    public function test_repeated_known_user_rejections_across_terminals_create_one_flag(): void
+    {
+        [$student, $admin] = $this->users();
+        $firstTerminal = ScannerTerminal::create(['name' => 'North Gate', 'location' => 'North Gate']);
+        $secondTerminal = ScannerTerminal::create(['name' => 'South Gate', 'location' => 'South Gate']);
+        $request = Request::create('/attendance-scanner/scan', 'POST');
+        $request->setUserResolver(fn () => $admin);
+        $service = app(ScanSecurityService::class);
+        config(['attendance.invalid_scan_threshold' => 5]);
+        Carbon::setTestNow('2026-09-06 10:00:00');
+
+        try {
+            foreach (range(1, 4) as $attempt) {
+                $request->attributes->set('scanner_terminal', $attempt % 2 ? $firstTerminal : $secondTerminal);
+                $service->audit($request, 'rejected', ['user_id' => $student->id]);
+            }
+            $this->assertDatabaseMissing('security_flags', ['category' => 'repeated_user_rejections']);
+
+            Carbon::setTestNow('2026-09-06 10:02:00');
+            $request->attributes->set('scanner_terminal', $firstTerminal);
+            $service->audit($request, 'rejected', ['user_id' => $student->id]);
+            $this->assertDatabaseMissing('security_flags', ['category' => 'repeated_user_rejections']);
+
+            foreach (range(1, 4) as $attempt) {
+                $request->attributes->set('scanner_terminal', $attempt % 2 ? $secondTerminal : $firstTerminal);
+                $service->audit($request, 'rejected', ['user_id' => $student->id]);
+            }
+
+            $this->assertSame(1, \App\Models\SecurityFlag::where('category', 'repeated_user_rejections')->count());
+            $this->assertDatabaseHas('security_flags', [
+                'category' => 'repeated_user_rejections',
+                'user_id' => $student->id,
+                'severity' => 'medium',
+                'status' => 'open',
+            ]);
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     private function users(): array

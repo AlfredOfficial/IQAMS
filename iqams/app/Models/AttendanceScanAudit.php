@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AttendanceScanAudit extends Model
 {
@@ -11,5 +12,20 @@ class AttendanceScanAudit extends Model
     protected function casts(): array
     {
         return ['metadata' => 'array'];
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function admin(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'admin_id');
+    }
+
+    public function scannerTerminal(): BelongsTo
+    {
+        return $this->belongsTo(ScannerTerminal::class);
     }
 }

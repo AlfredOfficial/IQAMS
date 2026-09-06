@@ -23,8 +23,21 @@ class ScannerSecurityController extends Controller
     public function index()
     {
         $terminals = ScannerTerminal::latest()->get(['id', 'name', 'location', 'is_active']);
-        $audits = AttendanceScanAudit::latest()->paginate(20, ['*'], 'audits');
-        $flags = SecurityFlag::latest('detected_at')->paginate(20, ['*'], 'flags');
+        $audits = AttendanceScanAudit::query()
+            ->with([
+                'user:id,name',
+                'admin:id,name',
+                'scannerTerminal:id,name',
+            ])
+            ->latest()
+            ->paginate(20, ['*'], 'audits');
+        $flags = SecurityFlag::query()
+            ->with([
+                'user:id,name',
+                'scannerTerminal:id,name',
+            ])
+            ->latest('detected_at')
+            ->paginate(20, ['*'], 'flags');
         $qrBatches = AuditLog::query()
             ->with('actor')
             ->whereIn('action', ['qr.batch_queued', 'qr.batch_completed'])

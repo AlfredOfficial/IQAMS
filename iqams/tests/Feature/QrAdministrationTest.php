@@ -3,10 +3,13 @@
 namespace Tests\Feature;
 
 use App\Jobs\IssueMissingQrCredentials;
+use App\Models\AttendanceScanAudit;
 use App\Models\Course;
 use App\Models\Department;
 use App\Models\QrCredential;
 use App\Models\Role;
+use App\Models\ScannerTerminal;
+use App\Models\SecurityFlag;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
@@ -70,6 +73,53 @@ class QrAdministrationTest extends TestCase
 
         $this->actingAs($this->user('student'))->getJson(route('admin.id-card.show', $student->user))
             ->assertForbidden();
+    }
+
+    public function test_scan_audit_trail_uses_related_names_and_handles_missing_references(): void
+    {
+        $admin = $this->user('admin');
+        $admin->update(['name' => 'Audit Administrator']);
+        $student = $this->user('student');
+        $student->update(['name' => 'Audited Student']);
+        $terminal = ScannerTerminal::create(['name' => 'North Gate Scanner', 'location' => 'North Gate']);
+
+        $audit = AttendanceScanAudit::create([
+            'user_id' => $student->id,
+            'admin_id' => $admin->id,
+            'scanner_terminal_id' => $terminal->id,
+            'outcome' => 'recorded',
+        ]);
+        AttendanceScanAudit::create(['outcome' => 'invalid']);
+        SecurityFlag::create([
+            'severity' => 'medium',
+            'category' => 'repeated_user_rejections',
+            'user_id' => $student->id,
+            'scanner_terminal_id' => $terminal->id,
+            'attendance_scan_audit_id' => $audit->id,
+            'deduplication_key' => 'known-user-flag',
+            'evidence' => 'Known user flag evidence',
+            'detected_at' => now(),
+        ]);
+        SecurityFlag::create([
+            'severity' => 'medium',
+            'category' => 'repeated_invalid_scans',
+            'deduplication_key' => 'unknown-user-flag',
+            'evidence' => 'Unknown user flag evidence',
+            'detected_at' => now(),
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('scanner-security.index'));
+
+        $response->assertOk()
+            ->assertSee('Audited Student')
+            ->assertSee('Audit Administrator')
+            ->assertSee('North Gate Scanner')
+            ->assertSee('Known user flag evidence')
+            ->assertSee('Audit #'.$audit->id)
+            ->assertDontSee("<td>{$student->id}</td>", false)
+            ->assertDontSee("<td>{$admin->id}</td>", false)
+            ->assertDontSee("<td>{$terminal->id}</td>", false)
+            ->assertSee('<td>—</td>', false);
     }
 
     private function user(string $role): User
