@@ -43,7 +43,9 @@
 
                 const pendingForm = this.form;
                 this.close(true);
-                pendingForm?.submit();
+                if (pendingForm) {
+                    HTMLFormElement.prototype.submit.call(pendingForm);
+                }
             } catch (error) {
                 this.error = 'Unable to confirm your password. Please try again.';
             } finally {

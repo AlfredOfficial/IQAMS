@@ -44,9 +44,9 @@
                             <td class="px-5 py-4"><span class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $event->status === 'published' ? 'bg-green-100 text-green-700' : ($event->status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700') }}">{{ ucfirst($event->status) }}</span></td>
                             <td class="px-5 py-4"><div class="flex justify-end gap-2">
                                 @if($event->status === 'draft' || ($event->status === 'published' && now()->lt($event->starts_at)))<button type="button" @click="openEdit(@js($eventForm))" class="text-indigo-600 hover:underline">Edit</button>@endif
-                                @if($event->status === 'draft')<form method="POST" action="{{ route('school-events.publish',$event) }}">@csrf @method('PATCH')<button class="text-green-700 hover:underline">Publish</button></form>@endif
-                                @if($event->status === 'published' && now()->lt($event->starts_at))<form method="POST" action="{{ route('school-events.cancel',$event) }}">@csrf @method('PATCH')<button class="text-amber-700 hover:underline">Cancel</button></form>@endif
-                                @if(!$event->attendance_logs_count)<form method="POST" action="{{ route('school-events.destroy',$event) }}" onsubmit="return confirm('Delete this event?')">@csrf @method('DELETE')<button class="text-red-600 hover:underline">Delete</button></form>@endif
+                                @if($event->status === 'draft')<form method="POST" action="{{ route('school-events.publish',$event) }}" data-password-confirmation-required>@csrf @method('PATCH')<button class="text-green-700 hover:underline">Publish</button></form>@endif
+                                @if($event->status === 'published' && now()->lt($event->starts_at))<form method="POST" action="{{ route('school-events.cancel',$event) }}" data-password-confirmation-required>@csrf @method('PATCH')<button class="text-amber-700 hover:underline">Cancel</button></form>@endif
+                                @if(!$event->attendance_logs_count)<form method="POST" action="{{ route('school-events.destroy',$event) }}" onsubmit="return confirm('Delete this event?')" data-password-confirmation-required>@csrf @method('DELETE')<button class="text-red-600 hover:underline">Delete</button></form>@endif
                             </div></td></tr>
                     @empty<tr><td colspan="5" class="px-5 py-12 text-center text-gray-500">No school events have been created.</td></tr>@endforelse
                     </tbody>

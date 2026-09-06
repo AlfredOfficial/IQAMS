@@ -35,14 +35,16 @@
                             <tr>
                                 <td class="px-6 py-3 text-gray-800 font-medium">{{ $department->department_code }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $department->department_name }}</td>
-                                <td class="px-6 py-3 text-right space-x-3">
+                                <td class="px-6 py-3 text-right">
+                                    <x-record-action-menu>
                                     <button type="button"
                                         @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $department->id, 'code' => $department->department_code, 'name' => $department->department_name]) }}"
                                         class="text-indigo-600 hover:text-indigo-800">Edit</button>
 
                                     <button type="button"
                                         @click="deleteModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $department->id, 'name' => $department->department_name]) }}"
-                                        class="text-red-600 hover:text-red-800">Delete</button>
+                                        class="!text-red-600 hover:!text-red-700">Delete</button>
+                                    </x-record-action-menu>
                                 </td>
                             </tr>
                         @empty
@@ -133,7 +135,7 @@
                     </button>
                 </div>
 
-                <form method="POST" :action="'{{ url('departments') }}/' + editModal.id">
+                <form method="POST" :action="'{{ url('departments') }}/' + editModal.id" data-password-confirmation-required>
                     @csrf
                     @method('PUT')
 
@@ -180,7 +182,7 @@
                     This can't be undone.
                 </p>
 
-                <form method="POST" :action="'{{ url('departments') }}/' + deleteModal.id">
+                <form method="POST" :action="'{{ url('departments') }}/' + deleteModal.id" data-password-confirmation-required>
                     @csrf
                     @method('DELETE')
 

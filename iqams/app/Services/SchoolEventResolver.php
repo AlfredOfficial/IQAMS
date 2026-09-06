@@ -12,6 +12,8 @@ use Illuminate\Support\Collection;
 
 class SchoolEventResolver
 {
+    public function __construct(private StudentScheduleEligibility $eligibility) {}
+
     public function activeAttendanceEvent(Student $student, Carbon $at, ?SchoolEventContext $context = null): ?SchoolEvent
     {
         return ($context?->events() ?? $this->publishedNear($at))
@@ -40,12 +42,12 @@ class SchoolEventResolver
         }
         $event->loadMissing('targets');
         if ($event->target_scope === 'sections') {
-            return $event->targets->contains('section_id', $student->section_id);
+            return $event->targets->pluck('section_id')->filter()
+                ->contains(fn ($sectionId) => $this->eligibility->isEligibleForSection($student, (int) $sectionId));
         }
 
-        return $event->targets->whereNotNull('schedule_id')->contains(
-            fn ($target) => (int) $target->schedule?->section_id === (int) $student->section_id
-        );
+        return $event->targets->whereNotNull('schedule_id')->contains(fn ($target) => $target->schedule
+            && $this->eligibility->isEligibleForSchedule($student, $target->schedule));
     }
 
     public function targetsSchedule(SchoolEvent $event, Schedule $schedule): bool

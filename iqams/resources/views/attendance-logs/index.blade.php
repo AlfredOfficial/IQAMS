@@ -264,7 +264,7 @@
                     </button>
                 </div>
 
-                <form method="POST" :action="'{{ url('attendance-logs') }}/' + editModal.id" class="grid min-h-0 gap-x-4 overflow-y-auto px-6 py-5 md:grid-cols-2">
+                <form method="POST" :action="'{{ url('attendance-logs') }}/' + editModal.id" class="grid min-h-0 gap-x-4 overflow-y-auto px-6 py-5 md:grid-cols-2" data-password-confirmation-required>
                     @csrf
                     @method('PUT')
 
@@ -358,7 +358,7 @@
                     This can't be undone.
                 </p>
 
-                <form method="POST" :action="'{{ url('attendance-logs') }}/' + deleteModal.id">
+                <form method="POST" :action="'{{ url('attendance-logs') }}/' + deleteModal.id" data-password-confirmation-required>
                     @csrf
                     @method('DELETE')
 

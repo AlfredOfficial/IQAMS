@@ -7,6 +7,7 @@ use App\Models\Schedule;
 use App\Models\Student;
 use App\Services\PersonnelAttendancePages;
 use App\Services\ScheduleOccurrenceResolver;
+use App\Services\StudentScheduleEligibility;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -89,8 +90,9 @@ class InstructorAttendanceController extends Controller
         Request $request,
         Schedule $schedule,
         ScheduleOccurrenceResolver $occurrences,
+        StudentScheduleEligibility $eligibility,
     ): JsonResponse {
-        return response()->json($this->classAttendanceData($request, $schedule, $occurrences))
+        return response()->json($this->classAttendanceData($request, $schedule, $occurrences, $eligibility))
             ->header('Cache-Control', 'no-store');
     }
 
@@ -98,8 +100,9 @@ class InstructorAttendanceController extends Controller
         Request $request,
         Schedule $schedule,
         ScheduleOccurrenceResolver $occurrences,
+        StudentScheduleEligibility $eligibility,
     ): StreamedResponse {
-        $attendance = $this->classAttendanceData($request, $schedule, $occurrences);
+        $attendance = $this->classAttendanceData($request, $schedule, $occurrences, $eligibility);
         $class = $attendance['class'];
         $filename = 'class-attendance-'.Str::slug($class['subject_code']).'-'.Str::slug($class['section']).'-'.$class['date'].'.xlsx';
 
@@ -175,6 +178,7 @@ class InstructorAttendanceController extends Controller
         Request $request,
         Schedule $schedule,
         ScheduleOccurrenceResolver $occurrences,
+        StudentScheduleEligibility $eligibility,
     ): array {
         $instructor = $request->user()->instructor;
         abort_unless($instructor && $schedule->instructor_id === $instructor->id, 403);
@@ -191,11 +195,8 @@ class InstructorAttendanceController extends Controller
         }
 
         $schedule->loadMissing(['subject:id,subject_code,subject_name', 'section:id,section_name']);
-        $students = Student::query()
+        $students = $eligibility->studentsForSchedule($schedule)
             ->select(['id', 'user_id', 'student_no', 'first_name', 'last_name', 'middle_name', 'section_id', 'status'])
-            ->where('section_id', $schedule->section_id)
-            ->where('status', 'active')
-            ->whereHas('user', fn ($query) => $query->where('status', 'active'))
             ->orderBy('last_name')->orderBy('first_name')->get();
 
         $logs = AttendanceLog::canonical()->where('schedule_id', $schedule->id)

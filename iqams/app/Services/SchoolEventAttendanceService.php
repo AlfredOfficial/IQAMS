@@ -11,6 +11,7 @@ class SchoolEventAttendanceService
 {
     public function __construct(
         private AttendanceAbsenceWriter $writer,
+        private StudentScheduleEligibility $eligibility,
     ) {}
 
     public function markDue(?Carbon $at = null): int
@@ -43,15 +44,18 @@ class SchoolEventAttendanceService
 
     public function studentsFor(SchoolEvent $event)
     {
-        $query = Student::query()->where('students.status', 'active')
-            ->whereHas('user', fn ($q) => $q->where('status', 'active'));
-
-        if ($event->target_scope === 'sections') {
-            $query->whereIn('section_id', $event->targets->pluck('section_id')->filter());
-        } elseif ($event->target_scope === 'schedules') {
-            $query->whereIn('section_id', $event->targets->pluck('schedule.section_id')->filter()->unique());
+        if ($event->target_scope === 'school') {
+            return Student::query()->where('students.status', 'active')
+                ->whereHas('user', fn ($q) => $q->where('status', 'active'));
         }
 
-        return $query;
+        $sections = $event->target_scope === 'sections'
+            ? $event->targets->pluck('section_id')->filter()->map(fn ($id) => (int) $id)->all()
+            : $event->targets->pluck('schedule.section_id')->filter()->unique()->map(fn ($id) => (int) $id)->all();
+        $groups = $event->target_scope === 'sections'
+            ? \App\Models\Schedule::active()->whereIn('section_id', $sections)->pluck('recurring_schedule_group_id')->all()
+            : $event->targets->pluck('schedule.recurring_schedule_group_id')->filter()->unique()->all();
+
+        return $this->eligibility->studentsForTargets($sections, $groups);
     }
 }

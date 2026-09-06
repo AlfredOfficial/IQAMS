@@ -9,7 +9,7 @@
     <div class="py-8"
          x-data="{
             showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
-            editModal: { show: false, id: null, department_id: '', name_prefix: '', first_name: '', middle_name: '', last_name: '', professional_credentials: '', avatar_url: '' },
+            editModal: { show: false, id: null, employee_no: '', email: '', department_id: '', name_prefix: '', first_name: '', middle_name: '', last_name: '', professional_credentials: '', avatar_url: '' },
             deleteModal: { show: false, id: null, name: '' },
             statusModal: { show: false, userId: null, name: '', status: '' },
             qrModal: { show: false, value: '', label: '' },
@@ -64,13 +64,13 @@
                                             :requires-password-confirmation="true"
                                             :delete-name="$instructor->fullName()">
                                             <x-slot:reset>
-                                                <form method="POST" action="{{ route('users.password.reset', $instructor->user) }}" onsubmit="return confirm('Reset this account to its temporary password?')" @submit.prevent="open = false; $dispatch('password-confirmation-required', { form: $el })">
+                                                <form method="POST" action="{{ route('users.password.reset', $instructor->user) }}" onsubmit="return confirm('Reset this account to its temporary password?')" data-password-confirmation-required>
                                                     @csrf
                                                     <button type="submit">Reset temporary password</button>
                                                 </form>
                                             </x-slot:reset>
                                             <x-slot:qr><button type="button" @click="fetch('{{ url('admin/id-cards') }}/{{ $instructor->user_id }}', { headers: { Accept: 'application/json' }, credentials: 'same-origin' }).then(response => response.json().then(data => { if (!response.ok) throw new Error(data.message || 'QR unavailable.'); qrModal = { show: true, value: data.qr_code, label: data.name }; })).catch(error => window.alert(error.message))">View QR</button><button type="button" @click="window.ensureIqamsQrCode().then(() => window.printIqamsIdCard('{{ url('admin/id-cards') }}/{{ $instructor->user_id }}')).catch(error => window.alert(error.message))">Print ID Card</button></x-slot:qr>
-                                            <x-slot:edit><button type="button" @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $instructor->id, 'department_id' => (string) $instructor->department_id, 'name_prefix' => $instructor->name_prefix ?? '', 'first_name' => $instructor->first_name, 'middle_name' => $instructor->middle_name ?? '', 'last_name' => $instructor->last_name, 'professional_credentials' => $instructor->professional_credentials ?? '', 'avatar_url' => $instructor->user->avatar_thumbnail_url ?? asset('images/default-avatar.svg')]) }}">Edit</button></x-slot:edit>
+                                            <x-slot:edit><button type="button" @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $instructor->id, 'employee_no' => $instructor->employee_no, 'email' => $instructor->user->email ?? '', 'department_id' => (string) $instructor->department_id, 'name_prefix' => $instructor->name_prefix ?? '', 'first_name' => $instructor->first_name, 'middle_name' => $instructor->middle_name ?? '', 'last_name' => $instructor->last_name, 'professional_credentials' => $instructor->professional_credentials ?? '', 'avatar_url' => $instructor->user->avatar_thumbnail_url ?? asset('images/default-avatar.svg')]) }}">Edit</button></x-slot:edit>
                                         </x-action-menu>
                                     </td>
                                 </tr>
@@ -192,9 +192,9 @@
 
         {{-- Edit Instructor Modal --}}
         <div x-show="editModal.show" x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center px-4"
+             class="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto px-4 py-6"
              style="background: rgba(0, 0, 0, 0.4)">
-            <div @click.outside="editModal.show = false" class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
+            <div @click.outside="editModal.show = false" class="w-full max-w-2xl rounded-lg bg-white p-4 shadow-xl sm:p-5">
                 <div class="mb-4 flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-gray-800">Edit Instructor</h3>
                     <button type="button" @click="editModal.show = false" class="text-gray-400 hover:text-gray-600">
@@ -202,12 +202,18 @@
                     </button>
                 </div>
 
-                <form method="POST" :action="'{{ url('instructors') }}/' + editModal.id" enctype="multipart/form-data">
+                <form method="POST" :action="'{{ url('instructors') }}/' + editModal.id" enctype="multipart/form-data" data-password-confirmation-required>
                     @csrf
                     @method('PUT')
                     <div class="mb-4 flex items-center gap-4"><img :src="editModal.avatar_url" alt="Current profile photo" class="h-14 w-14 rounded-full object-cover"><div><label class="mb-1 block text-sm font-medium text-gray-700">Replace Profile Photo</label><input type="file" name="avatar" accept="image/jpeg,image/png" class="block w-full text-sm text-gray-600"></div></div>
 
-                    <div class="mb-4">
+                    <div class="grid grid-cols-1 gap-x-5 gap-y-3 md:grid-cols-2">
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-gray-700">Instructor ID</label>
+                        <input type="text" x-model="editModal.employee_no" disabled
+                               class="w-full rounded-md border-gray-200 bg-gray-50 text-gray-500 shadow-sm">
+                    </div>
+                    <div>
                         <label class="mb-1 block text-sm font-medium text-gray-700">Department</label>
                         <select name="department_id" x-model="editModal.department_id"
                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -218,42 +224,43 @@
                         </select>
                     </div>
 
-                    <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-[0.65fr_1.35fr]">
-                        <div>
+                    <div>
                             <label class="mb-1 block text-sm font-medium text-gray-700">Title / Prefix</label>
                             <input type="text" name="name_prefix" x-model="editModal.name_prefix" placeholder="e.g. Engr."
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        </div>
-                        <div>
+                    </div>
+                    <div>
                             <label class="mb-1 block text-sm font-medium text-gray-700">First Name</label>
                             <input type="text" name="first_name" x-model="editModal.first_name"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        </div>
                     </div>
 
-                    <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div>
+                    <div>
                             <label class="mb-1 block text-sm font-medium text-gray-700">Middle Name</label>
                             <input type="text" name="middle_name" x-model="editModal.middle_name" placeholder="Optional"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        </div>
-                        <div>
+                    </div>
+                    <div>
                             <label class="mb-1 block text-sm font-medium text-gray-700">Last Name</label>
                             <input type="text" name="last_name" x-model="editModal.last_name"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        </div>
                     </div>
 
-                    <div class="mb-6">
+                    <div>
                         <label class="mb-1 block text-sm font-medium text-gray-700">Professional Credentials</label>
                         <input type="text" name="professional_credentials" x-model="editModal.professional_credentials" placeholder="e.g. LPT, MATVE"
                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-gray-700">Email</label>
+                        <input type="email" x-model="editModal.email" disabled
+                               class="w-full rounded-md border-gray-200 bg-gray-50 text-gray-500 shadow-sm">
+                    </div>
+                    </div>
 
-                    <p class="mb-4 text-xs text-gray-400">Employee number, email, and login credentials can't be changed here yet.</p>
-                    <div class="flex items-center gap-3">
+                    <div class="mt-4 flex items-center justify-end gap-3 border-t border-gray-100 pt-3">
+                        <button type="button" @click="editModal.show = false" class="rounded px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700">Cancel</button>
                         <button type="submit" class="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Update Instructor</button>
-                        <button type="button" @click="editModal.show = false" class="text-sm text-gray-500 hover:text-gray-700">Cancel</button>
                     </div>
                 </form>
             </div>
@@ -269,7 +276,7 @@
                     Are you sure you want to deactivate <span class="font-medium text-gray-700" x-text="deleteModal.name"></span>?
                     Their login will be disabled and attendance history will be retained.
                 </p>
-                <form method="POST" :action="'{{ url('instructors') }}/' + deleteModal.id">
+                <form method="POST" :action="'{{ url('instructors') }}/' + deleteModal.id" data-password-confirmation-required>
                     @csrf
                     @method('DELETE')
                     <div class="flex items-center gap-3">
@@ -281,8 +288,6 @@
         </div>
 
         <x-account-status-modal />
-        <x-password-confirmation-modal />
-
         <x-qr-modal />
     </div>
 </x-app-layout>

@@ -39,7 +39,8 @@
                                 <td class="px-6 py-3 text-gray-600">{{ $section->course->course_code ?? 'â€”' }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $section->school_year }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ ucfirst($section->semester) }}</td>
-                                <td class="px-6 py-3 text-right space-x-3">
+                                <td class="px-6 py-3 text-right">
+                                    <x-record-action-menu>
                                     <button type="button"
                                         @click="subjectsModal = {
                                             show: true,
@@ -71,7 +72,8 @@
 
                                     <button type="button"
                                         @click="deleteModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $section->id, 'name' => $section->section_name]) }}"
-                                        class="text-red-600 hover:text-red-800">Delete</button>
+                                        class="!text-red-600 hover:!text-red-700">Delete</button>
+                                    </x-record-action-menu>
                                 </td>
                             </tr>
                         @empty
@@ -181,7 +183,7 @@
                     </button>
                 </div>
 
-                <form method="POST" :action="'{{ url('sections') }}/' + editModal.id">
+                <form method="POST" :action="'{{ url('sections') }}/' + editModal.id" data-password-confirmation-required>
                     @csrf
                     @method('PUT')
 
@@ -243,7 +245,7 @@
                     This also affects any Students and Schedules assigned to it. This can't be undone.
                 </p>
 
-                <form method="POST" :action="'{{ url('sections') }}/' + deleteModal.id">
+                <form method="POST" :action="'{{ url('sections') }}/' + deleteModal.id" data-password-confirmation-required>
                     @csrf
                     @method('DELETE')
 

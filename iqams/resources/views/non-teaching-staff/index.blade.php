@@ -64,7 +64,7 @@
                                         :requires-password-confirmation="true"
                                         :delete-name="$staff->fullName()">
                                         <x-slot:reset>
-                                            <form method="POST" action="{{ route('users.password.reset', $staff->user) }}" onsubmit="return confirm('Reset this account to its temporary password?')" @submit.prevent="open = false; $dispatch('password-confirmation-required', { form: $el })">
+                                            <form method="POST" action="{{ route('users.password.reset', $staff->user) }}" onsubmit="return confirm('Reset this account to its temporary password?')" data-password-confirmation-required>
                                                 @csrf
                                                 <button type="submit">Reset temporary password</button>
                                             </form>
@@ -199,7 +199,7 @@
                     </button>
                 </div>
 
-                <form method="POST" :action="'{{ url('non-teaching-staff') }}/' + editModal.id" enctype="multipart/form-data">
+                <form method="POST" :action="'{{ url('non-teaching-staff') }}/' + editModal.id" enctype="multipart/form-data" data-password-confirmation-required>
                     @csrf
                     @method('PUT')
                     <div class="mb-4 flex items-center gap-4"><img :src="editModal.avatar_url" alt="Current profile photo" class="h-14 w-14 rounded-full object-cover"><div><label class="mb-1 block text-sm font-medium text-gray-700">Replace Profile Photo</label><input type="file" name="avatar" accept="image/jpeg,image/png" class="block w-full text-sm text-gray-600"></div></div>
@@ -286,7 +286,7 @@
                     Their login will be disabled and attendance history will be retained.
                 </p>
 
-                <form method="POST" :action="'{{ url('non-teaching-staff') }}/' + deleteModal.id">
+                <form method="POST" :action="'{{ url('non-teaching-staff') }}/' + deleteModal.id" data-password-confirmation-required>
                     @csrf
                     @method('DELETE')
 
@@ -303,8 +303,6 @@
         </div>
 
         <x-account-status-modal />
-        <x-password-confirmation-modal />
-
         <x-qr-modal />
     </div>
 </x-app-layout>

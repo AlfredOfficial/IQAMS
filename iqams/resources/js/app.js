@@ -699,10 +699,50 @@ const pageLoader = (() => {
     return { start, stop };
 })();
 
+const requiresPasswordConfirmation = (form) => {
+    if (form.hasAttribute('data-password-confirmation-required')) return true;
+
+    const action = new URL(form.action, window.location.href).pathname.replace(/\/$/, '');
+    const method = (form.querySelector('input[name="_method"]')?.value || form.method).toUpperCase();
+    const resourceMutation = /^\/(departments|courses|instructors|non-teaching-staff|office-units|subjects|sections|students|schedules|attendance-logs|school-events)\/[^/]+$/.test(action)
+        && ['PUT', 'PATCH', 'DELETE'].includes(method);
+
+    return resourceMutation
+        || /^\/admin\/leave-requests\/[^/]+$/.test(action)
+        || /^\/roles\/users\/[^/]+$/.test(action)
+        || /^\/users\/[^/]+\/(status|password\/reset)$/.test(action)
+        || /^\/school-events\/[^/]+\/(publish|cancel)$/.test(action)
+        || action === '/scanner-security/qr/batch'
+        || /^\/scanner-security\/(terminals|flags)\/[^/]+$/.test(action)
+        || /^\/scanner-security\/users\/[^/]+\/qr\/regenerate$/.test(action);
+};
+
+const protectAutoSubmittedSensitiveForms = () => {
+    document.querySelectorAll('form').forEach((form) => {
+        if (!requiresPasswordConfirmation(form)) return;
+
+        form.setAttribute('data-password-confirmation-required', '');
+
+        // Scanner security's status select uses form.submit(), which bypasses
+        // submit events. Route it through requestSubmit() so the modal opens.
+        if (/^\/scanner-security\/flags\/[^/]+$/.test(new URL(form.action, window.location.href).pathname)) {
+            form.submit = () => form.requestSubmit();
+        }
+    });
+};
+
+protectAutoSubmittedSensitiveForms();
+
 document.addEventListener('submit', (event) => {
     const form = event.target;
 
     if (!(form instanceof HTMLFormElement) || form.hasAttribute('data-logout-confirmed')) {
+        return;
+    }
+
+    if (requiresPasswordConfirmation(form)) {
+        event.preventDefault();
+        window.dispatchEvent(new CustomEvent('password-confirmation-required', { detail: { form } }));
         return;
     }
 

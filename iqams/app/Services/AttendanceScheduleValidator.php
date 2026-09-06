@@ -15,6 +15,7 @@ class AttendanceScheduleValidator
     public function __construct(
         private ScheduleOccurrenceResolver $occurrences,
         private SchoolEventResolver $events,
+        private StudentScheduleEligibility $eligibility,
     ) {}
 
     /**
@@ -31,7 +32,7 @@ class AttendanceScheduleValidator
 
         $occurrence = $this->occurrences->resolveAt($schedule, $occurredAt);
 
-        if ((int) $student->section_id !== (int) $schedule->section_id
+        if (! $this->eligibility->isEligibleForSchedule($student, $schedule)
             || ! $occurrence
             || $this->events->affectingOccurrence($occurrence)) {
             throw ValidationException::withMessages([

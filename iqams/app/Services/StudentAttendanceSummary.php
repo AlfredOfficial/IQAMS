@@ -9,7 +9,10 @@ use Illuminate\Support\Facades\DB;
 
 class StudentAttendanceSummary
 {
-    public function __construct(private AttendanceSummaryCache $cache) {}
+    public function __construct(
+        private AttendanceSummaryCache $cache,
+        private StudentScheduleEligibility $eligibility,
+    ) {}
 
     /**
      * Build the student's attendance totals from canonical time-in records.
@@ -74,7 +77,8 @@ class StudentAttendanceSummary
             })
             ->where(function ($query) use ($student): void {
                 $query->where(function ($query) use ($student): void {
-                    $query->whereNotNull('schedules.id')->where('schedules.section_id', $student->section_id)->whereNull('schedules.archived_at');
+                    $query->whereNotNull('schedules.id')
+                        ->whereIn('schedules.id', $this->eligibility->schedulesFor($student)->select('schedules.id'));
                 })->orWhereNotNull('school_events.id');
             })
             ->selectRaw("\n                COALESCE(SUM(CASE WHEN {$notExcluded} AND attendance_logs.status = 'present' THEN 1 ELSE 0 END), 0) AS present,\n                COALESCE(SUM(CASE WHEN {$notExcluded} AND attendance_logs.status = 'late' THEN 1 ELSE 0 END), 0) AS late,\n                COALESCE(SUM(CASE WHEN {$notExcluded} AND attendance_logs.status = 'absent' THEN 1 ELSE 0 END), 0) AS absent,\n                COALESCE(SUM(CASE WHEN attendance_logs.status = 'excused' THEN 1 ELSE 0 END), 0) AS excused,\n                COALESCE(SUM(CASE WHEN {$cancelled} OR attendance_logs.status = 'excused' THEN 1 ELSE 0 END), 0) AS excluded\n            ");

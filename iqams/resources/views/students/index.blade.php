@@ -8,7 +8,8 @@
 
     <div class="py-8" x-data="{
             showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
-            editModal: { show: false, id: null, course_id: '', section_id: '', first_name: '', last_name: '', middle_name: '', status: '', avatar_url: '' },
+            createEnrollmentType: '{{ old('enrollment_type', 'regular') }}',
+            editModal: { show: false, id: null, course_id: '', section_id: '', enrollment_type: 'regular', enrollment_group_ids: [], student_no: '', email: '', first_name: '', last_name: '', middle_name: '', status: '', avatar_url: '' },
             deleteModal: { show: false, id: null, name: '' },
             statusModal: { show: false, userId: null, name: '', status: '' },
             qrModal: { show: false, value: '', label: '' },
@@ -37,6 +38,7 @@
                             <th class="px-6 py-3">Name</th>
                             <th class="px-6 py-3">Course</th>
                             <th class="px-6 py-3">Section</th>
+                            <th class="px-6 py-3">Enrollment</th>
                             <th class="px-6 py-3">Account Status</th>
                             <th class="px-6 py-3 text-right">Actions</th>
                         </tr>
@@ -49,6 +51,7 @@
                                 <td class="whitespace-nowrap px-6 py-3 text-gray-600">{{ $student->first_name }} {{ $student->last_name }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $student->course->course_code ?? '—' }}</td>
                                 <td class="whitespace-nowrap px-6 py-3 text-gray-600">{{ $student->section->section_name ?? '—' }}</td>
+                                <td class="px-6 py-3"><span class="rounded-full px-2 py-1 text-xs font-medium {{ $student->enrollment_type === 'irregular' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800' }}">{{ ucfirst($student->enrollment_type) }}</span></td>
                                     <td class="whitespace-nowrap px-6 py-3">
                                         <x-student-status :status="$student->user->status" />
                                         @if ($student->user->must_change_password)
@@ -64,19 +67,19 @@
                                         :requires-password-confirmation="true"
                                         :delete-name="$student->fullName()">
                                         <x-slot:reset>
-                                            <form method="POST" action="{{ route('users.password.reset', $student->user) }}" onsubmit="return confirm('Reset this account to its temporary password?')" @submit.prevent="open = false; $dispatch('password-confirmation-required', { form: $el })">
+                                            <form method="POST" action="{{ route('users.password.reset', $student->user) }}" onsubmit="return confirm('Reset this account to its temporary password?')" data-password-confirmation-required>
                                                 @csrf
                                                 <button type="submit">Reset temporary password</button>
                                             </form>
                                         </x-slot:reset>
                                         <x-slot:qr><button type="button" @click="fetch('{{ url('admin/id-cards') }}/{{ $student->user_id }}', { headers: { Accept: 'application/json' }, credentials: 'same-origin' }).then(response => response.json().then(data => { if (!response.ok) throw new Error(data.message || 'QR unavailable.'); qrModal = { show: true, value: data.qr_code, label: data.name }; })).catch(error => window.alert(error.message))">View QR</button><button type="button" @click="window.ensureIqamsQrCode().then(() => window.printIqamsIdCard('{{ url('admin/id-cards') }}/{{ $student->user_id }}')).catch(error => window.alert(error.message))">Print ID Card</button></x-slot:qr>
-                                        <x-slot:edit><button type="button" @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $student->id, 'course_id' => (string) $student->course_id, 'section_id' => (string) $student->section_id, 'first_name' => $student->first_name, 'last_name' => $student->last_name, 'middle_name' => $student->middle_name, 'status' => $student->status, 'avatar_url' => $student->user->avatar_thumbnail_url ?? asset('images/default-avatar.svg')]) }}">Edit</button></x-slot:edit>
+                                        <x-slot:edit><button type="button" @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $student->id, 'course_id' => (string) $student->course_id, 'section_id' => (string) $student->section_id, 'enrollment_type' => $student->enrollment_type, 'enrollment_group_ids' => $student->scheduleEnrollments->pluck('recurring_schedule_group_id')->values(), 'student_no' => $student->student_no, 'email' => $student->user->email ?? '', 'first_name' => $student->first_name, 'last_name' => $student->last_name, 'middle_name' => $student->middle_name, 'status' => $student->status, 'avatar_url' => $student->user->avatar_thumbnail_url ?? asset('images/default-avatar.svg')]) }}">Edit</button></x-slot:edit>
                                     </x-action-menu>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="px-6 py-8 text-center text-gray-400">
+                                <td colspan="9" class="px-6 py-8 text-center text-gray-400">
                                     No students yet. Add your first one.
                                 </td>
                             </tr>
@@ -140,6 +143,24 @@
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
                     </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="mb-1 block text-sm font-medium text-gray-700">Enrollment type</label>
+                        <select name="enrollment_type" x-model="createEnrollmentType" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="regular">Regular — all home-section classes</option>
+                            <option value="irregular">Irregular — selected class offerings</option>
+                        </select>
+                    </div>
+                    <div x-show="createEnrollmentType === 'irregular'" x-cloak class="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                        <p class="mb-2 text-sm font-medium text-amber-900">Class offerings</p>
+                        <p class="mb-2 text-xs text-amber-800">Each selection includes every recurring day in that offering.</p>
+                        <div class="max-h-40 space-y-2 overflow-y-auto">
+                            @foreach ($offerings as $offering)
+                                <label class="flex gap-2 text-sm text-gray-700"><input type="checkbox" name="enrollment_group_ids[]" value="{{ $offering['id'] }}" @checked(in_array($offering['id'], old('enrollment_group_ids', [])))><span>{{ $offering['label'] }}</span></label>
+                            @endforeach
+                        </div>
+                        @error('enrollment_group_ids')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                     </div>
 
                     <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -207,10 +228,10 @@
 
         {{-- Edit Student Modal --}}
         <div x-show="editModal.show" x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center px-4"
+             class="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto px-4 py-6"
              style="background: rgba(0,0,0,0.4);">
             <div @click.outside="editModal.show = false"
-                 class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+                 class="w-full max-w-xl rounded-lg bg-white p-5 shadow-xl sm:p-6">
 
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-semibold text-gray-800">Edit Student</h3>
@@ -219,12 +240,13 @@
                     </button>
                 </div>
 
-                <form method="POST" :action="'{{ url('students') }}/' + editModal.id" enctype="multipart/form-data">
+                <form method="POST" :action="'{{ url('students') }}/' + editModal.id" enctype="multipart/form-data" data-password-confirmation-required>
                     @csrf
                     @method('PUT')
                     <div class="mb-4 flex items-center gap-4"><img :src="editModal.avatar_url" alt="Current profile photo" class="h-14 w-14 rounded-full object-cover"><div><label class="mb-1 block text-sm font-medium text-gray-700">Replace Profile Photo</label><input type="file" name="avatar" accept="image/jpeg,image/png" class="block w-full text-sm text-gray-600"></div></div>
 
-                    <div class="mb-4">
+                    <div class="mb-4 grid grid-cols-1 gap-x-5 gap-y-3 sm:grid-cols-2">
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
                         <select name="course_id" x-model="editModal.course_id"
                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -235,7 +257,7 @@
                         </select>
                     </div>
 
-                    <div class="mb-4">
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Section</label>
                         <select name="section_id" x-model="editModal.section_id"
                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -246,26 +268,34 @@
                         </select>
                     </div>
 
-                    <div class="mb-4 grid grid-cols-2 gap-3">
-                        <div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Student No.</label>
+                        <input type="text" x-model="editModal.student_no" disabled
+                               class="w-full rounded-md border-gray-200 bg-gray-50 text-gray-500 shadow-sm">
+                    </div>
+                    <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                             <input type="text" name="first_name" x-model="editModal.first_name"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                            <input type="text" name="last_name" x-model="editModal.last_name"
+                    </div>
+                    <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
+                            <input type="text" name="middle_name" x-model="editModal.middle_name"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        </div>
                     </div>
 
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
-                        <input type="text" name="middle_name" x-model="editModal.middle_name"
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                        <input type="text" name="last_name" x-model="editModal.last_name"
                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
 
-                    <div class="mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" x-model="editModal.email" disabled
+                               class="w-full rounded-md border-gray-200 bg-gray-50 text-gray-500 shadow-sm">
+                    </div>
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
                         <select name="status" x-model="editModal.status"
                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -275,14 +305,31 @@
                             <option value="dropped">Dropped</option>
                         </select>
                     </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="mb-1 block text-sm font-medium text-gray-700">Enrollment type</label>
+                        <select name="enrollment_type" x-model="editModal.enrollment_type" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="regular">Regular — all home-section classes</option>
+                            <option value="irregular">Irregular — selected class offerings</option>
+                        </select>
+                    </div>
+                    <div x-show="editModal.enrollment_type === 'irregular'" x-cloak class="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                        <p class="mb-2 text-sm font-medium text-amber-900">Class offerings</p>
+                        <div class="max-h-40 space-y-2 overflow-y-auto">
+                            @foreach ($offerings as $offering)
+                                <label class="flex gap-2 text-sm text-gray-700"><input type="checkbox" name="enrollment_group_ids[]" value="{{ $offering['id'] }}" :checked="editModal.enrollment_group_ids.includes('{{ $offering['id'] }}')" @change="editModal.enrollment_group_ids = $event.target.checked ? [...editModal.enrollment_group_ids, '{{ $offering['id'] }}'] : editModal.enrollment_group_ids.filter(id => id !== '{{ $offering['id'] }}')"><span>{{ $offering['label'] }}</span></label>
+                            @endforeach
+                        </div>
+                    </div>
 
                     <p class="text-xs text-gray-400 mb-4">Email and login credentials can't be changed here yet.</p>
 
-                    <div class="flex items-center justify-end gap-3">
-                        <button type="button" @click="editModal.show = false" class="text-sm text-gray-500 hover:text-gray-700">
+                    <div class="mt-4 flex items-center justify-end gap-3 border-t border-gray-100 pt-3">
+                        <button type="button" @click="editModal.show = false" class="rounded px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700">
                             Cancel
                         </button>
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
+                        <button type="submit" class="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
                             Update Student
                         </button>
                     </div>
@@ -303,7 +350,7 @@
                     Their login will be disabled and attendance history will be retained.
                 </p>
 
-                <form method="POST" :action="'{{ url('students') }}/' + deleteModal.id">
+                <form method="POST" :action="'{{ url('students') }}/' + deleteModal.id" data-password-confirmation-required>
                     @csrf
                     @method('DELETE')
 
@@ -320,7 +367,6 @@
         </div>
 
         <x-account-status-modal />
-        <x-password-confirmation-modal />
         <x-qr-modal />
     </div>
 </x-app-layout>

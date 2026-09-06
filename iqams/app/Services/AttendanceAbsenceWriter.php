@@ -17,6 +17,7 @@ class AttendanceAbsenceWriter
     public function __construct(
         private IntegrityKeyService $keys,
         private AttendanceSummaryCache $cache,
+        private StudentScheduleEligibility $eligibility,
     ) {}
 
     public function forSchedule(ScheduleOccurrence $occurrence, ?SchoolEvent $event = null): int
@@ -25,7 +26,7 @@ class AttendanceAbsenceWriter
         $absenceTime = $occurrence->presentUntil->addSecond();
         $attendanceDate = $this->keys->attendanceDate($absenceTime);
 
-        $query = Student::query()
+        $query = $this->eligibility->studentsForSchedule($schedule)
             ->join('users', 'users.id', '=', 'students.user_id')
             ->leftJoin('attendance_logs as existing', function (JoinClause $join) use ($schedule, $occurrence): void {
                 $join->on('existing.user_id', '=', 'students.user_id')
@@ -37,9 +38,6 @@ class AttendanceAbsenceWriter
                             ->orWhereNull('existing.record_state');
                     });
             })
-            ->where('students.section_id', $schedule->section_id)
-            ->where('students.status', 'active')
-            ->where('users.status', 'active')
             ->whereNull('existing.id')
             ->select(['students.id as student_id', 'students.user_id'])
             ->orderBy('students.id');

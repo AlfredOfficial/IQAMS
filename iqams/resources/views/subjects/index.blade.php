@@ -36,14 +36,16 @@
                                 <td class="px-6 py-3 text-gray-800 font-medium">{{ $subject->subject_code }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $subject->subject_name }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $subject->units }}</td>
-                                <td class="px-6 py-3 text-right space-x-3">
+                                <td class="px-6 py-3 text-right">
+                                    <x-record-action-menu>
                                     <button type="button"
                                         @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $subject->id, 'code' => $subject->subject_code, 'name' => $subject->subject_name, 'units' => (string) $subject->units]) }}"
                                         class="text-indigo-600 hover:text-indigo-800">Edit</button>
 
                                     <button type="button"
                                         @click="deleteModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $subject->id, 'name' => $subject->subject_name]) }}"
-                                        class="text-red-600 hover:text-red-800">Delete</button>
+                                        class="!text-red-600 hover:!text-red-700">Delete</button>
+                                    </x-record-action-menu>
                                 </td>
                             </tr>
                         @empty
@@ -135,7 +137,7 @@
                     </button>
                 </div>
 
-                <form method="POST" :action="'{{ url('subjects') }}/' + editModal.id">
+                <form method="POST" :action="'{{ url('subjects') }}/' + editModal.id" data-password-confirmation-required>
                     @csrf
                     @method('PUT')
 
@@ -182,7 +184,7 @@
                     This can't be undone.
                 </p>
 
-                <form method="POST" :action="'{{ url('subjects') }}/' + deleteModal.id">
+                <form method="POST" :action="'{{ url('subjects') }}/' + deleteModal.id" data-password-confirmation-required>
                     @csrf
                     @method('DELETE')
 

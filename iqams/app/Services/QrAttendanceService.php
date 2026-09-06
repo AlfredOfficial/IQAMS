@@ -24,6 +24,7 @@ class QrAttendanceService
         private ApprovedLeaveAttendanceGuard $leaveGuard,
         private SchoolEventResolver $eventResolver,
         private PersonnelAttendanceClassifier $personnelClassifier,
+        private StudentScheduleEligibility $eligibility,
     ) {}
 
     public function record(string $qrCode, ?string $location = null, ?Carbon $scannedAt = null): AttendanceLog
@@ -52,16 +53,11 @@ class QrAttendanceService
             $this->deny('Attendance is denied because this student profile is not active.');
         }
 
-        if (! $student->section_id) {
-            $this->deny('Attendance is denied because this student has no assigned section.');
-        }
-
         $candidateDates = $this->occurrences->candidateSessionDates($scannedAt);
         $candidateDays = collect($candidateDates)
             ->map(fn (Carbon $date) => strtolower($date->format('l')))
             ->all();
-        $schedules = Schedule::active()->with(['subject', 'section'])
-            ->where('section_id', $student->section_id)
+        $schedules = $this->eligibility->schedulesFor($student)->with(['subject', 'section'])
             ->whereIn('day', $candidateDays)
             ->get();
 

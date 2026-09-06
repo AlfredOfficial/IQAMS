@@ -1,4 +1,4 @@
-<form method="POST" :action="formAction" class="grid min-h-0 gap-4 overflow-y-auto px-6 py-5 md:grid-cols-2">
+<form method="POST" :action="formAction" class="grid min-h-0 gap-4 overflow-y-auto px-6 py-5 md:grid-cols-2" :data-password-confirmation-required="editing ? '' : null">
     @csrf
     <input type="hidden" name="form_context" value="school_event_modal">
     <input type="hidden" name="_method" value="PUT" :disabled="!editing">

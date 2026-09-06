@@ -82,7 +82,8 @@
                                     {{ \Illuminate\Support\Carbon::parse($schedule->end_time)->format('g:i A') }}
                                 </td>
                                 <td class="px-6 py-3 text-gray-600">{{ $schedule->room }}</td>
-                                <td class="px-6 py-3 text-right space-x-3">
+                                <td class="px-6 py-3 text-right">
+                                    <x-record-action-menu>
                                     <button type="button"
                                         @click="editModal = {{ Illuminate\Support\Js::from([
                                             'show' => true,
@@ -106,7 +107,8 @@
                                             'id' => $schedule->id,
                                             'name' => ($schedule->subject->subject_code ?? 'Schedule').' - '.ucfirst($schedule->day),
                                         ]) }}"
-                                        class="text-red-600 hover:text-red-800">Delete</button>
+                                        class="!text-red-600 hover:!text-red-700">Delete</button>
+                                    </x-record-action-menu>
                                 </td>
                             </tr>
                         @empty
@@ -272,7 +274,7 @@
                     </button>
                 </div>
 
-                <form method="POST" :action="'{{ url('schedules') }}/' + editModal.id" class="grid gap-x-4 md:grid-cols-2">
+                <form method="POST" :action="'{{ url('schedules') }}/' + editModal.id" class="grid gap-x-4 md:grid-cols-2" data-password-confirmation-required>
                     @csrf
                     @method('PUT')
                     <input type="hidden" name="_form" value="edit">
@@ -426,7 +428,7 @@
                     This also deletes related Attendance Logs. This can't be undone.
                 </p>
 
-                <form method="POST" :action="'{{ url('schedules') }}/' + deleteModal.id">
+                <form method="POST" :action="'{{ url('schedules') }}/' + deleteModal.id" data-password-confirmation-required>
                     @csrf
                     @method('DELETE')
 

@@ -11,21 +11,19 @@ class StudentAbsenceWarningService
 {
     public const THRESHOLD = 5;
 
+    public function __construct(private StudentScheduleEligibility $eligibility) {}
+
     /**
      * Return every subject in the student's current section that has reached
      * the absence warning threshold.
      */
     public function forStudent(Student $student): Collection
     {
-        if (! $student->section_id) {
-            return collect();
-        }
-
         return AttendanceLog::canonical()
             ->join('schedules', 'attendance_logs.schedule_id', '=', 'schedules.id')
             ->join('subjects', 'schedules.subject_id', '=', 'subjects.id')
             ->where('attendance_logs.user_id', $student->user_id)
-            ->where('schedules.section_id', $student->section_id)
+            ->whereIn('schedules.id', $this->eligibility->schedulesFor($student)->select('schedules.id'))
             ->where('attendance_logs.attendance_type', 'time_in')
             ->where('attendance_logs.status', 'absent')
             ->groupBy('subjects.id', 'subjects.subject_code', 'subjects.subject_name')

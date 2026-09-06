@@ -68,7 +68,7 @@
                                     <td class="px-5 py-3 font-medium text-gray-800">{{ $user->name }}</td>
                                     <td class="px-5 py-3 text-gray-600">{{ $user->username }}</td>
                                     <td class="px-5 py-3">
-                                        <form method="POST" action="{{ route('roles.assign', $user) }}" class="flex items-center gap-2">
+                                        <form method="POST" action="{{ route('roles.assign', $user) }}" class="flex items-center gap-2" data-password-confirmation-required>
                                             @csrf @method('PATCH')
                                             <select name="role" class="rounded-md border-gray-300 text-sm" @disabled(auth()->user()->is($user))>
                                                 @foreach (['admin', 'instructor', 'staff', 'student'] as $roleName)

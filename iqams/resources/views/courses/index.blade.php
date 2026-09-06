@@ -36,14 +36,16 @@
                                 <td class="px-6 py-3 text-gray-800 font-medium">{{ $course->course_code }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $course->course_name }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $course->department->department_name ?? '—' }}</td>
-                                <td class="px-6 py-3 text-right space-x-3">
+                                <td class="px-6 py-3 text-right">
+                                    <x-record-action-menu>
                                     <button type="button"
                                         @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $course->id, 'department_id' => (string) $course->department_id, 'code' => $course->course_code, 'name' => $course->course_name]) }}"
                                         class="text-indigo-600 hover:text-indigo-800">Edit</button>
 
                                     <button type="button"
                                         @click="deleteModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $course->id, 'name' => $course->course_name]) }}"
-                                        class="text-red-600 hover:text-red-800">Delete</button>
+                                        class="!text-red-600 hover:!text-red-700">Delete</button>
+                                    </x-record-action-menu>
                                 </td>
                             </tr>
                         @empty
@@ -140,7 +142,7 @@
                     </button>
                 </div>
 
-                <form method="POST" :action="'{{ url('courses') }}/' + editModal.id">
+                <form method="POST" :action="'{{ url('courses') }}/' + editModal.id" data-password-confirmation-required>
                     @csrf
                     @method('PUT')
 
@@ -192,7 +194,7 @@
                     This will also delete all its Sections and enrolled Students. This can't be undone.
                 </p>
 
-                <form method="POST" :action="'{{ url('courses') }}/' + deleteModal.id">
+                <form method="POST" :action="'{{ url('courses') }}/' + deleteModal.id" data-password-confirmation-required>
                     @csrf
                     @method('DELETE')
 
