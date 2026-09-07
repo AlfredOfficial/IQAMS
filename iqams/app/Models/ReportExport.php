@@ -26,6 +26,8 @@ class ReportExport extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
+        'claim_token',
+        'lease_expires_at',
         'requested_by',
         'report_type',
         'format',
@@ -41,6 +43,7 @@ class ReportExport extends Model
     protected function casts(): array
     {
         return [
+            'lease_expires_at' => 'datetime',
             'parameters' => 'array',
             'completed_at' => 'datetime',
             'expires_at' => 'datetime',

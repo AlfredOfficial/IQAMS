@@ -9,7 +9,7 @@ class AccountInvitationService
 {
     public function queue(User $user, ?User $actor = null): void
     {
-        SendPasswordResetLink::dispatch($user->id)->afterCommit();
+        SendPasswordResetLink::dispatch($user->id, (int) $user->session_version)->afterCommit();
 
         app(AuditLogger::class)->record('account.invitation_queued', $user, [
             'delivery' => 'password_reset_broker',

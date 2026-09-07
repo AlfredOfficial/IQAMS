@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Dompdf\Dompdf;
 use Dompdf\Options;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -58,10 +59,12 @@ class DailyPersonnelAttendanceExportService
 
         $rowNumber = 7;
         foreach ($report['rows'] as $row) {
-            $sheet->fromArray([
-                $row['name'], $row['morning_time_in'], $row['morning_time_out'],
-                $row['afternoon_time_in'], $row['afternoon_time_out'],
-            ], null, 'A'.$rowNumber++);
+            $sheet->setCellValueExplicit('A'.$rowNumber, (string) $row['name'], DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit('B'.$rowNumber, (string) $row['morning_time_in'], DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit('C'.$rowNumber, (string) $row['morning_time_out'], DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit('D'.$rowNumber, (string) $row['afternoon_time_in'], DataType::TYPE_STRING);
+            $sheet->setCellValueExplicit('E'.$rowNumber, (string) $row['afternoon_time_out'], DataType::TYPE_STRING);
+            $rowNumber++;
         }
 
         $signatureRow = $rowNumber + 2;

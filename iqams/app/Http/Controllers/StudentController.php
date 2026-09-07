@@ -7,6 +7,7 @@ use App\Models\Section;
 use App\Models\Schedule;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\AccountInvitationService;
 use App\Services\AdminAccountProtectionService;
 use App\Services\AuditLogger;
 use App\Services\QrCredentialService;
@@ -17,6 +18,7 @@ use App\Rules\SectionBelongsToCourse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -86,24 +88,23 @@ class StudentController extends Controller
 
         $avatarPath = app(ProfileImageService::class)->store($request->file('avatar'));
 
-        $plainPassword = 'Student@'.$validated['student_no'];
         $administrator = $request->user();
 
         try {
-            $user = DB::transaction(function () use ($validated, $plainPassword, $administrator, $avatarPath, $eligibility) {
+            $user = DB::transaction(function () use ($validated, $administrator, $avatarPath, $eligibility) {
                 $user = User::create([
                     'username' => $validated['student_no'],
                     'name' => $validated['first_name'].' '.$validated['last_name'],
                     'email' => $validated['email'],
                     'avatar_path' => $avatarPath,
-                    'password' => Hash::make($plainPassword),
+                    'password' => Hash::make(Str::random(64)),
                     'status' => 'active',
-                    'email_verified_at' => now(),
                 ]);
 
                 $user->forceFill([
                     'must_change_password' => true,
                     'password_changed_at' => null,
+                    'email_verified_at' => null,
                 ])->saveQuietly();
                 app(RoleAssignmentService::class)->assign($user, 'student', $administrator);
 
@@ -122,6 +123,7 @@ class StudentController extends Controller
                 $eligibility->sync($student, $validated['enrollment_group_ids'] ?? []);
 
                 app(QrCredentialService::class)->issue($user, $administrator);
+                app(AccountInvitationService::class)->queue($user, $administrator);
 
                 return $user;
             });
@@ -133,9 +135,7 @@ class StudentController extends Controller
         app(AuditLogger::class)->record('account.created', $user, ['role' => 'student'], $administrator, $request);
 
         return redirect()->route('students.index')
-            ->with('success', 'Student created successfully. Share the temporary credentials below and require a password change on first login.')
-            ->with('generated_username', $validated['student_no'])
-            ->with('generated_password', $plainPassword);
+            ->with('success', 'Account created. A setup email has been queued.');
     }
 
     /**

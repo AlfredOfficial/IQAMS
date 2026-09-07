@@ -16,9 +16,9 @@ class QrIdentityResolver
         return $this->resolveWithMetadata($qrCode)['user'];
     }
 
-    public function resolveWithMetadata(string $qrCode): array
+    public function resolveWithMetadata(string $qrCode, bool $lock = false): array
     {
-        $credential = QrCredential::with('user.roles')->where('code_hash', hash('sha256', $qrCode))->first();
+        $credential = QrCredential::with('user.roles')->where('code_hash', hash('sha256', $qrCode))->when($lock, fn ($q) => $q->lockForUpdate())->first();
 
         if ($credential) {
             if ($credential->status !== 'active') {
@@ -37,9 +37,9 @@ class QrIdentityResolver
         }
 
         $profiles = collect([
-            Student::with(['user.roles', 'user.student'])->where('qr_code', $qrCode)->first(),
-            Instructor::with(['user.roles', 'user.instructor'])->where('qr_code', $qrCode)->first(),
-            NonTeachingStaff::with(['user.roles', 'user.nonTeachingStaff'])->where('qr_code', $qrCode)->first(),
+            Student::with(['user.roles', 'user.student'])->where('qr_code', $qrCode)->when($lock, fn ($q) => $q->lockForUpdate())->first(),
+            Instructor::with(['user.roles', 'user.instructor'])->where('qr_code', $qrCode)->when($lock, fn ($q) => $q->lockForUpdate())->first(),
+            NonTeachingStaff::with(['user.roles', 'user.nonTeachingStaff'])->where('qr_code', $qrCode)->when($lock, fn ($q) => $q->lockForUpdate())->first(),
         ])->filter();
 
         if ($profiles->isEmpty()) {

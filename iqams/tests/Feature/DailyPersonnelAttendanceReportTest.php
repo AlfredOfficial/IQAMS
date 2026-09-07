@@ -11,6 +11,7 @@ use App\Models\ReportExport;
 use App\Models\Role;
 use App\Models\User;
 use App\Jobs\GenerateDailyPersonnelExport;
+use App\Services\DailyPersonnelAttendanceExportService;
 use App\Services\PersonnelAttendanceReportService;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -148,7 +149,7 @@ class DailyPersonnelAttendanceReportTest extends TestCase
         $staff = $this->staff('Export', 'Person');
         $query = ['date' => '2026-08-30'];
         Queue::fake();
-        Storage::fake('local');
+        $disk = Storage::fake('local');
 
         $pdf = $this->actingAs($admin)->postJson(route('admin.reports.daily-personnel.exports.store'), $query + ['format' => 'pdf']);
         $pdf->assertStatus(202)->assertJsonPath('status', ReportExport::STATUS_PENDING);
@@ -173,8 +174,8 @@ class DailyPersonnelAttendanceReportTest extends TestCase
         $excelExport->refresh();
         $this->assertSame(ReportExport::STATUS_COMPLETED, $pdfExport->status);
         $this->assertSame(ReportExport::STATUS_COMPLETED, $excelExport->status);
-        Storage::disk('local')->assertExists($pdfExport->path);
-        Storage::disk('local')->assertExists($excelExport->path);
+        $disk->assertExists($pdfExport->path);
+        $disk->assertExists($excelExport->path);
         $this->actingAs($this->user('admin'))
             ->getJson(route('admin.report-exports.show', $pdfExport))
             ->assertForbidden();
@@ -210,6 +211,149 @@ class DailyPersonnelAttendanceReportTest extends TestCase
             ->assertSee('class="no-print', false)
             ->assertSee('Prepared by:')
             ->assertSee('Checked by:');
+    }
+
+    public function test_larger_reports_retain_all_attendance_scans_across_chunk_boundaries(): void
+    {
+        $date = Carbon::parse('2026-08-30');
+        $staffMembers = [];
+        for ($index = 1; $index <= 200; $index++) {
+            $staff = $this->staff('Staff', str_pad((string) $index, 3, '0', STR_PAD_LEFT));
+            $staffMembers[] = $staff;
+            // Insert 4 scans per staff member in person-by-person order so IDs interleave with scan times
+            $this->log($staff->user, 'morning_in', 'time_in', $date->copy()->setTime(8, 0));
+            $this->log($staff->user, 'lunch_out', 'time_out', $date->copy()->setTime(12, 0));
+            $this->log($staff->user, 'afternoon_in', 'time_in', $date->copy()->setTime(13, 0));
+            $this->log($staff->user, 'final_out', 'time_out', $date->copy()->setTime(17, 0));
+        }
+
+        $report = app(PersonnelAttendanceReportService::class)->getDailyReport($date, ['personnel_type' => 'staff']);
+        $rows = $report['rows']->keyBy('user_id');
+
+        $this->assertCount(200, $rows);
+
+        // Verify every staff member has all 4 non-empty scan times
+        foreach ($staffMembers as $member) {
+            $row = $rows->get($member->user_id);
+            $this->assertNotNull($row, "Staff {$member->employee_no} must be present in report");
+            $this->assertSame('8:00 AM', $row['morning_time_in']);
+            $this->assertSame('12:00 PM', $row['morning_time_out']);
+            $this->assertSame('1:00 PM', $row['afternoon_time_in']);
+            $this->assertSame('5:00 PM', $row['afternoon_time_out']);
+        }
+    }
+
+    public function test_large_report_renders_every_expected_scan_on_page_pdf_and_excel(): void
+    {
+        $admin = $this->user('admin');
+        $date = Carbon::parse('2026-08-30');
+        for ($index = 1; $index <= 50; $index++) {
+            $staff = $this->staff('Employee', str_pad((string) $index, 3, '0', STR_PAD_LEFT));
+            $this->log($staff->user, 'morning_in', 'time_in', $date->copy()->setTime(8, 5));
+            $this->log($staff->user, 'lunch_out', 'time_out', $date->copy()->setTime(12, 5));
+            $this->log($staff->user, 'afternoon_in', 'time_in', $date->copy()->setTime(13, 5));
+            $this->log($staff->user, 'final_out', 'time_out', $date->copy()->setTime(17, 5));
+        }
+
+        // 1. Verify Page (HTML)
+        $response = $this->actingAs($admin)->get(route('admin.reports.daily-personnel.index', ['date' => $date->toDateString()]));
+        $response->assertOk();
+        $response->assertSee('Employee 001');
+        $response->assertSee('Employee 050');
+        $response->assertSee('8:05 AM');
+        $response->assertSee('12:05 PM');
+        $response->assertSee('1:05 PM');
+        $response->assertSee('5:05 PM');
+
+        // 2. Verify PDF and Excel Export
+        $service = app(PersonnelAttendanceReportService::class);
+        $renderer = app(DailyPersonnelAttendanceExportService::class);
+        $reportData = $service->getDailyReport($date);
+
+        // PDF Generation
+        $pdfOutput = $renderer->pdf($reportData);
+        $this->assertNotEmpty($pdfOutput);
+        $this->assertStringStartsWith('%PDF', $pdfOutput);
+
+        // Excel Generation
+        $xlsxOutput = $renderer->xlsx($reportData);
+        $this->assertNotEmpty($xlsxOutput);
+        $tempPath = tempnam(sys_get_temp_dir(), 'report_test_').'.xlsx';
+        file_put_contents($tempPath, $xlsxOutput);
+        $spreadsheet = IOFactory::load($tempPath);
+        $sheet = $spreadsheet->getActiveSheet();
+        @unlink($tempPath);
+
+        // Header and row assertions
+        $this->assertSame('DANAO TECHNOLOGICAL COLLEGE', $sheet->getCell('A1')->getValue());
+        $this->assertSame('Employee 001', $sheet->getCell('A7')->getValue());
+        $this->assertSame('8:05 AM', (string) $sheet->getCell('B7')->getValue());
+        $this->assertSame('12:05 PM', (string) $sheet->getCell('C7')->getValue());
+        $this->assertSame('1:05 PM', (string) $sheet->getCell('D7')->getValue());
+        $this->assertSame('5:05 PM', (string) $sheet->getCell('E7')->getValue());
+
+        // Row 50 (7 + 49 = 56)
+        $this->assertSame('Employee 050', $sheet->getCell('A56')->getValue());
+        $this->assertSame('8:05 AM', (string) $sheet->getCell('B56')->getValue());
+        $this->assertSame('12:05 PM', (string) $sheet->getCell('C56')->getValue());
+        $this->assertSame('1:05 PM', (string) $sheet->getCell('D56')->getValue());
+        $this->assertSame('5:05 PM', (string) $sheet->getCell('E56')->getValue());
+    }
+
+    public function test_excel_export_sanitizes_potential_formula_injection_names(): void
+    {
+        $formulaNames = ['=1+1', '+SUM(A1:A5)', '-5+10', '@admin'];
+        $date = Carbon::parse('2026-08-30');
+        $rows = collect($formulaNames)->map(fn ($name) => [
+            'name' => $name,
+            'morning_time_in' => '8:00 AM',
+            'morning_time_out' => '12:00 PM',
+            'afternoon_time_in' => '1:00 PM',
+            'afternoon_time_out' => '5:00 PM',
+        ]);
+
+        $renderer = app(DailyPersonnelAttendanceExportService::class);
+        $xlsxOutput = $renderer->xlsx(['date' => $date, 'rows' => $rows, 'filters' => []]);
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'report_formula_').'.xlsx';
+        file_put_contents($tempPath, $xlsxOutput);
+        $sheet = IOFactory::load($tempPath)->getActiveSheet();
+        @unlink($tempPath);
+
+        foreach ($formulaNames as $i => $expectedName) {
+            $cell = $sheet->getCell('A' . (7 + $i));
+            $this->assertSame('s', $cell->getDataType(), "Cell for '{$expectedName}' must be string type");
+            $this->assertSame($expectedName, $cell->getValue(), "Cell value for '{$expectedName}' must match exactly");
+        }
+    }
+
+    public function test_export_recovery_when_job_retried_in_processing_state(): void
+    {
+        $disk = Storage::fake('local');
+        $admin = $this->user('admin');
+        $staff = $this->staff('Retry', 'Person');
+        $date = Carbon::parse('2026-08-30');
+        $this->log($staff->user, 'morning_in', 'time_in', $date->copy()->setTime(8, 0));
+
+        $export = ReportExport::create([
+            'requested_by' => $admin->id,
+            'report_type' => ReportExport::TYPE_DAILY_PERSONNEL,
+            'format' => 'xlsx',
+            'parameters' => ['date' => $date->toDateString(), 'filters' => []],
+            'status' => ReportExport::STATUS_PROCESSING,
+            'expires_at' => now()->addDay(),
+        ]);
+
+        $job = new GenerateDailyPersonnelExport($export->id);
+        $job->handle(
+            app(PersonnelAttendanceReportService::class),
+            app(DailyPersonnelAttendanceExportService::class),
+        );
+
+        $export->refresh();
+        $this->assertSame(ReportExport::STATUS_COMPLETED, $export->status);
+        $this->assertNotNull($export->path);
+        $disk->assertExists($export->path);
     }
 
     private function user(string $role): User

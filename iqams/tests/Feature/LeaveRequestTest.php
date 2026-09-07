@@ -2,13 +2,15 @@
 
 namespace Tests\Feature;
 
-use App\Models\LeaveRequest;
 use App\Models\AttendanceLog;
+use App\Models\LeaveRequest;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\LeaveTransitionService;
 use App\Services\PersonnelAttendanceSummary;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class LeaveRequestTest extends TestCase
@@ -50,6 +52,27 @@ class LeaveRequestTest extends TestCase
         $this->assertSame($admin->id, $leave->reviewed_by);
     }
 
+    public function test_only_one_pending_leave_transition_can_succeed(): void
+    {
+        $owner = $this->user('staff');
+        $admin = $this->user('admin');
+        $leave = LeaveRequest::create([
+            'user_id' => $owner->id, 'leave_type' => 'sick', 'start_date' => '2026-08-17',
+            'end_date' => '2026-08-17', 'reason' => 'Medical rest.',
+        ]);
+
+        app(LeaveTransitionService::class)->transition($leave, 'rejected', $admin, 'Insufficient evidence.');
+
+        $this->expectException(HttpException::class);
+        try {
+            app(LeaveTransitionService::class)->transition($leave, 'approved', $admin, 'Late review.');
+        } finally {
+            $leave->refresh();
+            $this->assertSame('rejected', $leave->status);
+            $this->assertSame('Insufficient evidence.', $leave->review_notes);
+        }
+    }
+
     public function test_approved_sick_leave_is_excused_in_attendance_summary(): void
     {
         $user = $this->user('instructor');
@@ -77,9 +100,10 @@ class LeaveRequestTest extends TestCase
         $days = $service->days($user, Carbon::parse('2026-08-20'), Carbon::parse('2026-08-22'), true);
         $totals = $service->totals($days);
 
-        $this->assertSame(3, $totals['leaveDays']);
+        $this->assertSame(2, $totals['leaveDays']);
+        $this->assertSame(3, $totals['calendarLeaveDays']);
         $this->assertSame(0, $totals['absentDays']);
-        $this->assertSame(['On Leave', 'On Leave', 'On Leave'], $days->pluck('status')->all());
+        $this->assertSame(['On Leave', 'On Leave', 'Excluded'], $days->pluck('status')->all());
         $this->assertSame([0, 0, 0], $days->pluck('minutes')->all());
     }
 
@@ -112,8 +136,9 @@ class LeaveRequestTest extends TestCase
         $service = app(PersonnelAttendanceSummary::class);
         $augustDays = $service->days($user, Carbon::parse('2026-08-01'), Carbon::parse('2026-08-31'), true);
 
-        $this->assertSame(2, $service->totals($augustDays)['leaveDays']);
-        $this->assertSame(['2026-08-01', '2026-08-02'], $augustDays->whereNotNull('leave')->pluck('date')->map->toDateString()->all());
+        $this->assertSame(0, $service->totals($augustDays)['leaveDays']);
+        $this->assertSame(2, $service->totals($augustDays)['calendarLeaveDays']);
+        $this->assertSame(['2026-08-01', '2026-08-02'], $augustDays->whereNotNull('calendarLeave')->pluck('date')->map->toDateString()->all());
     }
 
     public function test_staff_monthly_summary_card_and_table_show_approved_leave(): void

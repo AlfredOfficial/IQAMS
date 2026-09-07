@@ -15,17 +15,23 @@ class PersonnelAttendanceReportService
     public function getDailyReport(Carbon $date, array $filters = []): array
     {
         $personnel = $this->personnel($filters);
+        if ($personnel->isEmpty()) {
+            return ['date' => $date->copy(), 'rows' => collect(), 'filters' => $filters];
+        }
+
         $logs = collect();
-        AttendanceLog::canonical()
-            ->whereIn('user_id', $personnel->pluck('user_id'))
-            ->whereNull('schedule_id')
-            ->whereNull('school_event_id')
-            ->whereBetween('scan_time', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])
-            ->whereIn('attendance_period', PersonnelAttendanceSummary::PERIODS)
-            ->orderBy('scan_time')
-            ->chunkById(500, function (Collection $chunk) use (&$logs): void {
-                $logs = $logs->concat($chunk);
-            }, 'attendance_logs.id', 'id');
+        $personnel->pluck('user_id')->unique()->chunk(500)->each(function (Collection $userIds) use ($date, &$logs): void {
+            AttendanceLog::canonical()
+                ->whereIn('user_id', $userIds)
+                ->whereNull('schedule_id')
+                ->whereNull('school_event_id')
+                ->whereBetween('scan_time', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])
+                ->whereIn('attendance_period', PersonnelAttendanceSummary::PERIODS)
+                ->reorder('attendance_logs.id', 'asc')
+                ->chunkById(500, function (Collection $chunk) use (&$logs): void {
+                    $logs = $logs->concat($chunk);
+                }, 'attendance_logs.id', 'id');
+        });
         $logs = $logs->groupBy('user_id');
 
         $rows = $personnel->map(function (array $person) use ($logs): array {

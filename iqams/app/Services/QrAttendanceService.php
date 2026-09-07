@@ -33,13 +33,28 @@ class QrAttendanceService
         $scannedAt = $scannedAt->copy()->timezone(config('app.timezone'));
         $user = $this->identityResolver->resolve(trim($qrCode));
 
-        return DB::transaction(function () use ($user, $location, $scannedAt) {
-            $lockedUser = User::with(['roles', 'student'])->lockForUpdate()->findOrFail($user->id);
+        return DB::transaction(function () use ($user, $qrCode, $location, $scannedAt) {
+            $lockedUser = User::with(['roles', 'student', 'instructor', 'nonTeachingStaff'])->lockForUpdate()->findOrFail($user->id);
+
+            $resolved = $this->identityResolver->resolveWithMetadata(trim($qrCode), true);
+            if ($resolved['user']->id !== $lockedUser->id) {
+                $this->deny('This QR credential no longer belongs to this account.');
+            }
+            $role = $lockedUser->primaryRoleName();
+            $profile = match ($role) {
+                'student' => $lockedUser->student,
+                'instructor' => $lockedUser->instructor,
+                'staff' => $lockedUser->nonTeachingStaff,
+                default => null,
+            };
+            if (! $profile) {
+                $this->deny('Attendance is denied because this user has an invalid or mismatched role.');
+            }
 
             $this->accountStatus->ensureAccountIsActive($lockedUser, 'qr_code');
             $this->leaveGuard->ensureAttendanceIsAllowed($lockedUser, $scannedAt, 'qr_code');
 
-            return $lockedUser->student
+            return $role === 'student'
                 ? $this->recordStudent($lockedUser, $scannedAt, $location)
                 : $this->recordPersonnel($lockedUser, $scannedAt, $location);
         }, 3);
@@ -107,9 +122,9 @@ class QrAttendanceService
         $existing = AttendanceLog::canonical()->where(function ($query) use ($scanKey, $user, $schedule, $occurrence) {
             $query->where('scan_key', $scanKey)
                 ->orWhere(fn ($query) => $query->where('user_id', $user->id)
-                ->where('schedule_id', $schedule->id)
-                ->whereBetween('scan_time', [$occurrence->opensAt, $occurrence->endsAt])
-                ->where('attendance_type', 'time_in'));
+                    ->where('schedule_id', $schedule->id)
+                    ->whereBetween('scan_time', [$occurrence->opensAt, $occurrence->endsAt])
+                    ->where('attendance_type', 'time_in'));
         })
             ->lockForUpdate()
             ->first();

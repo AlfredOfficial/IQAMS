@@ -447,7 +447,7 @@ Alpine.data('studentWorkspace', () => pollingWorkspace((root, data) => {
         const heading = document.createElement('p'); heading.className = 'text-xs font-bold text-teal-800'; heading.textContent = log.code;
         const title = document.createElement('p'); title.className = 'truncate text-sm font-medium text-slate-800'; title.textContent = log.title;
         const status = document.createElement('p'); status.className = 'mt-1 text-xs font-semibold uppercase text-slate-600'; status.textContent = log.status;
-        const detail = document.createElement('p'); detail.className = 'mt-2 text-xs capitalize text-slate-500'; detail.textContent = `${log.date} · ${log.time} · ${log.type}`;
+        const detail = document.createElement('p'); detail.className = 'mt-2 text-xs capitalize text-slate-500'; detail.textContent = log.status === 'absent' ? `${log.date} · No scan recorded` : `${log.date} · ${log.time} · ${log.type}`;
         article.append(heading, title, status, detail); return article;
     }));
 }));

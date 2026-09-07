@@ -88,6 +88,7 @@ class InstructorClassAttendanceTest extends TestCase
             ->assertJsonPath('summary.pending', 0)
             ->assertJsonCount(5, 'students')
             ->assertJsonMissing(['student_no' => 'STU-999'])
+            ->assertJsonFragment(['student_no' => $absent->student_no, 'status' => 'absent', 'time_in' => null, 'recorded' => false])
             ->assertJsonFragment(['student_no' => $missing->student_no, 'status' => 'absent', 'recorded' => false]);
     }
 

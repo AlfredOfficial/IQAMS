@@ -106,11 +106,11 @@ class PersonnelAttendanceSummary
             // Weekends are always non-working for personnel. Attendance scans
             // recorded on these dates must not turn them into rated workdays.
             if ($exclusionReason === 'Weekend') {
-                if ($includeEmpty) {
-                    $days->push($this->excludedDay($date->copy(), $exclusionReason));
+                if ($includeEmpty || $leave) {
+                    $days->push($this->excludedDay($date->copy(), $exclusionReason, $leave));
                 }
             } elseif ($dateLogs->isNotEmpty()) {
-                $days->push($this->day($date->copy(), $dateLogs));
+                $days->push(array_replace($this->day($date->copy(), $dateLogs), ['calendarLeave' => $leave]));
             } elseif ($leave) {
                 $days->push($this->day($date->copy(), $dateLogs, $leave));
             } elseif ($exclusionReason) {
@@ -128,7 +128,7 @@ class PersonnelAttendanceSummary
             $todayLeave = $leavesByDate->get($dashboardToday->toDateString());
             $todayExclusion = $this->calendar->exclusionReason($dashboardToday, $calendar);
             $today = $todayExclusion
-                ? $this->excludedDay($dashboardToday->copy(), $todayExclusion)
+                ? $this->excludedDay($dashboardToday->copy(), $todayExclusion, $todayLeave)
                 : $this->day($dashboardToday->copy(), $todayLogs, $todayLeave);
         }
 
@@ -181,6 +181,7 @@ class PersonnelAttendanceSummary
             : self::PERIODS[($latestRecordedIndex ?? -1) + 1];
 
         return compact('date', 'events', 'status', 'summaryStatus', 'minutes', 'late', 'early', 'notes', 'leave') + [
+            'calendarLeave' => $leave,
             'completedPeriods' => $count,
             'progressPercentage' => $count * 25,
             'isIncomplete' => $isIncomplete,
@@ -209,6 +210,7 @@ class PersonnelAttendanceSummary
             'excludedDays' => $days->where('isExcluded', true)->count(),
             'absentDays' => $absent,
             'leaveDays' => $included->whereNotNull('leave')->count(),
+            'calendarLeaveDays' => $days->whereNotNull('calendarLeave')->unique(fn ($day) => $day['date']->toDateString())->count(),
             'lateCount' => $included->where('late', true)->count(),
             'earlyOutCount' => $included->where('early', true)->count(),
             'incompleteCount' => $included->where('isIncomplete', true)->count(),
@@ -249,9 +251,10 @@ class PersonnelAttendanceSummary
             }, collect());
     }
 
-    private function excludedDay(Carbon $date, string $reason): array
+    private function excludedDay(Carbon $date, string $reason, ?LeaveRequest $leave = null): array
     {
         return array_replace($this->day($date, collect()), [
+            'calendarLeave' => $leave,
             'status' => 'Excluded',
             'summaryStatus' => 'Excluded',
             'punctuality' => 'Excluded',

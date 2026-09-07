@@ -210,13 +210,16 @@ class InstructorAttendanceController extends Controller
         $rows = $students->map(function (Student $student) use ($logs, $cutoffPassed) {
             $log = $logs->get($student->user_id);
             $status = $log?->status ?? ($cutoffPassed ? 'absent' : 'pending');
+            $hasScan = $log && $log->status !== 'absent';
 
             return [
                 'student_no' => $student->student_no,
                 'name' => $student->fullName(),
-                'time_in' => $log?->scan_time?->timezone(config('app.timezone'))->format('g:i A'),
+                // Automatic absence rows retain their occurrence timestamp for reporting,
+                // but they are not student QR scans and must never appear as a time-in.
+                'time_in' => $hasScan ? $log->scan_time->timezone(config('app.timezone'))->format('g:i A') : null,
                 'status' => $status,
-                'recorded' => (bool) $log,
+                'recorded' => $hasScan,
             ];
         })->values();
 
@@ -239,7 +242,7 @@ class InstructorAttendanceController extends Controller
                 'pending' => $rows->where('status', 'pending')->count(),
             ],
             'has_students' => $rows->isNotEmpty(),
-            'has_records' => $logs->isNotEmpty(),
+            'has_records' => $rows->contains('recorded', true),
             'students' => $rows,
         ];
     }

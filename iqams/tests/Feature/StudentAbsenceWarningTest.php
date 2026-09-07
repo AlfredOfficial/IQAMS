@@ -30,9 +30,11 @@ class StudentAbsenceWarningTest extends TestCase
 
         $fifth = $this->createLog($user, $schedule, 5, 'absent');
         $this->get(route('student.dashboard'))->assertOk()
-            ->assertSee('Attendance warning')->assertSee('CAP2')->assertSee('5 absences');
+            ->assertSee('Attendance warning')->assertSee('CAP2')->assertSee('5 absences')
+            ->assertSee('No scan recorded')->assertDontSee('time in');
         $this->get(route('student.attendance'))->assertOk()
-            ->assertSee('Attendance warning')->assertSee('CAP2')->assertSee('5 absences');
+            ->assertSee('Attendance warning')->assertSee('CAP2')->assertSee('5 absences')
+            ->assertSee('No scan recorded')->assertDontSee('time in');
 
         $this->createLog($user, $schedule, 6, 'absent');
         $this->get(route('student.dashboard'))->assertSee('6 absences');

@@ -21,6 +21,9 @@ Without this link, uploads are stored successfully but cannot be served from `/s
 
 ## IQAMS production deployment
 
+Email-based account setup, password resets, SMTP configuration and isolated verification are documented in
+[`docs/email-account-setup.md`](docs/email-account-setup.md).
+
 The production environment contract, backup baseline, verification checklist,
 and Linux Nginx/PHP-FPM deployment templates are documented in
 [`docs/production-deployment.md`](docs/production-deployment.md).

@@ -18,6 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->web(append: [\App\Http\Middleware\EnsureSessionVersion::class]);
+        $middleware->appendToPriorityList(
+            \Illuminate\Session\Middleware\StartSession::class,
+            \App\Http\Middleware\EnsureSessionVersion::class,
+        );
         $middleware->alias([
             'redirect.non-admin.profile' => RedirectNonAdminFromProfile::class,
             'active' => EnsureAccountIsActive::class,
@@ -31,6 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->dontFlash(['token']);
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->expectsJson() || $request->is('api/*'),
         );

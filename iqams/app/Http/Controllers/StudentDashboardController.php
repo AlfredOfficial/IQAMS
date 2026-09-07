@@ -64,8 +64,8 @@ class StudentDashboardController extends Controller
                 'code' => $log->schoolEvent ? 'SCHOOL EVENT' : ($log->schedule?->subject?->subject_code ?? '—'),
                 'title' => $log->schoolEvent?->title ?? $log->schedule?->subject?->subject_name ?? 'Attendance record',
                 'status' => $log->status, 'date' => $log->scan_time->format('F j, Y'),
-                'time' => $log->scan_time->format('g:i A'),
-                'type' => str_replace('_', ' ', $log->attendance_type),
+                'time' => $log->status === 'absent' ? null : $log->scan_time->format('g:i A'),
+                'type' => $log->status === 'absent' ? null : str_replace('_', ' ', $log->attendance_type),
             ])->values(),
         ]);
     }

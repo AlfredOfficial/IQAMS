@@ -22,8 +22,18 @@ class RoleAssignmentService
             throw ValidationException::withMessages(['role' => 'You cannot change your own role.']);
         }
 
-        DB::transaction(function () use ($user, $roleName) {
+        DB::transaction(function () use ($user, $roleName, $actor) {
             $lockedUser = app(AdminAccountProtectionService::class)->assertCanChangeRole($user, $roleName);
+
+            if ($lockedUser->primaryRoleName() !== $roleName) {
+                $count = $lockedUser->qrCredentials()->where('status', 'active')->update([
+                    'status' => 'revoked', 'revoked_by' => $actor?->id, 'revoked_at' => now(),
+                ]);
+                foreach (['student', 'instructor', 'nonTeachingStaff'] as $relation) {
+                    $lockedUser->{$relation}()->update(['qr_code' => null]);
+                }
+                app(AuditLogger::class)->record('qr.revoked', $lockedUser, ['count' => $count, 'reason' => 'role_change'], $actor);
+            }
 
             $role = Role::findByName($roleName, 'web');
             $lockedUser->syncRoles([$role]);

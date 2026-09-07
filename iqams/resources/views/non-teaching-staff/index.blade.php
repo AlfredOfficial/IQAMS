@@ -16,7 +16,6 @@
         }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
-            <x-temporary-credentials-alert role="staff member" />
 
             <div class="bg-white shadow-sm rounded-lg">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
@@ -52,7 +51,7 @@
                                 <td class="whitespace-nowrap px-6 py-3">
                                     <x-student-status :status="$staff->user->status" />
                                     @if ($staff->user->must_change_password)
-                                        <span class="mt-1 block text-xs font-medium text-amber-700">Initial password</span>
+                                        <span class="mt-1 block text-xs font-medium text-amber-700">Password setup required</span>
                                     @endif
                                 </td>
                                 <td class="px-6 py-3 text-right">
@@ -64,9 +63,9 @@
                                         :requires-password-confirmation="true"
                                         :delete-name="$staff->fullName()">
                                         <x-slot:reset>
-                                            <form method="POST" action="{{ route('users.password.reset', $staff->user) }}" onsubmit="return confirm('Reset this account to its temporary password?')" data-password-confirmation-required>
+                                            <form method="POST" action="{{ route('users.password.reset', $staff->user) }}" onsubmit="return confirm('Send a password reset link? The current password and sessions will stop working immediately.')" data-password-confirmation-required>
                                                 @csrf
-                                                <button type="submit">Reset temporary password</button>
+                                                <button type="submit">Send password reset link</button>
                                             </form>
                                         </x-slot:reset>
                                         <x-slot:qr><button type="button" @click="fetch('{{ url('admin/id-cards') }}/{{ $staff->user_id }}', { headers: { Accept: 'application/json' }, credentials: 'same-origin' }).then(response => response.json().then(data => { if (!response.ok) throw new Error(data.message || 'QR unavailable.'); qrModal = { show: true, value: data.qr_code, label: data.name }; })).catch(error => window.alert(error.message))">View QR</button><button type="button" @click="window.ensureIqamsQrCode().then(() => window.printIqamsIdCard('{{ url('admin/id-cards') }}/{{ $staff->user_id }}')).catch(error => window.alert(error.message))">Print ID Card</button></x-slot:qr>

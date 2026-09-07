@@ -158,6 +158,13 @@ The default operations schedule is:
 
 ## Phase 2 identity and authorization hardening
 
+The current email onboarding/reset implementation and its additive session-version
+migration are documented in [email-account-setup.md](email-account-setup.md).
+Apply that migration before serving the updated code. It does not reset existing
+accounts or send invitations automatically. Do not run the legacy batch reset
+command below as part of this email-onboarding rollout; existing accounts
+transition only through an administrator-triggered reset.
+
 Apply the additive password-reset and audit migrations after the approved
 snapshot and encrypted dump have been verified. Run the permission seeder (or
 the audit-permission migration) so the administrator receives

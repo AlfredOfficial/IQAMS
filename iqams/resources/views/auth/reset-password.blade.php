@@ -1,4 +1,5 @@
 <x-guest-layout>
+    <p class="mb-4 text-sm text-gray-600">Choose your IQAMS password. This link can be used once.</p>
     <form method="POST" action="{{ route('password.store') }}">
         @csrf
 
@@ -32,8 +33,9 @@
 
         <div class="flex items-center justify-end mt-4">
             <x-primary-button>
-                {{ __('Reset Password') }}
+                {{ __('Set Password') }}
             </x-primary-button>
         </div>
     </form>
+    <a class="mt-4 inline-block text-sm underline" href="{{ route('password.request') }}">Link expired? Request another email.</a>
 </x-guest-layout>

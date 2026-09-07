@@ -32,7 +32,15 @@ class ProfileImageService
         // Keep uploads functional on hosts without GD or for legacy image
         // formats that GD cannot decode. The validation rules still apply.
         if ($source === false || ! function_exists('imagejpeg')) {
-            return $file->store('avatars', 'public');
+            try {
+                $path = $file->store('avatars', 'public');
+                if (! $path) {
+                    throw new \RuntimeException('Image storage failed.');
+                }
+                return $path;
+            } catch (Throwable) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['avatar' => 'The photo could not be stored. Please try again.']);
+            }
         }
 
         $path = 'avatars/'.Str::uuid().'.jpg';
@@ -40,13 +48,15 @@ class ProfileImageService
         $disk = Storage::disk('public');
 
         try {
-            $disk->put($path, $this->encode($source, self::MAX_DIMENSION, self::JPEG_QUALITY));
-            $disk->put($thumbnailPath, $this->encode($source, self::THUMBNAIL_DIMENSION, self::THUMBNAIL_QUALITY));
+            if (! $disk->put($path, $this->encode($source, self::MAX_DIMENSION, self::JPEG_QUALITY))
+                || ! $disk->put($thumbnailPath, $this->encode($source, self::THUMBNAIL_DIMENSION, self::THUMBNAIL_QUALITY))) {
+                throw new \RuntimeException('Image storage failed.');
+            }
 
             return $path;
         } catch (Throwable $exception) {
             $disk->delete([$path, $thumbnailPath]);
-            throw $exception;
+            throw \Illuminate\Validation\ValidationException::withMessages(['avatar' => 'The photo could not be stored. Please try again.']);
         } finally {
             imagedestroy($source);
         }

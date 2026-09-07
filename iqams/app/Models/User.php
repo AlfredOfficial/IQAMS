@@ -51,6 +51,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'must_change_password' => 'boolean',
             'password_changed_at' => 'datetime',
+            'session_version' => 'integer',
         ];
     }
 
@@ -122,20 +123,13 @@ class User extends Authenticatable
             return null;
         }
 
-        if (array_key_exists('avatar_thumbnail_url', $this->attributes)) {
-            return $this->attributes['avatar_thumbnail_url'];
-        }
-
+        /** @var FilesystemAdapter $disk */
         $disk = Storage::disk('public');
         $thumbnailPath = ProfileImageService::thumbnailPath($this->avatar_path);
 
-        $url = $disk->exists($thumbnailPath)
+        return $disk->exists($thumbnailPath)
             ? $disk->url($thumbnailPath)
             : $this->avatar_url;
-
-        $this->attributes['avatar_thumbnail_url'] = $url;
-
-        return $url;
     }
 
     // Convenience helpers for role checks in middleware/blade

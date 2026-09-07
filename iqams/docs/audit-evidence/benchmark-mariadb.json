@@ -1,0 +1,70 @@
+{
+    "driver": "mysql",
+    "users": 43,
+    "attendance_rows": 481,
+    "results": {
+        "admin.dashboard": {
+            "n": 20,
+            "concurrency": 1,
+            "p50_ms": 204.06,
+            "p95_ms": 286.09,
+            "error_rate": 0,
+            "queries_min": 17,
+            "queries_max": 17
+        },
+        "student.dashboard": {
+            "n": 20,
+            "concurrency": 1,
+            "p50_ms": 26.26,
+            "p95_ms": 50.39,
+            "error_rate": 0,
+            "queries_min": 9,
+            "queries_max": 9
+        },
+        "instructor.dashboard": {
+            "n": 20,
+            "concurrency": 1,
+            "p50_ms": 21.52,
+            "p95_ms": 27.51,
+            "error_rate": 0,
+            "queries_min": 7,
+            "queries_max": 7
+        },
+        "staff.dashboard": {
+            "n": 20,
+            "concurrency": 1,
+            "p50_ms": 27.8,
+            "p95_ms": 46.41,
+            "error_rate": 0,
+            "queries_min": 4,
+            "queries_max": 4
+        },
+        "people.lookup": {
+            "n": 20,
+            "concurrency": 1,
+            "p50_ms": 5.84,
+            "p95_ms": 10.27,
+            "error_rate": 0,
+            "queries_min": 2,
+            "queries_max": 2
+        },
+        "personnel.report": {
+            "n": 20,
+            "concurrency": 1,
+            "p50_ms": 142.52,
+            "p95_ms": 206.49,
+            "error_rate": 0,
+            "queries_min": 13,
+            "queries_max": 13
+        },
+        "scanner.duplicate": {
+            "n": 20,
+            "concurrency": 1,
+            "p50_ms": 28.24,
+            "p95_ms": 69.65,
+            "error_rate": 0,
+            "queries_min": 26,
+            "queries_max": 26
+        }
+    }
+}

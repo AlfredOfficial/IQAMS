@@ -7,9 +7,11 @@ use App\Models\User;
 use App\Notifications\LeaveRequestNotification;
 use App\Services\AuditLogger;
 use App\Services\LeaveOverlapService;
+use App\Services\LeaveTransitionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class LeaveRequestController extends Controller
@@ -44,19 +46,29 @@ class LeaveRequestController extends Controller
         ]);
 
         unset($validated['attachment']);
-        if ($request->hasFile('attachment')) {
-            $validated['attachment_path'] = $request->file('attachment')->store('leave-attachments');
-        }
-        $leaveRequest = DB::transaction(function () use ($request, $validated) {
-            $service = app(LeaveOverlapService::class);
-            User::query()->whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
-            $service->lockUserRows($request->user()->id);
-            if ($service->hasConflict($request->user()->id, $validated['start_date'], $validated['end_date'])) {
-                throw ValidationException::withMessages(['start_date' => 'These dates overlap an existing pending or approved request.']);
+        try {
+            if ($request->hasFile('attachment')) {
+                $validated['attachment_path'] = $request->file('attachment')->store('leave-attachments');
+                if (! $validated['attachment_path']) {
+                    throw ValidationException::withMessages(['attachment' => 'The attachment could not be stored. Please try again.']);
+                }
             }
+            $leaveRequest = DB::transaction(function () use ($request, $validated) {
+                $service = app(LeaveOverlapService::class);
+                User::query()->whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
+                $service->lockUserRows($request->user()->id);
+                if ($service->hasConflict($request->user()->id, $validated['start_date'], $validated['end_date'])) {
+                    throw ValidationException::withMessages(['start_date' => 'These dates overlap an existing pending or approved request.']);
+                }
 
-            return $request->user()->leaveRequests()->create($validated);
-        });
+                return $request->user()->leaveRequests()->create($validated);
+            });
+        } catch (\Throwable $exception) {
+            if (! empty($validated['attachment_path'])) {
+                Storage::delete($validated['attachment_path']);
+            }
+            throw $exception;
+        }
         app(AuditLogger::class)->record('leave.submitted', $leaveRequest, [], $request->user(), $request);
 
         if ($request->user()->isInstructor() || $request->user()->isStaff()) {
@@ -74,18 +86,7 @@ class LeaveRequestController extends Controller
     {
         $this->ensureLeaveAccess($request);
 
-        abort_unless($leaveRequest->user_id === $request->user()->id, 403);
-        abort_unless($leaveRequest->status === 'pending', 422, 'Only pending requests can be cancelled.');
-        $leaveRequest->update(['status' => 'cancelled']);
-        app(AuditLogger::class)->record('leave.cancelled', $leaveRequest, [], $request->user(), $request);
-
-        if ($request->user()->isInstructor() || $request->user()->isStaff()) {
-            $request->user()->notify(new LeaveRequestNotification($leaveRequest->fresh(), 'cancelled'));
-            Notification::send(
-                User::whereHas('roles', fn ($query) => $query->where('name', 'admin')->where('guard_name', 'web'))->get(),
-                new LeaveRequestNotification($leaveRequest->fresh(), 'cancelled'),
-            );
-        }
+        app(LeaveTransitionService::class)->transition($leaveRequest, 'cancelled', $request->user(), request: $request);
 
         return back()->with('success', 'Leave request cancelled.');
     }

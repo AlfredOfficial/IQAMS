@@ -49,7 +49,7 @@ class PasswordResetTest extends TestCase
         Notification::fake();
 
         $user = User::factory()->create();
-        $genericStatus = 'If an account exists with this email address, we have sent a password reset link.';
+        $genericStatus = 'If an active account exists with this email address, a password setup or reset email has been queued.';
 
         $knownResponse = $this->from('/forgot-password')->post('/forgot-password', [
             'email' => $user->email,

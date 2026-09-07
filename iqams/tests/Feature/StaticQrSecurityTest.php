@@ -6,13 +6,17 @@ use App\Models\Course;
 use App\Models\Department;
 use App\Models\Role;
 use App\Models\ScannerTerminal;
+use App\Models\SecurityFlag;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\QrCredentialService;
+use App\Services\QrIdentityResolver;
+use App\Services\RoleAssignmentService;
 use App\Services\ScanSecurityService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class StaticQrSecurityTest extends TestCase
@@ -34,6 +38,20 @@ class StaticQrSecurityTest extends TestCase
         $this->assertSame('revoked', $first->fresh()->status);
         $this->assertSame('active', $replacement->status);
         $this->assertNotSame($plain, $service->plainText($replacement));
+    }
+
+    public function test_role_change_revokes_random_and_legacy_credentials(): void
+    {
+        [$student, $admin] = $this->users();
+        $credential = app(QrCredentialService::class)->issue($student, $admin);
+        $plain = app(QrCredentialService::class)->plainText($credential);
+
+        app(RoleAssignmentService::class)->assign($student, 'admin', $admin);
+
+        $this->assertSame('revoked', $credential->fresh()->status);
+        $this->assertNull($student->student->fresh()->qr_code);
+        $this->expectException(ValidationException::class);
+        app(QrIdentityResolver::class)->resolve($plain);
     }
 
     public function test_scan_is_audited_and_does_not_trust_a_client_location(): void
@@ -95,7 +113,7 @@ class StaticQrSecurityTest extends TestCase
                 $service->audit($request, 'rejected', ['user_id' => $student->id]);
             }
 
-            $this->assertSame(1, \App\Models\SecurityFlag::where('category', 'repeated_user_rejections')->count());
+            $this->assertSame(1, SecurityFlag::where('category', 'repeated_user_rejections')->count());
             $this->assertDatabaseHas('security_flags', [
                 'category' => 'repeated_user_rejections',
                 'user_id' => $student->id,

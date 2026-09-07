@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Department;
 use App\Models\Instructor;
 use App\Models\User;
+use App\Services\AccountInvitationService;
 use App\Services\AdminAccountProtectionService;
 use App\Services\AuditLogger;
 use App\Services\QrCredentialService;
@@ -13,6 +14,7 @@ use App\Services\ProfileImageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class InstructorController extends Controller
@@ -62,24 +64,23 @@ class InstructorController extends Controller
 
         $avatarPath = app(ProfileImageService::class)->store($request->file('avatar'));
 
-        $plainPassword = 'Instructor@'.$validated['employee_no'];
         $administrator = $request->user();
 
         try {
-            $user = DB::transaction(function () use ($validated, $plainPassword, $administrator, $avatarPath) {
+            $user = DB::transaction(function () use ($validated, $administrator, $avatarPath) {
                 $user = User::create([
                     'username' => $validated['employee_no'],
                     'name' => Instructor::formatFullName($validated),
                     'email' => $validated['email'],
                     'avatar_path' => $avatarPath,
-                    'password' => Hash::make($plainPassword),
+                    'password' => Hash::make(Str::random(64)),
                     'status' => 'active',
-                    'email_verified_at' => now(),
                 ]);
 
                 $user->forceFill([
                     'must_change_password' => true,
                     'password_changed_at' => null,
+                    'email_verified_at' => null,
                 ])->saveQuietly();
                 app(RoleAssignmentService::class)->assign($user, 'instructor', $administrator);
 
@@ -95,6 +96,7 @@ class InstructorController extends Controller
                     'qr_code' => null,
                 ]);
                 app(QrCredentialService::class)->issue($user, $administrator);
+                app(AccountInvitationService::class)->queue($user, $administrator);
 
                 return $user;
             });
@@ -106,9 +108,7 @@ class InstructorController extends Controller
         app(AuditLogger::class)->record('account.created', $user, ['role' => 'instructor'], $administrator, $request);
 
         return redirect()->route('instructors.index')
-            ->with('success', 'Instructor created successfully. Share the temporary credentials below and require a password change on first login.')
-            ->with('generated_username', $validated['employee_no'])
-            ->with('generated_password', $plainPassword);
+            ->with('success', 'Account created. A setup email has been queued.');
 
     }
 
