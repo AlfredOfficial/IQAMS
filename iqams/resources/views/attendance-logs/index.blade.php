@@ -97,7 +97,8 @@
                                         {{ ucfirst($log->status) }}
                                     </span>
                                 </td>
-                                <td class="px-6 py-3 text-right space-x-3">
+                                <td class="px-6 py-3 text-right">
+                                    <x-record-action-menu>
                                     <button type="button"
                                         @click="editModal = {{ Illuminate\Support\Js::from([
                                             'show' => true,
@@ -114,7 +115,8 @@
 
                                     <button type="button"
                                         @click="deleteModal = { show: true, id: {{ $log->id }}, name: {{ Illuminate\Support\Js::from(($log->user?->nonTeachingStaff?->fullName() ?? $log->user?->name ?? 'Log').' - '.\Illuminate\Support\Carbon::parse($log->scan_time)->format('M d, g:i A')) }} }"
-                                        class="text-red-600 hover:text-red-800">Delete</button>
+                                        class="!text-red-600 hover:!text-red-700">Delete</button>
+                                    </x-record-action-menu>
                                 </td>
                             </tr>
                         @empty
@@ -237,12 +239,12 @@
                         @enderror
                     </div>
 
-                    <div class="sticky bottom-0 flex items-center gap-3 border-t border-gray-100 bg-white py-4 md:col-span-2">
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
-                            Save Log
-                        </button>
+                    <div class="sticky bottom-0 flex items-center justify-end gap-3 border-t border-gray-100 bg-white py-4 md:col-span-2">
                         <button type="button" @click="showCreateModal = false" class="text-sm text-gray-500 hover:text-gray-700">
                             Cancel
+                        </button>
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
+                            Save Log
                         </button>
                     </div>
                 </form>
@@ -333,12 +335,12 @@
                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
 
-                    <div class="sticky bottom-0 flex items-center gap-3 border-t border-gray-100 bg-white py-4 md:col-span-2">
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
-                            Update Log
-                        </button>
+                    <div class="sticky bottom-0 flex items-center justify-end gap-3 border-t border-gray-100 bg-white py-4 md:col-span-2">
                         <button type="button" @click="editModal.show = false" class="text-sm text-gray-500 hover:text-gray-700">
                             Cancel
+                        </button>
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
+                            Update Log
                         </button>
                     </div>
                 </form>

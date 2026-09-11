@@ -453,11 +453,35 @@ Alpine.data('studentWorkspace', () => pollingWorkspace((root, data) => {
 }));
 
 Alpine.data('attendanceOverview', (series) => ({
-    series,
+    series: series || {},
     period: 'semester',
     active: null,
+    init() {
+        this.$nextTick(() => {
+            const svg = this.$root.querySelector('svg');
+            if (!svg || svg.querySelector('[data-chart-axes]')) return;
+
+            const ns = 'http://www.w3.org/2000/svg';
+            const group = document.createElementNS(ns, 'g');
+            group.setAttribute('data-chart-axes', 'true');
+            group.setAttribute('pointer-events', 'none');
+
+            const line = (x1, y1, x2, y2, attributes = {}) => {
+                const element = document.createElementNS(ns, 'line');
+                Object.entries({ x1, y1, x2, y2, ...attributes }).forEach(([key, value]) => element.setAttribute(key, value));
+                return element;
+            };
+
+            group.append(
+                line(58, 24, 58, 234, { stroke: '#64748b', 'stroke-width': '1.5' }),
+                line(58, 234, 730, 234, { stroke: '#64748b', 'stroke-width': '1.5' }),
+                line(58, this.y(this.target), 730, this.y(this.target), { stroke: '#f59e0b', 'stroke-dasharray': '6 4' })
+            );
+            svg.prepend(group);
+        });
+    },
     get points() {
-        return this.series[this.period] || [];
+        return (this.series[this.period] || []).filter((point) => Number.isFinite(Number(point.percentage)));
     },
     x(index) {
         return this.points.length > 1 ? 58 + (index * 672 / (this.points.length - 1)) : 394;
@@ -475,6 +499,7 @@ Alpine.data('attendanceOverview', (series) => ({
     format(value) {
         return `${Number(value || 0).toFixed(2).replace(/\.00$/, '')}%`;
     },
+    target: 75,
 }));
 
 Alpine.data('studentQr', () => ({
