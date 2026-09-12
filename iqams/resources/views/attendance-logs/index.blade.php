@@ -17,24 +17,8 @@
 
             {{-- Filters --}}
             <form method="GET" action="{{ route('attendance-logs.index') }}"
-                  class="mb-4 bg-white shadow-sm rounded-lg p-4 flex flex-wrap items-end gap-3">
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 mb-1">Date</label>
-                    <input type="date" name="date" value="{{ request('date') }}"
-                           class="rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 mb-1">Status</label>
-                    <select name="status" class="rounded-md border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <option value="">All</option>
-                        @foreach (['present', 'late', 'absent', 'excused'] as $status)
-                            <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div>
+                  class="mb-4 grid grid-cols-1 items-start gap-3 rounded-lg bg-white p-4 shadow-sm md:grid-cols-2 lg:grid-cols-4">
+                <div class="min-w-0 md:col-span-2 lg:col-span-2">
                     <label class="block text-xs font-medium text-gray-500 mb-1">Person</label>
                     <x-admin-lookup-field
                         :endpoint="route('admin.lookups.people')"
@@ -46,9 +30,26 @@
                     />
                 </div>
 
-                <div class="flex items-center gap-2">
+                <div class="min-w-0 lg:col-span-1">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Date</label>
+                    <input type="date" name="date" value="{{ request('date') }}"
+                           placeholder="dd/mm/yyyy"
+                           class="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+
+                <div class="min-w-0 lg:col-span-1">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Status</label>
+                    <select name="status" class="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="">All statuses</option>
+                        @foreach (['present', 'late', 'absent', 'excused'] as $status)
+                            <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="flex items-center gap-2 md:col-span-2 lg:col-span-4">
                     <button type="submit" class="bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded">
-                        Filter
+                        Apply filters
                     </button>
                     <a href="{{ route('attendance-logs.index') }}" class="text-sm text-gray-500 hover:text-gray-700">
                         Clear

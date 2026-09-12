@@ -11,18 +11,19 @@
 
 <div x-data="lookupField({ endpoint: {{ Illuminate\Support\Js::from($endpoint) }}, selected: {{ Illuminate\Support\Js::from($selected) }}, selectedLabel: {{ Illuminate\Support\Js::from($selectedLabel) }} })"
      @lookup-refresh.window="if (!{{ Illuminate\Support\Js::from($lookupKey) }} || $event.detail?.key === {{ Illuminate\Support\Js::from($lookupKey) }}) load($event.detail?.values?.[{{ Illuminate\Support\Js::from($name) }}])"
-     class="space-y-2">
+     class="min-w-0 space-y-2">
     <input type="search"
            x-model="search"
            @focus="load()"
            @input.debounce.250ms="load()"
            placeholder="{{ $placeholder }}"
            autocomplete="off"
-           class="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+           class="block w-full min-w-0 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
     <select name="{{ $name }}"
             x-ref="select"
             x-model="{{ $model }}"
             @focus="load()"
+            x-bind:size="search.trim() !== '' && options.length > 0 && !{{ $model }} ? Math.min(options.length + 1, 6) : 1"
             class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
         <option value="">{{ $emptyLabel }}</option>
         <template x-for="option in options" :key="option.id">

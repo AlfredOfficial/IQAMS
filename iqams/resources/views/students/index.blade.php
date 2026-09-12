@@ -99,7 +99,7 @@
              style="background: rgba(0,0,0,0.4);">
             <div class="flex min-h-full items-center justify-center">
             <div @click.outside="showCreateModal = false"
-                 class="w-full max-w-xl rounded-lg bg-white p-5 shadow-xl sm:p-6">
+                 class="w-full max-w-2xl rounded-lg bg-white p-5 shadow-xl sm:p-6">
 
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-semibold text-gray-800">Add Student</h3>
@@ -108,50 +108,58 @@
                     </button>
                 </div>
 
-                <form method="POST" action="{{ route('students.store') }}" enctype="multipart/form-data">
+                <form method="POST" action="{{ route('students.store') }}" enctype="multipart/form-data" class="grid gap-x-4 gap-y-3 sm:grid-cols-2">
                     @csrf
-                    <div class="mb-4"><label class="mb-1 block text-sm font-medium text-gray-700">Profile Photo</label><input type="file" name="avatar" accept="image/jpeg,image/png" required class="block w-full text-sm text-gray-600">@error('avatar')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror</div>
-
-                    <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
-                        <select name="course_id" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">-- Select Course --</option>
-                            @foreach ($courses as $course)
-                                <option value="{{ $course->id }}" @selected(old('course_id') == $course->id)>
-                                    {{ $course->course_code }} - {{ $course->course_name }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('course_id')
+                    <div class="mb-4 sm:col-span-2">
+                        <label class="mb-1 block text-sm font-medium text-gray-700">
+                            Profile Photo
+                        </label>
+                        <input type="file" name="avatar" accept="image/jpeg,image/png" required class="block w-full text-sm text-gray-600">
+                        @error('avatar')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
                     </div>
 
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Section <span class="text-gray-400 font-normal">(optional)</span></label>
-                        <select name="section_id" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">-- No Section Yet --</option>
-                            @foreach ($sections as $section)
-                                <option value="{{ $section->id }}" @selected(old('section_id') == $section->id)>
-                                    {{ $section->section_name }} ({{ $section->course->course_code ?? '—' }})
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('section_id')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
+                    <div class="mb-4 grid grid-cols-1 gap-3 sm:contents">
+                        <div class="order-1">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
+                            <select name="course_id" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">-- Select Course --</option>
+                                @foreach ($courses as $course)
+                                    <option value="{{ $course->id }}" @selected(old('course_id') == $course->id)>
+                                        {{ $course->course_code }} - {{ $course->course_name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('course_id')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="order-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Section <span class="text-gray-400 font-normal">(optional)</span></label>
+                            <select name="section_id" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">-- No Section Yet --</option>
+                                @foreach ($sections as $section)
+                                    <option value="{{ $section->id }}" @selected(old('section_id') == $section->id)>
+                                        {{ $section->section_name }} ({{ $section->course->course_code ?? '—' }})
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('section_id')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
                     </div>
 
-                    <div class="mb-4">
+                    <div class="order-3 mb-4">
                         <label class="mb-1 block text-sm font-medium text-gray-700">Enrollment type</label>
                         <select name="enrollment_type" x-model="createEnrollmentType" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="regular">Regular — all home-section classes</option>
                             <option value="irregular">Irregular — selected class offerings</option>
                         </select>
                     </div>
-                    <div x-show="createEnrollmentType === 'irregular'" x-cloak class="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                    <div x-show="createEnrollmentType === 'irregular'" x-cloak class="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 sm:col-span-2">
                         <p class="mb-2 text-sm font-medium text-amber-900">Class offerings</p>
                         <p class="mb-2 text-xs text-amber-800">Each selection includes every recurring day in that offering.</p>
                         <div class="max-h-40 space-y-2 overflow-y-auto">
@@ -162,8 +170,8 @@
                         @error('enrollment_group_ids')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                     </div>
 
-                    <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div>
+                    <div class="mb-4 grid grid-cols-1 gap-3 sm:contents">
+                        <div class="order-4">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Student No.</label>
                             <input type="text" name="student_no" value="{{ old('student_no') }}"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -173,7 +181,7 @@
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                             @enderror
                         </div>
-                        <div>
+                        <div class="order-5">
                             <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                             <input type="text" name="first_name" value="{{ old('first_name') }}"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -183,8 +191,8 @@
                         </div>
                     </div>
 
-                    <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div>
+                    <div class="mb-4 grid grid-cols-1 gap-3 sm:contents">
+                        <div class="order-6">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name <span class="text-gray-400 font-normal">(optional)</span></label>
                             <input type="text" name="middle_name" value="{{ old('middle_name') }}"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -192,7 +200,7 @@
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                             @enderror
                         </div>
-                        <div>
+                        <div class="order-7">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
                             <input type="text" name="last_name" value="{{ old('last_name') }}"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -202,7 +210,7 @@
                         </div>
                     </div>
 
-                    <div class="mb-6">
+                    <div class="order-8 mb-6">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
                         <input type="email" name="email" value="{{ old('email') }}"
                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -212,7 +220,7 @@
                         @enderror
                     </div>
 
-                    <div class="flex items-center justify-end gap-3">
+                    <div class="order-last flex items-center justify-end gap-3 sm:col-span-2">
                         <button type="button" @click="showCreateModal = false" class="text-sm text-gray-500 hover:text-gray-700">
                             Cancel
                         </button>
@@ -245,7 +253,7 @@
                     <div class="mb-4 flex items-center gap-4"><img :src="editModal.avatar_url" alt="Current profile photo" class="h-14 w-14 rounded-full object-cover"><div><label class="mb-1 block text-sm font-medium text-gray-700">Replace Profile Photo</label><input type="file" name="avatar" accept="image/jpeg,image/png" class="block w-full text-sm text-gray-600"></div></div>
 
                     <div class="mb-4 grid grid-cols-1 gap-x-5 gap-y-3 sm:grid-cols-2">
-                    <div>
+                    <div class="order-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
                         <select name="course_id" x-model="editModal.course_id"
                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -256,7 +264,7 @@
                         </select>
                     </div>
 
-                    <div>
+                        <div class="order-5">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Section</label>
                         <select name="section_id" x-model="editModal.section_id"
                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -267,17 +275,17 @@
                         </select>
                     </div>
 
-                    <div>
+                        <div class="order-6">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Student No.</label>
                         <input type="text" x-model="editModal.student_no" disabled
                                class="w-full rounded-md border-gray-200 bg-gray-50 text-gray-500 shadow-sm">
                     </div>
-                    <div>
+                        <div class="order-7">
                             <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                             <input type="text" name="first_name" x-model="editModal.first_name"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
-                    <div>
+                        <div class="order-8">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
                             <input type="text" name="middle_name" x-model="editModal.middle_name"
                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
