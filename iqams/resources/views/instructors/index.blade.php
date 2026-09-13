@@ -63,7 +63,7 @@
                                             :requires-password-confirmation="true"
                                             :delete-name="$instructor->fullName()">
                                             <x-slot:reset>
-                                                <form method="POST" action="{{ route('users.password.reset', $instructor->user) }}" onsubmit="return confirm('Send a password reset link? The current password and sessions will stop working immediately.')" data-password-confirmation-required>
+                                                <form method="POST" action="{{ route('users.password.reset', $instructor->user) }}" data-password-confirmation-required data-password-reset-confirmation-required>
                                                     @csrf
                                                     <button type="submit">Send password reset link</button>
                                                 </form>

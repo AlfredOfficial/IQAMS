@@ -765,6 +765,12 @@ document.addEventListener('submit', (event) => {
         return;
     }
 
+    if (form.hasAttribute('data-password-reset-confirmation-required')) {
+        event.preventDefault();
+        window.dispatchEvent(new CustomEvent('password-reset-confirmation-required', { detail: { form } }));
+        return;
+    }
+
     if (requiresPasswordConfirmation(form)) {
         event.preventDefault();
         window.dispatchEvent(new CustomEvent('password-confirmation-required', { detail: { form } }));

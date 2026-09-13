@@ -58,6 +58,7 @@
         </div>
     </div>
     <x-password-confirmation-modal />
+    <x-password-reset-confirmation-modal />
     <x-logout-confirmation />
     @stack('scripts')
 </body>
