@@ -110,6 +110,7 @@ class AttendanceLogController extends Controller
         $validated['status'] = $this->resolveStatus($validated, $occurrence, $scanTime, app(StudentAttendanceWindow::class));
         unset($validated['status_override']);
 
+        $validated['record_origin'] = 'admin';
         $attendanceLog = AttendanceLog::create($validated);
         app(AuditLogger::class)->record('attendance.corrected', $attendanceLog, [
             'operation' => 'created',
@@ -180,6 +181,7 @@ class AttendanceLogController extends Controller
         $validated['status'] = $this->resolveStatus($validated, $occurrence, $scanTime, app(StudentAttendanceWindow::class));
         unset($validated['status_override']);
 
+        $validated['record_origin'] = 'admin';
         $attendanceLog->update($validated);
         app(AuditLogger::class)->record('attendance.corrected', $attendanceLog, [
             'operation' => 'updated',

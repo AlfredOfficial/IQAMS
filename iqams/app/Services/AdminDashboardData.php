@@ -135,6 +135,7 @@ class AdminDashboardData
     private function scanQuery(): Builder
     {
         return AttendanceLog::canonical()
+            ->where('attendance_logs.record_origin', 'scanner')
             ->select([
                 'attendance_logs.id', 'attendance_logs.user_id', 'attendance_logs.schedule_id',
                 'attendance_logs.school_event_id', 'attendance_logs.attendance_type',
@@ -163,6 +164,7 @@ class AdminDashboardData
     private function deltaScanQuery(): Builder
     {
         return AttendanceLog::query()
+            ->where('attendance_logs.record_origin', 'scanner')
             ->select([
                 'attendance_logs.id', 'attendance_logs.user_id', 'attendance_logs.schedule_id',
                 'attendance_logs.school_event_id', 'attendance_logs.attendance_type',
@@ -207,6 +209,7 @@ class AdminDashboardData
             })
             ->where('attendance_logs.scan_time', '>=', $from)
             ->where('attendance_logs.scan_time', '<', $to)
+            ->where('attendance_logs.record_origin', 'scanner')
             ->where('attendance_logs.record_state', 'canonical')
             ->groupBy('roles.name')
             ->selectRaw('roles.name as role_name, COUNT(*) as scans, COUNT(DISTINCT attendance_logs.user_id) as users, SUM(CASE WHEN attendance_logs.status = ? THEN 1 ELSE 0 END) as present, SUM(CASE WHEN attendance_logs.status = ? THEN 1 ELSE 0 END) as late', ['present', 'late'])
@@ -235,6 +238,7 @@ class AdminDashboardData
                     ->where('roles.guard_name', 'web');
             })->whereIn('roles.name', ['instructor', 'staff'])
             ->where('attendance_logs.scan_time', '>=', $from)->where('attendance_logs.scan_time', '<', $to)
+            ->where('attendance_logs.record_origin', 'scanner')
             ->where('attendance_logs.record_state', 'canonical')
             ->orderBy('attendance_logs.scan_time')->get(['attendance_logs.user_id', 'attendance_logs.attendance_type', 'attendance_logs.scan_time', 'roles.name as role_name']);
     }
@@ -406,6 +410,7 @@ class AdminDashboardData
             ? "CAST(strftime('%H', scan_time) AS INTEGER)"
             : 'HOUR(scan_time)';
         $counts = DB::table('attendance_logs')->where('scan_time', '>=', $from)->where('scan_time', '<', $to)
+            ->where('record_origin', 'scanner')
             ->where('record_state', 'canonical')
             ->selectRaw("{$expression} as bucket, COUNT(*) as aggregate")->groupBy('bucket')->pluck('aggregate', 'bucket');
 
@@ -418,6 +423,7 @@ class AdminDashboardData
     {
         $expression = DB::getDriverName() === 'sqlite' ? 'date(scan_time)' : 'DATE(scan_time)';
         $counts = DB::table('attendance_logs')->whereBetween('scan_time', [$from, $to])
+            ->where('record_origin', 'scanner')
             ->where('record_state', 'canonical')
             ->selectRaw("{$expression} as bucket, COUNT(*) as aggregate")->groupBy('bucket')->pluck('aggregate', 'bucket');
 
@@ -433,6 +439,7 @@ class AdminDashboardData
         return DB::table('attendance_logs')->join('users', 'users.id', '=', 'attendance_logs.user_id')
             ->join('instructors', 'instructors.user_id', '=', 'users.id')->leftJoin('departments', 'departments.id', '=', 'instructors.department_id')
             ->where('attendance_logs.scan_time', '>=', $from)->where('attendance_logs.scan_time', '<', $to)
+            ->where('attendance_logs.record_origin', 'scanner')
             ->where('attendance_logs.record_state', 'canonical')
             ->groupBy('departments.department_code')->orderByDesc('aggregate')->limit(8)
             ->selectRaw("COALESCE(departments.department_code, 'Unassigned') as label, COUNT(*) as aggregate")
@@ -444,6 +451,7 @@ class AdminDashboardData
         return DB::table('attendance_logs')->join('schedules', 'schedules.id', '=', 'attendance_logs.schedule_id')
             ->join('subjects', 'subjects.id', '=', 'schedules.subject_id')
             ->where('attendance_logs.scan_time', '>=', $from)->where('attendance_logs.scan_time', '<', $to)
+            ->where('attendance_logs.record_origin', 'scanner')
             ->where('attendance_logs.record_state', 'canonical')
             ->groupBy('subjects.subject_code')->orderByDesc('aggregate')->limit(8)
             ->selectRaw('subjects.subject_code as label, COUNT(*) as aggregate')->get()

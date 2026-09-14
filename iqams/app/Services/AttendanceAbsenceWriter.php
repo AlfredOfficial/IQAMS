@@ -51,6 +51,7 @@ class AttendanceAbsenceWriter
                 'scan_time' => $absenceTime,
                 'attendance_date' => $attendanceDate,
                 'scan_key' => implode(':', ['student', $userId, $schedule->id, $attendanceDate]),
+                'record_origin' => 'system',
                 'integrity_key' => $this->keys->attendanceKey([
                     'user_id' => $userId,
                     'schedule_id' => $schedule->id,
@@ -99,6 +100,7 @@ class AttendanceAbsenceWriter
                 'scan_time' => $absenceTime,
                 'attendance_date' => $attendanceDate,
                 'scan_key' => "event:{$userId}:{$event->id}",
+                'record_origin' => 'system',
                 'integrity_key' => $this->keys->attendanceKey([
                     'user_id' => $userId,
                     'school_event_id' => $event->id,

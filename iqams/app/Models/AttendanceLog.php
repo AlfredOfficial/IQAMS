@@ -21,6 +21,7 @@ class AttendanceLog extends Model
         'scan_time',
         'attendance_date',
         'scan_key',
+        'record_origin',
         'integrity_key',
         'record_state',
         'superseded_by_id',

@@ -134,6 +134,7 @@ class QrAttendanceService
                 $existing->update([
                     'scan_time' => $scannedAt,
                     'scan_key' => $scanKey,
+                    'record_origin' => 'scanner',
                     'status' => 'late',
                     'scanner_location' => $location,
                     'remarks' => null,
@@ -157,6 +158,7 @@ class QrAttendanceService
                 'attendance_type' => 'time_in',
                 'scan_time' => $scannedAt,
                 'scan_key' => $scanKey,
+                'record_origin' => 'scanner',
                 'status' => $status,
                 'scanner_location' => $location,
             ])->load(['user.roles', 'schedule.subject', 'schedule.section']);
@@ -206,7 +208,7 @@ class QrAttendanceService
 
         if ($existing) {
             if ($existing->status === 'absent') {
-                $existing->update(['scan_time' => $scannedAt, 'status' => $status, 'scanner_location' => $location, 'remarks' => null]);
+                $existing->update(['scan_time' => $scannedAt, 'status' => $status, 'record_origin' => 'scanner', 'scanner_location' => $location, 'remarks' => null]);
 
                 return $existing->load(['user.roles', 'schoolEvent']);
             }
@@ -223,6 +225,7 @@ class QrAttendanceService
             'attendance_type' => 'time_in',
             'scan_time' => $scannedAt,
             'scan_key' => $scanKey,
+            'record_origin' => 'scanner',
             'status' => $status,
             'scanner_location' => $location,
         ])->load(['user.roles', 'schoolEvent']);
@@ -324,6 +327,7 @@ class QrAttendanceService
             'attendance_type' => $stage['type'],
             'attendance_period' => $period,
             'scan_time' => $scannedAt,
+            'record_origin' => 'scanner',
             'status' => $this->personnelClassifier->punctuality($stage, $scannedAt) === 'late' ? 'late' : 'present',
             'punctuality_status' => $this->personnelClassifier->punctuality($stage, $scannedAt),
             'scanner_location' => $location,
