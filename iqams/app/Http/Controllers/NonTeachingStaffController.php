@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\NonTeachingStaff;
 use App\Models\OfficeUnit;
 use App\Models\User;
-use App\Services\AccountInvitationService;
 use App\Services\AdminAccountProtectionService;
 use App\Services\AuditLogger;
 use App\Services\QrCredentialService;
@@ -14,7 +13,6 @@ use App\Services\ProfileImageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class NonTeachingStaffController extends Controller
@@ -34,7 +32,8 @@ class NonTeachingStaffController extends Controller
 
         $officeUnits = OfficeUnit::where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']);
 
-        return view('non-teaching-staff.index', compact('staffMembers', 'officeUnits'));
+        $staffUserIds = NonTeachingStaff::query()->pluck('user_id')->values();
+        return view('non-teaching-staff.index', compact('staffMembers', 'officeUnits', 'staffUserIds'));
     }
 
     /**
@@ -69,13 +68,15 @@ class NonTeachingStaffController extends Controller
         $administrator = $request->user();
 
         try {
-            $user = DB::transaction(function () use ($validated, $administrator, $avatarPath) {
+            [$user, $temporaryPassword] = DB::transaction(function () use ($validated, $administrator, $avatarPath) {
+                $employeeNo = $validated['employee_no'];
+                $temporaryPassword = 'Staff@'.$employeeNo;
                 $user = User::create([
-                    'username' => $validated['employee_no'],
+                    'username' => $employeeNo,
                     'name' => NonTeachingStaff::formatFullName($validated),
                     'email' => $validated['email'],
                     'avatar_path' => $avatarPath,
-                    'password' => Hash::make(Str::random(64)),
+                    'password' => Hash::make($temporaryPassword),
                     'status' => 'active',
                 ]);
 
@@ -89,7 +90,7 @@ class NonTeachingStaffController extends Controller
                 NonTeachingStaff::create([
                     'user_id' => $user->id,
                     'office_unit_id' => $validated['office_unit_id'],
-                    'employee_no' => $validated['employee_no'],
+                    'employee_no' => $employeeNo,
                     'name_prefix' => $validated['name_prefix'],
                     'first_name' => $validated['first_name'],
                     'middle_name' => $validated['middle_name'],
@@ -98,9 +99,7 @@ class NonTeachingStaffController extends Controller
                     'qr_code' => null,
                 ]);
                 app(QrCredentialService::class)->issue($user, $administrator);
-                app(AccountInvitationService::class)->queue($user, $administrator);
-
-                return $user;
+                return [$user, $temporaryPassword];
             });
         } catch (\Throwable $exception) {
             app(ProfileImageService::class)->delete($avatarPath);
@@ -110,7 +109,8 @@ class NonTeachingStaffController extends Controller
         app(AuditLogger::class)->record('account.created', $user, ['role' => 'staff'], $administrator, $request);
 
         return redirect()->route('non-teaching-staff.index')
-            ->with('success', 'Account created. A setup email has been queued.');
+            ->with('success', 'Account created successfully.')
+            ->with('generated_password', $temporaryPassword);
 
     }
 

@@ -70,6 +70,43 @@ Alpine.data('schoolEventsModal', (initialState = {}) => {
     };
 });
 
+Alpine.data('schoolEventSelect', (options = []) => ({
+    options,
+    open: false,
+    direction: 'down',
+    menuStyle: '',
+
+    toggle() {
+        this.open = !this.open;
+        if (this.open) this.$nextTick(() => this.positionMenu());
+    },
+
+    choose(value) {
+        this.$refs.select.value = value;
+        this.$refs.select.dispatchEvent(new Event('input', { bubbles: true }));
+        this.$refs.select.dispatchEvent(new Event('change', { bubbles: true }));
+        this.open = false;
+    },
+
+    positionMenu() {
+        const rect = this.$refs.button.getBoundingClientRect();
+        const itemHeight = 40;
+        const menuHeight = Math.min(this.options.length * itemHeight, 240);
+        const spaceBelow = window.innerHeight - rect.bottom - 8;
+        this.direction = spaceBelow < menuHeight && rect.top - 8 >= menuHeight ? 'up' : 'down';
+        const top = this.direction === 'up' ? rect.top - menuHeight : rect.bottom;
+        this.menuStyle = `top:${Math.max(8, top)}px;left:${rect.left}px;width:${rect.width}px;max-height:${Math.min(menuHeight, window.innerHeight - 16)}px`;
+    },
+
+    init() {
+        this.$watch('open', (open) => {
+            if (open) this.$nextTick(() => this.positionMenu());
+        });
+        window.addEventListener('resize', () => this.open && this.positionMenu());
+        window.addEventListener('scroll', () => this.open && this.positionMenu(), true);
+    },
+}));
+
 Alpine.data('toastNotifications', (initialNotifications = []) => ({
     toasts: [],
     nextId: 1,

@@ -146,14 +146,14 @@ class EmailPasswordSetupTest extends TestCase
         $oldToken = Password::createToken($user);
         $oldRemember = $user->remember_token;
         $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])
-            ->post(route('users.password.reset', $user))->assertRedirect()->assertSessionMissing('generated_password');
+            ->post(route('users.password.reset', $user))->assertRedirect()->assertSessionHas('generated_password', 'Student@'.$user->username);
         $user->refresh();
         $this->assertFalse(Hash::check('password', $user->password));
-        $this->assertFalse(Hash::check('Student@'.$user->username, $user->password));
+        $this->assertTrue(Hash::check('Student@'.$user->username, $user->password));
         $this->assertFalse(Password::tokenExists($user, $oldToken));
         $this->assertNotSame($oldRemember, $user->remember_token);
         $this->assertSame(1, $user->session_version);
-        Queue::assertPushed(SendPasswordResetLink::class, fn ($job) => $job->userId === $user->id && $job->expectedSessionVersion === 1 && $job->afterCommit);
+        Queue::assertNothingPushed();
         $this->actingAs($user)->withSession(['auth.session_version' => 0])->get(route('dashboard'))->assertRedirect(route('login'));
         $this->assertGuest();
     }

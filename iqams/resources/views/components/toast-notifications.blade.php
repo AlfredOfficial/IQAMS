@@ -5,6 +5,10 @@
         $notifications[] = ['title' => 'Success', 'message' => session('success')];
     }
 
+    if (session('generated_password')) {
+        $notifications[] = ['title' => 'Temporary password', 'message' => 'Provide this password to the user: '.session('generated_password')];
+    }
+
     if (session('status') === 'profile-updated') {
         $notifications[] = ['title' => 'Success', 'message' => 'Your profile was updated successfully.'];
     }

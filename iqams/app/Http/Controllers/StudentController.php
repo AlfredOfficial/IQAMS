@@ -7,7 +7,6 @@ use App\Models\Section;
 use App\Models\Schedule;
 use App\Models\Student;
 use App\Models\User;
-use App\Services\AccountInvitationService;
 use App\Services\AdminAccountProtectionService;
 use App\Services\AuditLogger;
 use App\Services\QrCredentialService;
@@ -18,7 +17,6 @@ use App\Rules\SectionBelongsToCourse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -54,7 +52,8 @@ class StudentController extends Controller
                 ];
             })->values();
 
-        return view('students.index', compact('students', 'courses', 'sections', 'offerings'));
+        $studentUserIds = Student::query()->pluck('user_id')->values();
+        return view('students.index', compact('students', 'courses', 'sections', 'offerings', 'studentUserIds'));
 
     }
 
@@ -91,13 +90,15 @@ class StudentController extends Controller
         $administrator = $request->user();
 
         try {
-            $user = DB::transaction(function () use ($validated, $administrator, $avatarPath, $eligibility) {
+            [$user, $temporaryPassword] = DB::transaction(function () use ($validated, $administrator, $avatarPath, $eligibility) {
+                $studentNo = $validated['student_no'];
+                $temporaryPassword = 'Student@'.$studentNo;
                 $user = User::create([
-                    'username' => $validated['student_no'],
+                    'username' => $studentNo,
                     'name' => $validated['first_name'].' '.$validated['last_name'],
                     'email' => $validated['email'],
                     'avatar_path' => $avatarPath,
-                    'password' => Hash::make(Str::random(64)),
+                    'password' => Hash::make($temporaryPassword),
                     'status' => 'active',
                 ]);
 
@@ -110,7 +111,7 @@ class StudentController extends Controller
 
                 $student = Student::create([
                     'user_id' => $user->id,
-                    'student_no' => $validated['student_no'],
+                    'student_no' => $studentNo,
                     'first_name' => $validated['first_name'],
                     'last_name' => $validated['last_name'],
                     'middle_name' => $validated['middle_name'] ?? null,
@@ -123,9 +124,7 @@ class StudentController extends Controller
                 $eligibility->sync($student, $validated['enrollment_group_ids'] ?? []);
 
                 app(QrCredentialService::class)->issue($user, $administrator);
-                app(AccountInvitationService::class)->queue($user, $administrator);
-
-                return $user;
+                return [$user, $temporaryPassword];
             });
         } catch (\Throwable $exception) {
             app(ProfileImageService::class)->delete($avatarPath);
@@ -135,7 +134,8 @@ class StudentController extends Controller
         app(AuditLogger::class)->record('account.created', $user, ['role' => 'student'], $administrator, $request);
 
         return redirect()->route('students.index')
-            ->with('success', 'Account created. A setup email has been queued.');
+            ->with('success', 'Account created successfully.')
+            ->with('generated_password', $temporaryPassword);
     }
 
     /**

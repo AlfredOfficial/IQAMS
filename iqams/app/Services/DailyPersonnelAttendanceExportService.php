@@ -21,7 +21,8 @@ class DailyPersonnelAttendanceExportService
 
         $pdf = new Dompdf($options);
         $pdf->loadHtml(view('reports.daily-personnel.pdf', $report)->render());
-        $pdf->setPaper('a4', 'landscape');
+        // Long bond paper in landscape: 13 x 8.5 inches (936 x 612 points).
+        $pdf->setPaper([0, 0, 936, 612]);
         $pdf->render();
 
         return $pdf->output();

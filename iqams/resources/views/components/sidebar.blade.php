@@ -1,6 +1,6 @@
 {{-- Desktop sidebar --}}
 <aside
-    class="hidden lg:flex lg:flex-col fixed inset-y-0 left-0 z-[60] bg-white border-r border-gray-200 transition-[width] duration-200 ease-in-out"
+    class="hidden lg:flex lg:flex-col fixed inset-y-0 left-0 z-[60] bg-[#10294b] border-r border-[#1b3b67] text-white transition-[width] duration-200 ease-in-out"
     :class="sidebarCollapsed ? 'w-[80px]' : 'w-[260px]'"
     aria-label="Main navigation"
 >
@@ -40,7 +40,7 @@
         x-transition:leave="transition ease-in duration-150"
         x-transition:leave-start="translate-x-0"
         x-transition:leave-end="-translate-x-full"
-        class="fixed inset-y-0 left-0 w-[260px] bg-white border-r border-gray-200 flex flex-col"
+        class="fixed inset-y-0 left-0 w-[260px] bg-[#10294b] border-r border-[#1b3b67] text-white flex flex-col"
     >
         <div class="flex justify-end px-4 pt-3">
             <button

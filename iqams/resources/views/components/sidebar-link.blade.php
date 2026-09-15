@@ -3,8 +3,8 @@
 @php
 $base = 'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors duration-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500';
 $state = $active
-    ? 'bg-indigo-50 text-indigo-700 font-medium'
-    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900';
+    ? 'bg-blue-600 text-white font-medium shadow-lg shadow-blue-950/25'
+    : 'text-blue-50/90 hover:bg-white/10 hover:text-white';
 @endphp
 
 <div class="relative group">

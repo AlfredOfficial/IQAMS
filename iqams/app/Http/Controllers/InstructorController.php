@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Department;
 use App\Models\Instructor;
 use App\Models\User;
-use App\Services\AccountInvitationService;
 use App\Services\AdminAccountProtectionService;
 use App\Services\AuditLogger;
 use App\Services\QrCredentialService;
@@ -14,7 +13,6 @@ use App\Services\ProfileImageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class InstructorController extends Controller
@@ -34,7 +32,8 @@ class InstructorController extends Controller
 
         $departments = Department::active()->orderBy('department_name')->get(['id', 'department_code', 'department_name']);
 
-        return view('instructors.index', compact('instructors', 'departments'));
+        $instructorUserIds = Instructor::query()->pluck('user_id')->values();
+        return view('instructors.index', compact('instructors', 'departments', 'instructorUserIds'));
     }
 
     /**
@@ -67,13 +66,15 @@ class InstructorController extends Controller
         $administrator = $request->user();
 
         try {
-            $user = DB::transaction(function () use ($validated, $administrator, $avatarPath) {
+            [$user, $temporaryPassword] = DB::transaction(function () use ($validated, $administrator, $avatarPath) {
+                $employeeNo = $validated['employee_no'];
+                $temporaryPassword = 'Instructor@'.$employeeNo;
                 $user = User::create([
-                    'username' => $validated['employee_no'],
+                    'username' => $employeeNo,
                     'name' => Instructor::formatFullName($validated),
                     'email' => $validated['email'],
                     'avatar_path' => $avatarPath,
-                    'password' => Hash::make(Str::random(64)),
+                    'password' => Hash::make($temporaryPassword),
                     'status' => 'active',
                 ]);
 
@@ -87,7 +88,7 @@ class InstructorController extends Controller
                 Instructor::create([
                     'user_id' => $user->id,
                     'department_id' => $validated['department_id'],
-                    'employee_no' => $validated['employee_no'],
+                    'employee_no' => $employeeNo,
                     'name_prefix' => $validated['name_prefix'] ?? null,
                     'first_name' => $validated['first_name'],
                     'middle_name' => $validated['middle_name'] ?? null,
@@ -96,9 +97,7 @@ class InstructorController extends Controller
                     'qr_code' => null,
                 ]);
                 app(QrCredentialService::class)->issue($user, $administrator);
-                app(AccountInvitationService::class)->queue($user, $administrator);
-
-                return $user;
+                return [$user, $temporaryPassword];
             });
         } catch (\Throwable $exception) {
             app(ProfileImageService::class)->delete($avatarPath);
@@ -108,7 +107,8 @@ class InstructorController extends Controller
         app(AuditLogger::class)->record('account.created', $user, ['role' => 'instructor'], $administrator, $request);
 
         return redirect()->route('instructors.index')
-            ->with('success', 'Account created. A setup email has been queued.');
+            ->with('success', 'Account created successfully.')
+            ->with('generated_password', $temporaryPassword);
 
     }
 

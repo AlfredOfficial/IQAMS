@@ -6,6 +6,13 @@
     </header>
 
     <table class="attendance-table">
+        <colgroup>
+            <col style="width: 40%;">
+            <col style="width: 15%;">
+            <col style="width: 15%;">
+            <col style="width: 15%;">
+            <col style="width: 15%;">
+        </colgroup>
         <thead>
             <tr>
                 <th rowspan="2" class="name-column">Name</th>

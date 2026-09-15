@@ -13,7 +13,7 @@
             deleteModal: { show: false, id: null, name: '' },
             statusModal: { show: false, userId: null, name: '', status: '' },
             qrModal: { show: false, value: '', label: '' },
-            selectedIds: []
+            selectedIds: [], allIds: @js($studentUserIds), toggleAll() { this.selectedIds = this.selectedIds.length === this.allIds.length ? [] : [...this.allIds]; }
         }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
@@ -32,7 +32,7 @@
                     <colgroup><col class="w-16"><col class="w-32"><col class="w-20"><col class="w-48"><col class="w-32"><col class="w-32"><col class="w-36"><col class="w-20"></colgroup>
                     <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
                         <tr>
-                            <th class="px-6 py-3">Select</th><th class="px-6 py-3">Student No.</th>
+                            <th class="px-6 py-3"><label class="flex items-center gap-2 normal-case"><input type="checkbox" :checked="selectedIds.length === allIds.length && allIds.length > 0" @change="toggleAll()" class="rounded border-gray-300 text-indigo-600"><span>Select all</span></label></th><th class="px-6 py-3">Student No.</th>
                             <th class="px-6 py-3">Profile</th>
                             <th class="px-6 py-3">Name</th>
                             <th class="px-6 py-3">Course</th>
@@ -45,7 +45,7 @@
                     <tbody class="divide-y divide-gray-100">
                         @forelse ($students as $student)
                             <tr class="transition-colors hover:bg-gray-50/80">
-                                <td class="px-6 py-3"><input type="checkbox" value="{{ $student->user_id }}" @change="selectedIds = $event.target.checked ? [...selectedIds, {{ $student->user_id }}] : selectedIds.filter(id => id !== {{ $student->user_id }})" class="rounded border-gray-300 text-indigo-600"></td><td class="whitespace-nowrap px-6 py-3 font-medium text-gray-800">{{ $student->student_no }}</td>
+                                <td class="px-6 py-3"><input type="checkbox" value="{{ $student->user_id }}" :checked="selectedIds.includes({{ $student->user_id }})" @change="selectedIds = $event.target.checked ? [...selectedIds, {{ $student->user_id }}] : selectedIds.filter(id => id !== {{ $student->user_id }})" class="rounded border-gray-300 text-indigo-600"></td><td class="whitespace-nowrap px-6 py-3 font-medium text-gray-800">{{ $student->student_no }}</td>
                                 <td class="px-6 py-3"><img loading="lazy" width="40" height="40" src="{{ $student->user->avatar_thumbnail_url ?? asset('images/default-avatar.svg') }}" alt="Profile photo" class="h-10 w-10 rounded-full object-cover"></td>
                                 <td class="whitespace-nowrap px-6 py-3 text-gray-600">{{ $student->first_name }} {{ $student->last_name }}</td>
                                 <td class="px-6 py-3 text-gray-600">{{ $student->course->course_code ?? '—' }}</td>

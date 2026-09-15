@@ -49,7 +49,7 @@ class AccountInvitationTest extends TestCase
         }
     }
 
-    public function test_student_instructor_and_staff_creation_queue_private_setup_links(): void
+    public function test_student_instructor_and_staff_creation_display_role_based_temporary_passwords_without_setup_links(): void
     {
         Storage::fake('public');
         Queue::fake();
@@ -88,14 +88,14 @@ class AccountInvitationTest extends TestCase
                 'avatar' => $this->avatar('student.png'),
             ])
             ->assertRedirect(route('students.index'))
-            ->assertSessionMissing('generated_password')
-            ->assertSessionHas('success', 'Account created. A setup email has been queued.');
+            ->assertSessionHas('generated_password', 'Student@INV-STU-001')
+            ->assertSessionHas('success', 'Account created successfully.');
 
         $student = User::where('username', 'INV-STU-001')->firstOrFail();
         $this->assertTrue($student->must_change_password);
-        $this->assertFalse(Hash::check('Student@INV-STU-001', $student->password));
+        $this->assertTrue(Hash::check('Student@INV-STU-001', $student->password));
         $this->assertNull($student->email_verified_at);
-        Queue::assertPushed(SendPasswordResetLink::class, fn ($job) => $job->userId === $student->id && $job->afterCommit);
+        Queue::assertNotPushed(SendPasswordResetLink::class);
 
         $student->forceFill([
             'password' => Hash::make('permanent-password'),
@@ -107,12 +107,14 @@ class AccountInvitationTest extends TestCase
             ->from(route('students.index'))
             ->post(route('users.password.reset', $student))
             ->assertRedirect(route('students.index'))
-            ->assertSessionMissing('generated_password');
+            ->assertSessionHas('generated_password', 'Student@INV-STU-001');
 
         $this->assertTrue($student->fresh()->must_change_password);
-        $this->assertFalse(Hash::check('Student@INV-STU-001', $student->fresh()->password));
+        $this->assertTrue(Hash::check('Student@INV-STU-001', $student->fresh()->password));
         $this->assertFalse(Hash::check('permanent-password', $student->fresh()->password));
         $this->assertSame(1, $student->fresh()->session_version);
+        Queue::assertNotPushed(SendPasswordResetLink::class);
+        Queue::fake();
 
         $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])
             ->post(route('instructors.store'), [
@@ -124,13 +126,13 @@ class AccountInvitationTest extends TestCase
                 'avatar' => $this->avatar('instructor.png'),
             ])
             ->assertRedirect(route('instructors.index'))
-            ->assertSessionMissing('generated_password');
+            ->assertSessionHas('generated_password', 'Instructor@INV-INS-001');
 
         $instructor = User::where('username', 'INV-INS-001')->firstOrFail();
         $this->assertTrue($instructor->must_change_password);
-        $this->assertFalse(Hash::check('Instructor@INV-INS-001', $instructor->password));
+        $this->assertTrue(Hash::check('Instructor@INV-INS-001', $instructor->password));
         $this->assertNull($instructor->email_verified_at);
-        Queue::assertPushed(SendPasswordResetLink::class, fn ($job) => $job->userId === $instructor->id && $job->afterCommit);
+        Queue::assertNotPushed(SendPasswordResetLink::class);
 
         $this->actingAs($admin)->withSession(['auth.password_confirmed_at' => time()])
             ->post(route('non-teaching-staff.store'), [
@@ -142,13 +144,13 @@ class AccountInvitationTest extends TestCase
                 'avatar' => $this->avatar('staff.png'),
             ])
             ->assertRedirect(route('non-teaching-staff.index'))
-            ->assertSessionMissing('generated_password');
+            ->assertSessionHas('generated_password', 'Staff@INV-STF-001');
 
         $staff = User::where('username', 'INV-STF-001')->firstOrFail();
         $this->assertTrue($staff->must_change_password);
-        $this->assertFalse(Hash::check('Staff@INV-STF-001', $staff->password));
+        $this->assertTrue(Hash::check('Staff@INV-STF-001', $staff->password));
         $this->assertNull($staff->email_verified_at);
-        Queue::assertPushed(SendPasswordResetLink::class, fn ($job) => $job->userId === $staff->id && $job->afterCommit);
+        Queue::assertNotPushed(SendPasswordResetLink::class);
     }
 
     private function user(string $role): User
@@ -159,7 +161,7 @@ class AccountInvitationTest extends TestCase
         ]);
     }
 
-    public function test_irregular_student_creation_preserves_enrollment_and_queues_setup(): void
+    public function test_irregular_student_creation_preserves_enrollment_and_displays_temporary_password(): void
     {
         Queue::fake();
         Storage::fake('public');
@@ -176,12 +178,12 @@ class AccountInvitationTest extends TestCase
             'enrollment_type' => 'irregular', 'enrollment_group_ids' => [$schedule->recurring_schedule_group_id],
             'student_no' => 'EMAIL-IRR', 'first_name' => 'Email', 'last_name' => 'Student',
             'email' => 'irregular@example.test', 'avatar' => $this->avatar('irregular.png'),
-        ])->assertSessionHasNoErrors()->assertRedirect(route('students.index'))->assertSessionMissing('generated_password');
+        ])->assertSessionHasNoErrors()->assertRedirect(route('students.index'))->assertSessionHas('generated_password', 'Student@EMAIL-IRR');
         $user = User::where('username', 'EMAIL-IRR')->firstOrFail();
         $this->assertSame('irregular', $user->student->enrollment_type);
         $this->assertSame([$schedule->recurring_schedule_group_id], $user->student->scheduleEnrollments()->pluck('recurring_schedule_group_id')->all());
         $this->assertNull($user->email_verified_at);
-        Queue::assertPushed(SendPasswordResetLink::class, fn ($job) => $job->userId === $user->id && $job->afterCommit);
+        Queue::assertNotPushed(SendPasswordResetLink::class);
     }
 
     public function test_failed_account_creation_does_not_queue_an_invitation(): void

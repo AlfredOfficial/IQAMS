@@ -59,7 +59,7 @@
              class="fixed inset-y-0 right-0 left-0 z-50 flex items-center justify-center bg-black/40 p-4 lg:left-[260px]"
              :class="sidebarCollapsed ? 'lg:!left-[80px]' : 'lg:!left-[260px]'"
              @click.self="closeModal()">
-            <section role="dialog" aria-modal="true" aria-labelledby="school-event-modal-title" class="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+            <section role="dialog" aria-modal="true" aria-labelledby="school-event-modal-title" class="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-visible rounded-xl bg-white shadow-2xl">
                 <div class="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
                     <h3 id="school-event-modal-title" class="text-lg font-semibold text-gray-900" x-text="editing ? 'Edit School Event' : 'New School Event'"></h3>
                     <button type="button" @click="closeModal()" class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700" aria-label="Close modal"><x-heroicon-o-x-mark class="h-5 w-5" /></button>
