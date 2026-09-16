@@ -28,25 +28,31 @@
             <div class="border border-slate-200 bg-white">
                 @foreach ($dayOrder as $day)
                     @if ($scheduleByDay->has($day))
-                        <section class="grid border-b border-slate-200 last:border-b-0 md:grid-cols-[140px_1fr]" aria-labelledby="schedule-{{ $day }}">
-                            <h3 id="schedule-{{ $day }}" class="bg-slate-50 px-4 py-4 text-xs font-semibold uppercase tracking-wider text-teal-800">
+                        <section class="grid border-b border-slate-200 last:border-b-0 md:grid-cols-[140px_1fr]"
+                            aria-labelledby="schedule-{{ $day }}">
+                            <h3 id="schedule-{{ $day }}"
+                                class="bg-slate-50 px-4 py-4 text-xs font-semibold uppercase tracking-wider text-teal-800">
                                 {{ ucfirst($day) }}
                             </h3>
                             <div class="divide-y divide-slate-100">
                                 @foreach ($scheduleByDay[$day] as $item)
-                                    <article class="grid gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                                    <article
+                                        class="grid gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                                         <div class="min-w-0">
                                             <div class="flex flex-wrap items-baseline gap-x-2">
-                                                <p class="text-sm font-bold text-teal-800">{{ $item->subject?->subject_code ?? '—' }}</p>
-                                                <p class="text-sm font-semibold text-slate-900">{{ $item->subject?->subject_name ?? 'Subject unavailable' }}</p>
+                                                <p class="text-sm font-bold text-teal-800">
+                                                    {{ $item->subject?->subject_code ?? '—' }}</p>
+                                                <p class="text-sm font-semibold text-slate-900">
+                                                    {{ $item->subject?->subject_name ?? 'Subject unavailable' }}</p>
                                             </div>
                                             <p class="mt-1 text-xs text-slate-500">
-                                                {{ trim(($item->instructor?->first_name ?? '').' '.($item->instructor?->last_name ?? '')) ?: 'Instructor not assigned' }}
+                                                {{ trim(($item->instructor?->first_name ?? '') . ' ' . ($item->instructor?->last_name ?? '')) ?: 'Instructor not assigned' }}
                                                 <span class="mx-1.5 text-slate-300">•</span>
                                                 {{ $item->room ?: 'Room TBA' }}
                                             </p>
                                         </div>
-                                        <p class="whitespace-nowrap text-left text-sm font-medium text-slate-700 sm:text-right">
+                                        <p
+                                            class="whitespace-nowrap text-left text-sm font-medium text-slate-700 sm:text-right">
                                             {{ \Illuminate\Support\Carbon::parse($item->start_time)->format('g:i A') }}
                                             –
                                             {{ \Illuminate\Support\Carbon::parse($item->end_time)->format('g:i A') }}

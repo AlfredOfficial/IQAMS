@@ -1,16 +1,143 @@
 <x-student-layout title="Dashboard">
- <div x-data="studentWorkspace" data-realtime-url="{{ route('student.dashboard.realtime') }}">
- @unless(Auth::user()->isAccountActive())<div class="mb-6 border-l-4 border-red-500 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">Attendance is unavailable because your account is inactive. Please contact the administrator.</div>@endunless
- <x-student-absence-warning :warnings="$subjectAbsenceWarnings" />
- <section class="border border-slate-200 bg-white px-5 py-5 sm:px-6"><p class="text-sm font-medium text-teal-700">{{ now()->format('l, F j, Y') }}</p><h2 class="mt-1 text-xl font-semibold text-slate-900">Good {{ now()->hour < 12 ? 'morning' : (now()->hour < 18 ? 'afternoon' : 'evening') }}, {{ $student->first_name }}</h2><p class="mt-1 text-sm text-slate-600"><span class="font-medium">{{ $student->course?->course_code ?? 'Course not assigned' }}@if($student->section) {{ $student->section->section_name }}@endif</span>@if($student->course?->department)<span class="mx-2 text-slate-300">|</span>{{ $student->course->department->department_name }}@endif</p></section>
- <section class="mt-6 border-y border-slate-200 bg-white" aria-labelledby="summary-title"><div class="px-5 pt-4"><h2 id="summary-title" class="text-sm font-semibold text-slate-800">Attendance summary</h2><p class="text-xs text-slate-500">Present and Late count as attended; Excused and cancelled sessions are excluded.</p></div><div class="mt-3 grid grid-cols-2 divide-x divide-y divide-slate-200 sm:grid-cols-5 sm:divide-y-0"><div class="px-5 py-4"><div class="text-xs font-semibold uppercase tracking-wider text-slate-500">Attendance rate</div><p data-student-stat="percentage" class="mt-2 text-2xl font-semibold text-teal-700">{{ number_format($summary['percentage'], 2) }}%</p></div>@foreach(['present'=>'bg-emerald-500','late'=>'bg-amber-500','absent'=>'bg-red-500','excused'=>'bg-sky-500'] as $status=>$dot)<div class="px-5 py-4"><div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500"><span class="h-2 w-2 rounded-full {{ $dot }}"></span>{{ $status }}</div><p data-student-stat="{{ $status }}" class="mt-2 text-2xl font-semibold text-slate-900">{{ $stats[$status] }}</p></div>@endforeach</div><p data-student-stat="detail" class="px-5 pb-4 pt-2 text-xs text-slate-500">{{ $summary['attended'] }} attended of {{ $summary['scheduled'] }} rated sessions &middot; {{ $summary['excluded'] }} excluded</p></section>
- <div class="mt-7 grid items-start gap-7 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,.8fr)]">
-  <section x-data="attendanceOverview(@js($attendanceOverview))" class="border border-slate-200 bg-white" aria-labelledby="attendance-overview-title"><div class="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 px-4 py-4 sm:px-5"><div><h2 id="attendance-overview-title" class="text-lg font-semibold text-slate-900">Attendance Overview</h2><p class="mt-0.5 text-sm text-slate-500">Your attendance rate over time</p></div><label class="sr-only" for="attendance-overview-period">Attendance period</label><select id="attendance-overview-period" x-model="period" class="rounded-lg border-slate-200 py-2 pl-3 pr-8 text-sm font-medium text-slate-700 focus:border-teal-600 focus:ring-teal-600"><option value="week">This Week</option><option value="month">This Month</option><option value="semester">This Semester</option></select></div>
-   <div class="relative px-2 pb-3 pt-4 sm:px-4"><div x-show="active" x-cloak class="pointer-events-none absolute right-5 top-4 rounded bg-slate-900 px-2 py-1 text-xs font-semibold text-white" x-text="active ? `${active.label}: ${format(active.percentage)}` : ''"></div><template x-if="points.length"><div class="overflow-x-auto"><svg class="h-72 min-w-[620px] w-full" viewBox="0 0 760 300" role="img" aria-labelledby="attendance-chart-title attendance-chart-description"><title id="attendance-chart-title">Attendance rate over time</title><desc id="attendance-chart-description">The vertical axis is attendance percentage from zero to one hundred percent. Hover a point to see its precise attendance rate.</desc><defs><linearGradient id="studentAttendanceFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0f9f86" stop-opacity=".24"/><stop offset="1" stop-color="#0f9f86" stop-opacity=".02"/></linearGradient></defs><template x-for="value in [0,20,40,60,80,100]" :key="value"><g><line x1="58" :y1="y(value)" x2="730" :y2="y(value)" stroke="#e2e8f0"/><text x="47" :y="y(value) + 4" text-anchor="end" fill="#64748b" font-size="12" x-text="`${value}%`"></text></g></template><polygon :points="areaPoints" fill="url(#studentAttendanceFill)"></polygon><polyline :points="linePoints" fill="none" stroke="#0f8b73" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline><template x-for="(point, index) in points" :key="`${period}-${index}`"><g><circle :cx="x(index)" :cy="y(point.percentage)" r="5" fill="#0f8b73" stroke="white" stroke-width="2" class="cursor-pointer" @mouseenter="active = point" @mouseleave="active = null"><title x-text="`${point.label}: ${format(point.percentage)}`"></title></circle><text :x="x(index)" y="279" text-anchor="middle" fill="#64748b" font-size="11" x-text="point.label"></text></g></template></svg></div></template><p x-show="!points.length" class="flex h-72 items-center justify-center text-center text-sm text-slate-500">No rated attendance sessions are available for this period.</p></div>
-  </section>
-  <section><div class="mb-4 flex items-end justify-between"><div><h2 class="text-lg font-semibold text-slate-900">Recent attendance</h2><p class="mt-0.5 text-sm text-slate-500">Latest scan records</p></div><a href="{{ route('student.attendance') }}" class="text-sm font-semibold text-teal-700 hover:text-teal-900">View all</a></div>
-   <div class="border border-slate-200 bg-white">@forelse($myAttendance as $log)<article class="border-b border-slate-100 px-4 py-4 last:border-0"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="text-xs font-bold text-teal-800">{{ $log->schoolEvent ? 'SCHOOL EVENT' : ($log->schedule?->subject?->subject_code ?? '—') }}</p><p class="truncate text-sm font-medium text-slate-800">{{ $log->schoolEvent?->title ?? $log->schedule?->subject?->subject_name ?? 'Attendance record' }}</p></div><x-student-status :status="$log->status" /></div><div class="mt-2 flex flex-wrap gap-x-3 text-xs text-slate-500"><span>{{ \Illuminate\Support\Carbon::parse($log->scan_time)->format('F j, Y') }}</span>@if($log->status === 'absent')<span>No scan recorded</span>@else<span>{{ \Illuminate\Support\Carbon::parse($log->scan_time)->format('g:i A') }}</span><span class="capitalize">{{ str_replace('_',' ',$log->attendance_type) }}</span>@endif</div></article>@empty<div class="py-12 text-center text-sm text-slate-500">No attendance records yet.</div>@endforelse</div>
-  </section>
- </div>
- </div>
+    <div x-data="studentWorkspace" data-realtime-url="{{ route('student.dashboard.realtime') }}"
+        class="space-y-6 sm:space-y-7">
+        @unless (Auth::user()->isAccountActive())
+            <div class="border-l-4 border-red-500 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">Attendance is
+                unavailable because your account is inactive. Please contact the administrator.</div>
+        @endunless
+        <x-student-absence-warning :warnings="$subjectAbsenceWarnings" />
+        <section x-data="attendanceOverview(@js($attendanceOverview))" class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm"
+            aria-labelledby="attendance-overview-title">
+            <div class="flex flex-wrap items-start justify-between gap-4 px-5 py-5 sm:px-7 sm:py-6">
+                <div>
+                    <h2 id="attendance-overview-title"
+                        class="text-xl font-bold tracking-tight text-[#10294b] sm:text-2xl">Attendance Overview</h2>
+                    <p class="mt-1 text-sm text-slate-500">Your attendance rate over time</p>
+                </div><label
+                    class="relative flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-600 shadow-sm"><svg
+                        class="h-5 w-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                            d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" />
+                    </svg><span class="sr-only">Attendance period</span><select id="attendance-overview-period"
+                        x-model="period"
+                        class="border-0 bg-transparent py-0 pl-0 pr-6 text-sm font-semibold text-slate-600 focus:border-0 focus:ring-0">
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="semester">This Semester</option>
+                    </select></label>
+            </div>
+            <div class="relative px-3 pb-2 sm:px-7">
+                <div x-show="active" x-cloak
+                    class="pointer-events-none absolute right-8 top-2 z-10 rounded-lg bg-slate-900 px-2 py-1 text-xs font-semibold text-white"
+                    x-text="active ? `${active.label}: ${format(active.percentage)}` : ''"></div><template
+                    x-if="points.length">
+                    <div class="overflow-x-auto"><svg class="h-72 min-w-[620px] w-full" viewBox="0 0 760 300"
+                            role="img" aria-labelledby="attendance-chart-title attendance-chart-description">
+                            <title id="attendance-chart-title">Attendance rate over time</title>
+                            <desc id="attendance-chart-description">Attendance percentage by period with a 75 percent
+                                passing-rate target.</desc>
+                            <defs>
+                                <linearGradient id="studentAttendanceFill" x1="0" y1="0" x2="0"
+                                    y2="1">
+                                    <stop offset="0" stop-color="#10b981" stop-opacity=".22" />
+                                    <stop offset="1" stop-color="#10b981" stop-opacity=".02" />
+                                </linearGradient>
+                            </defs><template x-for="value in [0,25,50,75,100]" :key="value">
+                                <g>
+                                    <line x1="58" :y1="y(value)" x2="730" :y2="y(value)"
+                                        stroke="#e8eef2" /><text x="47" :y="y(value) + 4" text-anchor="end"
+                                        fill="#526987" font-size="12" x-text="`${value}%`"></text>
+                                </g>
+                            </template>
+                            <line x1="58" :y1="y(target)" x2="730" :y2="y(target)"
+                                stroke="#f59e0b" stroke-dasharray="6 4" /><text x="728" :y="y(target) - 10"
+                                text-anchor="end" fill="#f59e0b" font-size="12"
+                                x-text="`${target}% (passing rate)`"></text>
+                            <polygon :points="areaPoints" fill="url(#studentAttendanceFill)"></polygon>
+                            <polyline :points="linePoints" fill="none" stroke="#0f9f86" stroke-width="3"
+                                stroke-linecap="round" stroke-linejoin="round"></polyline><template
+                                x-for="(point, index) in points" :key="`${period}-${index}`">
+                                <g>
+                                    <circle :cx="x(index)" :cy="y(point.percentage)" r="5.5" fill="#0f9f86"
+                                        stroke="white" stroke-width="2" class="cursor-pointer"
+                                        @mouseenter="active = point" @mouseleave="active = null">
+                                        <title x-text="`${point.label}: ${format(point.percentage)}`"></title>
+                                    </circle><text :x="x(index)" :y="y(point.percentage) - 14"
+                                        text-anchor="middle" fill="#087c6a" font-size="13" font-weight="700"
+                                        x-text="format(point.percentage)"></text><text :x="x(index)" y="265"
+                                        text-anchor="middle" fill="#334a68" font-size="12" x-text="point.label"></text>
+                                </g>
+                            </template>
+                        </svg></div>
+                </template>
+                <p x-show="!points.length"
+                    class="flex h-72 items-center justify-center text-center text-sm text-slate-500">No rated attendance
+                    sessions are available for this period.</p>
+            </div>
+            <div
+                class="mx-5 mb-5 flex flex-wrap items-center gap-5 rounded-xl bg-emerald-50/70 px-5 py-4 sm:mx-7 sm:mb-6 sm:px-7">
+                <div class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-500 text-white"><svg
+                        class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                            d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" />
+                    </svg></div>
+                <div class="min-w-[130px]">
+                    <p class="text-sm text-slate-500">Attendance rate</p>
+                    <p data-student-stat="percentage" class="text-2xl font-bold text-emerald-700">
+                        {{ number_format($summary['percentage'], 1) }}%</p>
+                </div>
+                <div class="hidden h-12 w-px bg-emerald-200 sm:block"></div>
+                <div>
+                    <p class="text-xl font-bold text-[#10294b]"><span
+                            data-student-stat="attended-count">{{ $summary['attended'] }}</span> of
+                        {{ $summary['scheduled'] }}</p>
+                    <p class="text-sm text-slate-500">rated sessions attended</p>
+                </div>
+            </div>
+        </section>
+        <section class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm"
+            aria-labelledby="recent-attendance-title">
+            <div class="flex items-center justify-between gap-3 px-5 py-5 sm:px-7">
+                <h2 id="recent-attendance-title" class="text-xl font-bold tracking-tight text-[#10294b]">Recent
+                    Attendance</h2><a href="{{ route('student.attendance') }}"
+                    class="shrink-0 text-sm font-semibold text-emerald-700 hover:text-emerald-900">View all <span
+                        aria-hidden="true">›</span></a>
+            </div>
+            <div class="overflow-x-auto px-5 pb-5 sm:px-7 sm:pb-6">
+                <table class="w-full min-w-[680px] border-collapse text-left" data-recent-attendance>
+                    <thead>
+                        <tr class="bg-slate-50 text-xs font-semibold text-slate-500">
+                            <th class="px-4 py-3">Date</th>
+                            <th class="px-4 py-3">Subject</th>
+                            <th class="px-4 py-3">Section</th>
+                            <th class="px-4 py-3">Status</th>
+                            <th class="px-4 py-3">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($myAttendance as $log)
+                            <tr class="border-b border-slate-100 text-sm last:border-0">
+                                <td class="whitespace-nowrap px-4 py-3.5 text-slate-600">
+                                    {{ \Illuminate\Support\Carbon::parse($log->scan_time)->format('M j, Y (D)') }}</td>
+                                <td class="px-4 py-3.5 font-medium text-[#10294b]">
+                                    {{ $log->schoolEvent?->title ?? ($log->schedule?->subject?->subject_name ?? 'Attendance record') }}
+                                </td>
+                                <td class="px-4 py-3.5 text-slate-600">{{ $student->section?->section_name ?? '—' }}
+                                </td>
+                                <td class="px-4 py-3.5"><x-student-status :status="$log->status" /></td>
+                                <td class="whitespace-nowrap px-4 py-3.5 text-slate-600">
+                                    {{ $log->status === 'absent' ? '—' : \Illuminate\Support\Carbon::parse($log->scan_time)->format('g:i A') }}
+                                </td>
+                        </tr>@empty<tr>
+                                <td colspan="5" class="px-4 py-12 text-center text-sm text-slate-500">No attendance
+                                    records yet.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
 </x-student-layout>

@@ -25,6 +25,10 @@ return new class extends Migration
             };
 
             DB::table('users')
+                // Do not overwrite a password that was already changed after
+                // the password-reset state was introduced. Those accounts are
+                // already using their permanent password.
+                ->whereNull('users.password_changed_at')
                 ->join('model_has_roles', function ($join) use ($roleId) {
                     $join->on('model_has_roles.model_id', '=', 'users.id')
                         ->where('model_has_roles.model_type', '=', 'App\\Models\\User')

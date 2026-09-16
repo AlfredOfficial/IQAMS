@@ -30,7 +30,7 @@
             <div><p class="text-[26px] font-extrabold leading-none tracking-tight">IQAMS</p><p class="mt-1 text-xs font-medium text-blue-100">Instructor Portal</p></div>
             <button @click="sidebarOpen=false" class="ml-auto text-2xl lg:hidden" aria-label="Close navigation">&times;</button>
         </div>
-        <nav data-sidebar-nav class="flex-1 space-y-2 overflow-y-auto px-3 py-3" aria-label="Instructor navigation">
+        <nav data-sidebar-nav class="instructor-sidebar-nav flex-1 space-y-2 overflow-y-auto px-3 py-3" aria-label="Instructor navigation">
             @foreach($nav as $item)
                 <a data-sidebar-link href="{{ route($item['route']) }}" @class(['flex items-center gap-3 rounded-xl px-3 py-3.5 text-[13px] font-semibold transition','bg-blue-600 text-white shadow-lg shadow-blue-950/25'=>request()->routeIs($item['route']),'text-blue-50/90 hover:bg-white/10'=>!request()->routeIs($item['route'])])>
                     <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="{{ $item['icon'] }}"/></svg>{{ $item['label'] }}

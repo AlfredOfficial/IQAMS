@@ -7,6 +7,29 @@
     display: none !important;
 }
 
+/* Keep the instructor navigation scrollbar in harmony with its dark sidebar. */
+.instructor-sidebar-nav {
+    scrollbar-color: rgb(148 163 184 / 70%) transparent;
+    scrollbar-width: thin;
+}
+
+.instructor-sidebar-nav::-webkit-scrollbar {
+    width: 0.5rem;
+}
+
+.instructor-sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.instructor-sidebar-nav::-webkit-scrollbar-thumb {
+    background: rgb(148 163 184 / 70%);
+    border-radius: 9999px;
+}
+
+.instructor-sidebar-nav::-webkit-scrollbar-thumb:hover {
+    background: rgb(186 230 253 / 80%);
+}
+
 /* Navigation feedback must not block another link or the browser's controls. */
 .global-page-loader {
     position: fixed;

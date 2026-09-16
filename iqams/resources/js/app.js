@@ -473,7 +473,24 @@ Alpine.data('studentWorkspace', () => pollingWorkspace((root, data) => {
         if (element) element.textContent = data.stats[status];
     });
     const percentage = root.querySelector('[data-student-stat="percentage"]');
-    if (percentage && data.summary) percentage.textContent = `${Number(data.summary.percentage || 0).toFixed(2)}%`;
+    if (percentage && data.summary) percentage.textContent = `${Number(data.summary.percentage || 0).toFixed(1)}%`;
+    const attended = root.querySelector('[data-student-stat="attended-count"]');
+    if (attended && data.summary) attended.textContent = data.summary.attended;
+    const tableBody = root.querySelector('[data-recent-attendance] tbody');
+    if (tableBody) {
+        const statusClasses = { present: 'bg-emerald-100 text-emerald-700', late: 'bg-amber-100 text-amber-700', absent: 'bg-rose-100 text-rose-700', excused: 'bg-sky-100 text-sky-700' };
+        if (!data.recent.length) {
+            const row = document.createElement('tr'); const cell = document.createElement('td'); cell.colSpan = 5; cell.className = 'px-4 py-12 text-center text-sm text-slate-500'; cell.textContent = 'No attendance records yet.'; row.append(cell); tableBody.replaceChildren(row); return;
+        }
+        tableBody.replaceChildren(...data.recent.map(log => {
+            const row = document.createElement('tr'); row.className = 'border-b border-slate-100 text-sm last:border-0';
+            const cell = (text, classes = 'px-4 py-3.5 text-slate-600') => { const element = document.createElement('td'); element.className = classes; element.textContent = text; return element; };
+            row.append(cell(log.date, 'whitespace-nowrap px-4 py-3.5 text-slate-600'), cell(log.title, 'px-4 py-3.5 font-medium text-[#10294b]'), cell('—', 'px-4 py-3.5 text-slate-600'));
+            const statusCell = document.createElement('td'); statusCell.className = 'px-4 py-3.5'; const badge = document.createElement('span'); badge.className = `inline-flex rounded-full px-3 py-1 text-xs font-semibold capitalize ${statusClasses[log.status] || 'bg-slate-100 text-slate-700'}`; badge.textContent = log.status; statusCell.append(badge); row.append(statusCell);
+            row.append(cell(log.time || '—', 'whitespace-nowrap px-4 py-3.5 text-slate-600')); return row;
+        }));
+        return;
+    }
     const detail = root.querySelector('[data-student-stat="detail"]');
     if (detail && data.summary) detail.textContent = `${data.summary.attended} attended of ${data.summary.scheduled} rated sessions · ${data.summary.excluded} excluded`;
     const section = [...root.querySelectorAll('section')].find(item => item.querySelector('h2')?.textContent.trim() === 'Recent attendance');
@@ -495,7 +512,7 @@ Alpine.data('attendanceOverview', (series) => ({
     active: null,
     init() {
         this.$nextTick(() => {
-            const svg = this.$root.querySelector('svg');
+            const svg = this.$root.querySelector('svg[viewBox="0 0 760 300"]');
             if (!svg || svg.querySelector('[data-chart-axes]')) return;
 
             const ns = 'http://www.w3.org/2000/svg';
@@ -508,13 +525,54 @@ Alpine.data('attendanceOverview', (series) => ({
                 Object.entries({ x1, y1, x2, y2, ...attributes }).forEach(([key, value]) => element.setAttribute(key, value));
                 return element;
             };
+            const text = (x, y, value) => {
+                const element = document.createElementNS(ns, 'text');
+                element.setAttribute('x', x); element.setAttribute('y', y); element.setAttribute('text-anchor', 'end'); element.setAttribute('fill', '#526987'); element.setAttribute('font-size', '12'); element.textContent = value;
+                return element;
+            };
 
             group.append(
                 line(58, 24, 58, 234, { stroke: '#64748b', 'stroke-width': '1.5' }),
                 line(58, 234, 730, 234, { stroke: '#64748b', 'stroke-width': '1.5' }),
-                line(58, this.y(this.target), 730, this.y(this.target), { stroke: '#f59e0b', 'stroke-dasharray': '6 4' })
+                line(58, this.y(this.target), 730, this.y(this.target), { stroke: '#f59e0b', 'stroke-dasharray': '6 4' }),
+                ...[100, 75, 50, 25, 0].map((value) => text(47, this.y(value) + 4, `${value}%`))
             );
             svg.prepend(group);
+
+            const chartWrapper = svg.parentElement;
+            const chartFrame = chartWrapper.parentElement;
+            chartWrapper.classList.remove('overflow-x-auto');
+            chartWrapper.classList.add('chart-wrapper');
+            chartWrapper.style.width = '100%';
+            chartWrapper.style.maxWidth = '100%';
+            chartWrapper.style.overflow = 'hidden';
+            svg.style.width = '100%';
+            svg.style.height = '100%';
+            svg.style.minWidth = '0';
+            chartFrame.classList.add('attendance-chart-container', 'relative', 'w-full', 'max-w-full');
+            chartFrame.style.height = '300px';
+            chartFrame.style.overflow = 'hidden';
+            const summary = chartFrame.nextElementSibling;
+            if (summary) {
+                summary.classList.add('attendance-summary');
+                summary.style.position = 'relative';
+                summary.style.marginTop = '20px';
+                summary.style.width = 'auto';
+            }
+            document.querySelectorAll('[data-chart-scale]').forEach((scale) => {
+                if (scale.parentElement !== chartFrame) scale.remove();
+            });
+            if (chartFrame && !chartFrame.querySelector('[data-chart-scale]')) {
+                const scale = document.createElement('div');
+                scale.dataset.chartScale = 'true';
+                scale.className = 'pointer-events-none absolute left-0 top-6 z-10 flex h-[210px] w-10 flex-col justify-between text-right text-xs text-slate-600';
+                [100, 75, 50, 25, 0].forEach((value) => {
+                    const label = document.createElement('span');
+                    label.textContent = `${value}%`;
+                    scale.append(label);
+                });
+                chartFrame.append(scale);
+            }
         });
     },
     get points() {

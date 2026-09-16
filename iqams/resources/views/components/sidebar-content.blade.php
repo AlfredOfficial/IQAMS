@@ -2,15 +2,15 @@
 @php($roleName = Auth::user()->primaryRoleName())
 
 {{-- Logo + system name --}}
-<div class="flex h-20 shrink-0 items-center border-b border-white/10 px-4"
+<div class="flex h-20 shrink-0 items-center border-b border-gray-200 px-4"
      @if($collapsible) :class="sidebarCollapsed ? 'justify-center' : 'justify-between'" @else class="justify-between" @endif
 >
     <a href="{{ route('dashboard') }}" class="flex items-center gap-2 min-w-0" aria-label="{{ config('app.name', 'IQAMS') }} home">
         <x-application-logo class="h-8 w-8 fill-current text-indigo-600 shrink-0" />
         @if (! $collapsible)
-            <span class="font-semibold text-white truncate">{{ config('app.name', 'IQAMS') }}</span>
+            <span class="font-semibold text-gray-800 truncate">{{ config('app.name', 'IQAMS') }}</span>
         @else
-            <span x-show="!sidebarCollapsed" x-cloak class="font-semibold text-white truncate">{{ config('app.name', 'IQAMS') }}</span>
+            <span x-show="!sidebarCollapsed" x-cloak class="font-semibold text-gray-800 truncate">{{ config('app.name', 'IQAMS') }}</span>
         @endif
     </a>
 
@@ -20,7 +20,7 @@
             x-show="!sidebarCollapsed"
             x-cloak
             type="button"
-            class="p-1.5 rounded-md text-blue-100/70 hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 shrink-0"
+            class="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 shrink-0"
             :aria-label="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
         >
             <x-heroicon-o-chevron-double-left class="w-5 h-5" aria-hidden="true" />
@@ -35,7 +35,7 @@
         x-show="sidebarCollapsed"
         x-cloak
         type="button"
-        class="mx-auto mt-2 p-1.5 rounded-md text-blue-100/70 hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        class="mx-auto mt-2 p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
         aria-label="Expand sidebar"
     >
         <x-heroicon-o-chevron-double-right class="w-5 h-5" aria-hidden="true" />
