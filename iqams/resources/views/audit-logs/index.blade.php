@@ -7,7 +7,8 @@
     </x-slot>
 
     <div class="space-y-6 p-6">
-        <form method="GET" action="{{ route('admin.audit-logs.index') }}" class="grid gap-3 rounded-xl bg-white p-5 shadow sm:grid-cols-2 lg:grid-cols-6">
+        <form method="GET" action="{{ route('admin.audit-logs.index') }}"
+            class="grid gap-3 rounded-xl bg-white p-5 shadow sm:grid-cols-2 lg:grid-cols-6">
             <label class="text-xs font-medium uppercase tracking-wide text-gray-500">Action
                 <select name="action" class="mt-1 w-full rounded-md border-gray-300 text-sm">
                     <option value="">All actions</option>
@@ -20,7 +21,7 @@
                 <select name="actor_id" class="mt-1 w-full rounded-md border-gray-300 text-sm">
                     <option value="">All users and system actions</option>
                     @foreach ($actors as $actor)
-                        <option value="{{ $actor->id }}" @selected((string)($filters['actor_id'] ?? '') === (string)$actor->id)>{{ $actor->name }}</option>
+                        <option value="{{ $actor->id }}" @selected((string) ($filters['actor_id'] ?? '') === (string) $actor->id)>{{ $actor->name }}</option>
                     @endforeach
                 </select>
             </label>
@@ -33,17 +34,21 @@
                 </select>
             </label>
             <label class="text-xs font-medium uppercase tracking-wide text-gray-500">Record reference
-                <input name="subject_id" value="{{ $filters['subject_id'] ?? '' }}" type="number" min="1" placeholder="Optional reference" class="mt-1 w-full rounded-md border-gray-300 text-sm">
+                <input name="subject_id" value="{{ $filters['subject_id'] ?? '' }}" type="number" min="1"
+                    placeholder="Optional reference" class="mt-1 w-full rounded-md border-gray-300 text-sm">
             </label>
             <label class="text-xs font-medium uppercase tracking-wide text-gray-500">From
-                <input name="from" value="{{ $filters['from'] ?? '' }}" type="date" class="mt-1 w-full rounded-md border-gray-300 text-sm">
+                <input name="from" value="{{ $filters['from'] ?? '' }}" type="date"
+                    class="mt-1 w-full rounded-md border-gray-300 text-sm">
             </label>
             <label class="text-xs font-medium uppercase tracking-wide text-gray-500">To
-                <input name="to" value="{{ $filters['to'] ?? '' }}" type="date" class="mt-1 w-full rounded-md border-gray-300 text-sm">
+                <input name="to" value="{{ $filters['to'] ?? '' }}" type="date"
+                    class="mt-1 w-full rounded-md border-gray-300 text-sm">
             </label>
             <div class="flex items-end gap-2 sm:col-span-2 lg:col-span-6">
                 <button class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white">Filter</button>
-                <a href="{{ route('admin.audit-logs.index') }}" class="rounded-md border px-4 py-2 text-sm text-gray-700">Reset</a>
+                <a href="{{ route('admin.audit-logs.index') }}"
+                    class="rounded-md border px-4 py-2 text-sm text-gray-700">Reset</a>
             </div>
         </form>
 
@@ -74,14 +79,15 @@
                             <td class="max-w-lg px-4 py-3">
                                 <details>
                                     <summary class="cursor-pointer font-medium text-indigo-600 hover:text-indigo-800">
-                                        {{ count($log->metadata_items) ? count($log->metadata_items).' detail(s)' : 'View request details' }}
+                                        {{ count($log->metadata_items) ? count($log->metadata_items) . ' detail(s)' : 'View request details' }}
                                     </summary>
                                     <div class="mt-3 space-y-3 rounded-lg bg-gray-50 p-3 text-xs text-gray-700">
                                         @if (count($log->metadata_items))
                                             <dl class="space-y-2">
                                                 @foreach ($log->metadata_items as $item)
                                                     <div class="grid gap-1 sm:grid-cols-3">
-                                                        <dt class="font-semibold text-gray-500">{{ $item['label'] }}</dt>
+                                                        <dt class="font-semibold text-gray-500">{{ $item['label'] }}
+                                                        </dt>
                                                         <dd class="break-words sm:col-span-2">{{ $item['value'] }}</dd>
                                                     </div>
                                                 @endforeach
@@ -110,7 +116,10 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">No audit records match these filters.</td></tr>
+                        <tr>
+                            <td colspan="5" class="px-4 py-8 text-center text-gray-500">No audit records match these
+                                filters.</td>
+                        </tr>
                     @endforelse
                 </tbody>
             </table>

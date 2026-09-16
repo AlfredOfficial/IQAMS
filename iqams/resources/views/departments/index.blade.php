@@ -6,10 +6,10 @@
     </x-slot>
 
     <div class="py-8" x-data="{
-            showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
-            editModal: { show: false, id: null, code: '', name: '' },
-            deleteModal: { show: false, id: null, name: '' }
-        }"
+        showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
+        editModal: { show: false, id: null, code: '', name: '' },
+        deleteModal: { show: false, id: null, name: '' }
+    }"
         @keydown.escape.window="showCreateModal = false; editModal.show = false; deleteModal.show = false">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
@@ -17,7 +17,7 @@
                 <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                     <span class="text-sm text-gray-500">{{ $departments->total() }} total</span>
                     <button @click="showCreateModal = true"
-                       class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
                         + Add Department
                     </button>
                 </div>
@@ -37,13 +37,13 @@
                                 <td class="px-6 py-3 text-gray-600">{{ $department->department_name }}</td>
                                 <td class="px-6 py-3 text-right">
                                     <x-record-action-menu>
-                                    <button type="button"
-                                        @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $department->id, 'code' => $department->department_code, 'name' => $department->department_name]) }}"
-                                        class="text-indigo-600 hover:text-indigo-800">Edit</button>
+                                        <button type="button"
+                                            @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $department->id, 'code' => $department->department_code, 'name' => $department->department_name]) }}"
+                                            class="text-indigo-600 hover:text-indigo-800">Edit</button>
 
-                                    <button type="button"
-                                        @click="deleteModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $department->id, 'name' => $department->department_name]) }}"
-                                        class="!text-red-600 hover:!text-red-700">Delete</button>
+                                        <button type="button"
+                                            @click="deleteModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $department->id, 'name' => $department->department_name]) }}"
+                                            class="!text-red-600 hover:!text-red-700">Delete</button>
                                     </x-record-action-menu>
                                 </td>
                             </tr>
@@ -64,12 +64,9 @@
         </div>
 
         {{-- Create Department Modal --}}
-        <div x-show="showCreateModal"
-             x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center px-4"
-             style="background: rgba(0,0,0,0.4);">
-            <div @click.outside="showCreateModal = false"
-                 class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <div x-show="showCreateModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4"
+            style="background: rgba(0,0,0,0.4);">
+            <div @click.outside="showCreateModal = false" class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
 
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-semibold text-gray-800">Add Department</h3>
@@ -86,9 +83,9 @@
                             Department Code
                         </label>
                         <input type="text" name="department_code" id="department_code"
-                               value="{{ old('department_code') }}"
-                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                               placeholder="e.g. CCS">
+                            value="{{ old('department_code') }}"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            placeholder="e.g. CCS">
                         @error('department_code')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
@@ -99,20 +96,21 @@
                             Department Name
                         </label>
                         <input type="text" name="department_name" id="department_name"
-                               value="{{ old('department_name') }}"
-                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                               placeholder="e.g. College of Computer Studies">
+                            value="{{ old('department_name') }}"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            placeholder="e.g. College of Computer Studies">
                         @error('department_name')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
                     </div>
 
                     <div class="flex items-center justify-end gap-3">
-                        <button type="button" @click="showCreateModal = false" class="text-sm text-gray-500 hover:text-gray-700">
+                        <button type="button" @click="showCreateModal = false"
+                            class="text-sm text-gray-500 hover:text-gray-700">
                             Cancel
                         </button>
                         <button type="submit"
-                                class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
                             Save Department
                         </button>
                     </div>
@@ -121,12 +119,9 @@
         </div>
 
         {{-- Edit Department Modal (shared, populated per row via editModal state) --}}
-        <div x-show="editModal.show"
-             x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center px-4"
-             style="background: rgba(0,0,0,0.4);">
-            <div @click.outside="editModal.show = false"
-                 class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <div x-show="editModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4"
+            style="background: rgba(0,0,0,0.4);">
+            <div @click.outside="editModal.show = false" class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
 
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-semibold text-gray-800">Edit Department</h3>
@@ -135,7 +130,8 @@
                     </button>
                 </div>
 
-                <form method="POST" :action="'{{ url('departments') }}/' + editModal.id" data-password-confirmation-required>
+                <form method="POST" :action="'{{ url('departments') }}/' + editModal.id"
+                    data-password-confirmation-required>
                     @csrf
                     @method('PUT')
 
@@ -144,7 +140,7 @@
                             Department Code
                         </label>
                         <input type="text" name="department_code" x-model="editModal.code"
-                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
 
                     <div class="mb-6">
@@ -152,15 +148,16 @@
                             Department Name
                         </label>
                         <input type="text" name="department_name" x-model="editModal.name"
-                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
 
                     <div class="flex items-center justify-end gap-3">
-                        <button type="button" @click="editModal.show = false" class="text-sm text-gray-500 hover:text-gray-700">
+                        <button type="button" @click="editModal.show = false"
+                            class="text-sm text-gray-500 hover:text-gray-700">
                             Cancel
                         </button>
                         <button type="submit"
-                                class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
                             Update Department
                         </button>
                     </div>
@@ -169,29 +166,29 @@
         </div>
 
         {{-- Delete Confirmation Modal --}}
-        <div x-show="deleteModal.show"
-             x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center px-4"
-             style="background: rgba(0,0,0,0.4);">
-            <div @click.outside="deleteModal.show = false"
-                 class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
+        <div x-show="deleteModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4"
+            style="background: rgba(0,0,0,0.4);">
+            <div @click.outside="deleteModal.show = false" class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
 
                 <h3 class="text-lg font-semibold text-gray-800 mb-2">Delete Department</h3>
                 <p class="text-sm text-gray-500 mb-6">
-                    Are you sure you want to delete <span class="font-medium text-gray-700" x-text="deleteModal.name"></span>?
+                    Are you sure you want to delete <span class="font-medium text-gray-700"
+                        x-text="deleteModal.name"></span>?
                     This can't be undone.
                 </p>
 
-                <form method="POST" :action="'{{ url('departments') }}/' + deleteModal.id" data-password-confirmation-required>
+                <form method="POST" :action="'{{ url('departments') }}/' + deleteModal.id"
+                    data-password-confirmation-required>
                     @csrf
                     @method('DELETE')
 
                     <div class="flex items-center justify-end gap-3">
-                        <button type="button" @click="deleteModal.show = false" class="text-sm text-gray-500 hover:text-gray-700">
+                        <button type="button" @click="deleteModal.show = false"
+                            class="text-sm text-gray-500 hover:text-gray-700">
                             Cancel
                         </button>
                         <button type="submit"
-                                class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded">
+                            class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded">
                             Delete
                         </button>
                     </div>

@@ -12,24 +12,28 @@
 
         <div>
             <x-input-label for="current_password" value="Current password" />
-            <x-text-input id="current_password" name="current_password" type="password" class="mt-1 block w-full" autocomplete="current-password" required autofocus />
+            <x-text-input id="current_password" name="current_password" type="password" class="mt-1 block w-full"
+                autocomplete="current-password" required autofocus />
             <x-input-error class="mt-2" :messages="$errors->forcePasswordChange->get('current_password')" />
         </div>
 
         <div>
             <x-input-label for="password" value="New password" />
-            <x-text-input id="password" name="password" type="password" class="mt-1 block w-full" autocomplete="new-password" required />
+            <x-text-input id="password" name="password" type="password" class="mt-1 block w-full"
+                autocomplete="new-password" required />
             <x-input-error class="mt-2" :messages="$errors->forcePasswordChange->get('password')" />
         </div>
 
         <div>
             <x-input-label for="password_confirmation" value="Confirm new password" />
-            <x-text-input id="password_confirmation" name="password_confirmation" type="password" class="mt-1 block w-full" autocomplete="new-password" required />
+            <x-text-input id="password_confirmation" name="password_confirmation" type="password"
+                class="mt-1 block w-full" autocomplete="new-password" required />
             <x-input-error class="mt-2" :messages="$errors->forcePasswordChange->get('password_confirmation')" />
         </div>
 
         <div class="flex items-center justify-between gap-4">
-            <a class="text-sm text-teal-700 underline hover:text-teal-900" href="{{ route('password.request') }}">Forgot current password?</a>
+            <a class="text-sm text-teal-700 underline hover:text-teal-900" href="{{ route('password.request') }}">Forgot
+                current password?</a>
             <x-primary-button>Update password</x-primary-button>
         </div>
     </form>

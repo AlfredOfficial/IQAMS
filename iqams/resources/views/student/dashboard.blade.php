@@ -78,8 +78,7 @@
             <div
                 class="mx-5 mb-5 flex flex-wrap items-center gap-5 rounded-xl bg-emerald-50/70 px-5 py-4 sm:mx-7 sm:mb-6 sm:px-7">
                 <div class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-500 text-white"><svg
-                        class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                        aria-hidden="true">
+                        class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
                             d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" />
                     </svg></div>

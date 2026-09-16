@@ -6,49 +6,45 @@
     </x-slot>
 
     <div class="py-8" x-data="{
-            showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
-            filterUserId: @js((string) request('user_id', '')),
-            createUserId: @js((string) old('user_id', '')),
-            createScheduleId: @js((string) old('schedule_id', '')),
-            editModal: { show: false, id: null, user_id: '', schedule_id: '', attendance_type: '', scan_time: '', status_override: '', scanner_location: '', remarks: '' },
-            deleteModal: { show: false, id: null, name: '' }
-        }">
+        showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
+        filterUserId: @js((string) request('user_id', '')),
+        createUserId: @js((string) old('user_id', '')),
+        createScheduleId: @js((string) old('schedule_id', '')),
+        editModal: { show: false, id: null, user_id: '', schedule_id: '', attendance_type: '', scan_time: '', status_override: '', scanner_location: '', remarks: '' },
+        deleteModal: { show: false, id: null, name: '' }
+    }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
             {{-- Filters --}}
             <form method="GET" action="{{ route('attendance-logs.index') }}"
-                  class="mb-4 grid grid-cols-1 items-start gap-3 rounded-lg bg-white p-4 shadow-sm md:grid-cols-2 lg:grid-cols-4">
+                class="mb-4 grid grid-cols-1 items-start gap-3 rounded-lg bg-white p-4 shadow-sm md:grid-cols-2 lg:grid-cols-4">
                 <div class="min-w-0 md:col-span-2 lg:col-span-2">
                     <label class="block text-xs font-medium text-gray-500 mb-1">Person</label>
-                    <x-admin-lookup-field
-                        :endpoint="route('admin.lookups.people')"
-                        name="user_id"
-                        model="filterUserId"
-                        :selected="request('user_id')"
-                        placeholder="Search people..."
-                        empty-label="All"
-                    />
+                    <x-admin-lookup-field :endpoint="route('admin.lookups.people')" name="user_id" model="filterUserId" :selected="request('user_id')"
+                        placeholder="Search people..." empty-label="All" />
                 </div>
 
                 <div class="min-w-0 lg:col-span-1">
                     <label class="block text-xs font-medium text-gray-500 mb-1">Date</label>
-                    <input type="date" name="date" value="{{ request('date') }}"
-                           placeholder="dd/mm/yyyy"
-                           class="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <input type="date" name="date" value="{{ request('date') }}" placeholder="dd/mm/yyyy"
+                        class="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                 </div>
 
                 <div class="min-w-0 lg:col-span-1">
                     <label class="block text-xs font-medium text-gray-500 mb-1">Status</label>
-                    <select name="status" class="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <select name="status"
+                        class="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         <option value="">All statuses</option>
                         @foreach (['present', 'late', 'absent', 'excused'] as $status)
-                            <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}</option>
+                            <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}
+                            </option>
                         @endforeach
                     </select>
                 </div>
 
                 <div class="flex items-center gap-2 md:col-span-2 lg:col-span-4">
-                    <button type="submit" class="bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded">
+                    <button type="submit"
+                        class="bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded">
                         Apply filters
                     </button>
                     <a href="{{ route('attendance-logs.index') }}" class="text-sm text-gray-500 hover:text-gray-700">
@@ -61,7 +57,7 @@
                 <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                     <span class="text-sm text-gray-500">{{ $logs->total() }} total</span>
                     <button @click="showCreateModal = true"
-                       class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
                         + Add Log
                     </button>
                 </div>
@@ -80,13 +76,17 @@
                     <tbody class="divide-y divide-gray-100">
                         @forelse ($logs as $log)
                             <tr>
-                                <td class="px-6 py-3 text-gray-800 font-medium">{{ $log->user?->nonTeachingStaff?->fullName() ?? $log->user?->name ?? '—' }}</td>
+                                <td class="px-6 py-3 text-gray-800 font-medium">
+                                    {{ $log->user?->nonTeachingStaff?->fullName() ?? ($log->user?->name ?? '—') }}</td>
                                 <td class="px-6 py-3 text-gray-600">
-                                    {{ $log->schoolEvent?->title ?? $log->schedule?->subject?->subject_code ?? '—' }}
+                                    {{ $log->schoolEvent?->title ?? ($log->schedule?->subject?->subject_code ?? '—') }}
                                     ({{ $log->schedule->section->section_name ?? '—' }})
                                 </td>
-                                <td class="px-6 py-3 text-gray-600">{{ $log->attendance_type === 'time_in' ? 'Time In' : 'Time Out' }}</td>
-                                <td class="px-6 py-3 text-gray-600">{{ \Illuminate\Support\Carbon::parse($log->scan_time)->format('M d, Y g:i A') }}</td>
+                                <td class="px-6 py-3 text-gray-600">
+                                    {{ $log->attendance_type === 'time_in' ? 'Time In' : 'Time Out' }}</td>
+                                <td class="px-6 py-3 text-gray-600">
+                                    {{ \Illuminate\Support\Carbon::parse($log->scan_time)->format('M d, Y g:i A') }}
+                                </td>
                                 <td class="px-6 py-3">
                                     <span @class([
                                         'px-2 py-1 rounded text-xs font-medium',
@@ -100,23 +100,23 @@
                                 </td>
                                 <td class="px-6 py-3 text-right">
                                     <x-record-action-menu>
-                                    <button type="button"
-                                        @click="editModal = {{ Illuminate\Support\Js::from([
-                                            'show' => true,
-                                            'id' => $log->id,
-                                            'user_id' => (string) $log->user_id,
-                                            'schedule_id' => (string) $log->schedule_id,
-                                            'attendance_type' => $log->attendance_type,
-                                            'scan_time' => \Illuminate\Support\Carbon::parse($log->scan_time)->format('Y-m-d\TH:i'),
-                                            'status_override' => $log->status,
-                                            'scanner_location' => $log->scanner_location,
-                                            'remarks' => $log->remarks,
-                                        ]) }}; $nextTick(() => $dispatch('lookup-refresh', { key: 'attendance-edit', values: {{ Illuminate\Support\Js::from(['user_id' => (string) $log->user_id, 'schedule_id' => (string) $log->schedule_id]) }} }))"
-                                        class="text-indigo-600 hover:text-indigo-800">Edit</button>
+                                        <button type="button"
+                                            @click="editModal = {{ Illuminate\Support\Js::from([
+                                                'show' => true,
+                                                'id' => $log->id,
+                                                'user_id' => (string) $log->user_id,
+                                                'schedule_id' => (string) $log->schedule_id,
+                                                'attendance_type' => $log->attendance_type,
+                                                'scan_time' => \Illuminate\Support\Carbon::parse($log->scan_time)->format('Y-m-d\TH:i'),
+                                                'status_override' => $log->status,
+                                                'scanner_location' => $log->scanner_location,
+                                                'remarks' => $log->remarks,
+                                            ]) }}; $nextTick(() => $dispatch('lookup-refresh', { key: 'attendance-edit', values: {{ Illuminate\Support\Js::from(['user_id' => (string) $log->user_id, 'schedule_id' => (string) $log->schedule_id]) }} }))"
+                                            class="text-indigo-600 hover:text-indigo-800">Edit</button>
 
-                                    <button type="button"
-                                        @click="deleteModal = { show: true, id: {{ $log->id }}, name: {{ Illuminate\Support\Js::from(($log->user?->nonTeachingStaff?->fullName() ?? $log->user?->name ?? 'Log').' - '.\Illuminate\Support\Carbon::parse($log->scan_time)->format('M d, g:i A')) }} }"
-                                        class="!text-red-600 hover:!text-red-700">Delete</button>
+                                        <button type="button"
+                                            @click="deleteModal = { show: true, id: {{ $log->id }}, name: {{ Illuminate\Support\Js::from(($log->user?->nonTeachingStaff?->fullName() ?? ($log->user?->name ?? 'Log')) . ' - ' . \Illuminate\Support\Carbon::parse($log->scan_time)->format('M d, g:i A')) }} }"
+                                            class="!text-red-600 hover:!text-red-700">Delete</button>
                                     </x-record-action-menu>
                                 </td>
                             </tr>
@@ -138,11 +138,10 @@
 
         {{-- Create Log Modal --}}
         <div x-show="showCreateModal" x-cloak
-             class="fixed inset-y-0 right-0 left-0 z-50 flex items-center justify-center p-4 lg:left-[260px]"
-             :class="sidebarCollapsed ? 'lg:!left-[80px]' : 'lg:!left-[260px]'"
-             style="background: rgba(0,0,0,0.4);">
+            class="fixed inset-y-0 right-0 left-0 z-50 flex items-center justify-center p-4 lg:left-[260px]"
+            :class="sidebarCollapsed ? 'lg:!left-[80px]' : 'lg:!left-[260px]'" style="background: rgba(0,0,0,0.4);">
             <div @click.outside="showCreateModal = false"
-                 class="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
+                class="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
 
                 <div class="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
                     <h3 class="text-lg font-semibold text-gray-800">Add Attendance Log</h3>
@@ -151,19 +150,14 @@
                     </button>
                 </div>
 
-                <form method="POST" action="{{ route('attendance-logs.store') }}" class="grid min-h-0 gap-x-4 overflow-y-auto px-6 py-5 md:grid-cols-2">
+                <form method="POST" action="{{ route('attendance-logs.store') }}"
+                    class="grid min-h-0 gap-x-4 overflow-y-auto px-6 py-5 md:grid-cols-2">
                     @csrf
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Person</label>
-                        <x-admin-lookup-field
-                            :endpoint="route('admin.lookups.people')"
-                            name="user_id"
-                            model="createUserId"
-                            :selected="old('user_id')"
-                            placeholder="Search people..."
-                            empty-label="-- Select Person --"
-                        />
+                        <x-admin-lookup-field :endpoint="route('admin.lookups.people')" name="user_id" model="createUserId" :selected="old('user_id')"
+                            placeholder="Search people..." empty-label="-- Select Person --" />
                         @error('user_id')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
@@ -171,14 +165,8 @@
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Schedule</label>
-                        <x-admin-lookup-field
-                            :endpoint="route('admin.lookups.schedules')"
-                            name="schedule_id"
-                            model="createScheduleId"
-                            :selected="old('schedule_id')"
-                            placeholder="Search schedules..."
-                            empty-label="-- Select Schedule --"
-                        />
+                        <x-admin-lookup-field :endpoint="route('admin.lookups.schedules')" name="schedule_id" model="createScheduleId"
+                            :selected="old('schedule_id')" placeholder="Search schedules..." empty-label="-- Select Schedule --" />
                         @error('schedule_id')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
@@ -186,7 +174,8 @@
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                        <select name="attendance_type" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <select name="attendance_type"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">-- Select Type --</option>
                             <option value="time_in" @selected(old('attendance_type') === 'time_in')>Time In</option>
                             <option value="time_out" @selected(old('attendance_type') === 'time_out')>Time Out</option>
@@ -199,52 +188,60 @@
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Scan Time</label>
                         <input type="datetime-local" name="scan_time" value="{{ old('scan_time') }}"
-                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         @error('scan_time')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Status Override <span class="text-gray-400 font-normal">(optional)</span></label>
-                        <select name="status_override" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Status Override <span
+                                class="text-gray-400 font-normal">(optional)</span></label>
+                        <select name="status_override"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">Auto-detect (present/late)</option>
                             <option value="present" @selected(old('status_override') === 'present')>Present</option>
                             <option value="late" @selected(old('status_override') === 'late')>Late</option>
                             <option value="absent" @selected(old('status_override') === 'absent')>Absent</option>
                             <option value="excused" @selected(old('status_override') === 'excused')>Excused</option>
                         </select>
-                        <p class="mt-1 text-xs text-gray-400">Leave as Auto-detect unless you're making a manual correction.</p>
+                        <p class="mt-1 text-xs text-gray-400">Leave as Auto-detect unless you're making a manual
+                            correction.</p>
                         @error('status_override')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Scanner Location <span class="text-gray-400 font-normal">(optional)</span></label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Scanner Location <span
+                                class="text-gray-400 font-normal">(optional)</span></label>
                         <input type="text" name="scanner_location" value="{{ old('scanner_location') }}"
-                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                               placeholder="e.g. Main Gate">
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            placeholder="e.g. Main Gate">
                         @error('scanner_location')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
                     </div>
 
                     <div class="mb-6 md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Remarks <span class="text-gray-400 font-normal">(optional)</span></label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Remarks <span
+                                class="text-gray-400 font-normal">(optional)</span></label>
                         <input type="text" name="remarks" value="{{ old('remarks') }}"
-                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                               placeholder="e.g. Manual correction, doctor's note on file">
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            placeholder="e.g. Manual correction, doctor's note on file">
                         @error('remarks')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
                     </div>
 
-                    <div class="sticky bottom-0 flex items-center justify-end gap-3 border-t border-gray-100 bg-white py-4 md:col-span-2">
-                        <button type="button" @click="showCreateModal = false" class="text-sm text-gray-500 hover:text-gray-700">
+                    <div
+                        class="sticky bottom-0 flex items-center justify-end gap-3 border-t border-gray-100 bg-white py-4 md:col-span-2">
+                        <button type="button" @click="showCreateModal = false"
+                            class="text-sm text-gray-500 hover:text-gray-700">
                             Cancel
                         </button>
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
+                        <button type="submit"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
                             Save Log
                         </button>
                     </div>
@@ -254,11 +251,10 @@
 
         {{-- Edit Log Modal --}}
         <div x-show="editModal.show" x-cloak
-             class="fixed inset-y-0 right-0 left-0 z-50 flex items-center justify-center p-4 lg:left-[260px]"
-             :class="sidebarCollapsed ? 'lg:!left-[80px]' : 'lg:!left-[260px]'"
-             style="background: rgba(0,0,0,0.4);">
+            class="fixed inset-y-0 right-0 left-0 z-50 flex items-center justify-center p-4 lg:left-[260px]"
+            :class="sidebarCollapsed ? 'lg:!left-[80px]' : 'lg:!left-[260px]'" style="background: rgba(0,0,0,0.4);">
             <div @click.outside="editModal.show = false"
-                 class="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
+                class="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
 
                 <div class="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
                     <h3 class="text-lg font-semibold text-gray-800">Edit Attendance Log</h3>
@@ -267,40 +263,30 @@
                     </button>
                 </div>
 
-                <form method="POST" :action="'{{ url('attendance-logs') }}/' + editModal.id" class="grid min-h-0 gap-x-4 overflow-y-auto px-6 py-5 md:grid-cols-2" data-password-confirmation-required>
+                <form method="POST" :action="'{{ url('attendance-logs') }}/' + editModal.id"
+                    class="grid min-h-0 gap-x-4 overflow-y-auto px-6 py-5 md:grid-cols-2"
+                    data-password-confirmation-required>
                     @csrf
                     @method('PUT')
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Person</label>
-                        <x-admin-lookup-field
-                            :endpoint="route('admin.lookups.people')"
-                            name="user_id"
-                            model="editModal.user_id"
-                            :selected="old('_form') === 'edit' ? old('user_id') : null"
-                            placeholder="Search people..."
-                            empty-label="-- Select Person --"
-                            lookup-key="attendance-edit"
-                        />
+                        <x-admin-lookup-field :endpoint="route('admin.lookups.people')" name="user_id" model="editModal.user_id"
+                            :selected="old('_form') === 'edit' ? old('user_id') : null" placeholder="Search people..." empty-label="-- Select Person --"
+                            lookup-key="attendance-edit" />
                     </div>
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Schedule</label>
-                        <x-admin-lookup-field
-                            :endpoint="route('admin.lookups.schedules')"
-                            name="schedule_id"
-                            model="editModal.schedule_id"
-                            :selected="old('_form') === 'edit' ? old('schedule_id') : null"
-                            placeholder="Search schedules..."
-                            empty-label="-- Select Schedule --"
-                            lookup-key="attendance-edit"
-                        />
+                        <x-admin-lookup-field :endpoint="route('admin.lookups.schedules')" name="schedule_id" model="editModal.schedule_id"
+                            :selected="old('_form') === 'edit' ? old('schedule_id') : null" placeholder="Search schedules..." empty-label="-- Select Schedule --"
+                            lookup-key="attendance-edit" />
                     </div>
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
                         <select name="attendance_type" x-model="editModal.attendance_type"
-                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="time_in">Time In</option>
                             <option value="time_out">Time Out</option>
                         </select>
@@ -309,38 +295,42 @@
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Scan Time</label>
                         <input type="datetime-local" name="scan_time" x-model="editModal.scan_time"
-                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Status Override</label>
                         <select name="status_override" x-model="editModal.status_override"
-                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="present">Present</option>
                             <option value="late">Late</option>
                             <option value="absent">Absent</option>
                             <option value="excused">Excused</option>
                         </select>
-                        <p class="mt-1 text-xs text-gray-400">Editing always uses this value directly (no auto-detect on edit).</p>
+                        <p class="mt-1 text-xs text-gray-400">Editing always uses this value directly (no auto-detect
+                            on edit).</p>
                     </div>
 
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Scanner Location</label>
                         <input type="text" name="scanner_location" x-model="editModal.scanner_location"
-                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
 
                     <div class="mb-6 md:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
                         <input type="text" name="remarks" x-model="editModal.remarks"
-                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
 
-                    <div class="sticky bottom-0 flex items-center justify-end gap-3 border-t border-gray-100 bg-white py-4 md:col-span-2">
-                        <button type="button" @click="editModal.show = false" class="text-sm text-gray-500 hover:text-gray-700">
+                    <div
+                        class="sticky bottom-0 flex items-center justify-end gap-3 border-t border-gray-100 bg-white py-4 md:col-span-2">
+                        <button type="button" @click="editModal.show = false"
+                            class="text-sm text-gray-500 hover:text-gray-700">
                             Cancel
                         </button>
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
+                        <button type="submit"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
                             Update Log
                         </button>
                     </div>
@@ -349,27 +339,29 @@
         </div>
 
         {{-- Delete Confirmation Modal --}}
-        <div x-show="deleteModal.show" x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center px-4"
-             style="background: rgba(0,0,0,0.4);">
-            <div @click.outside="deleteModal.show = false"
-                 class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
+        <div x-show="deleteModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4"
+            style="background: rgba(0,0,0,0.4);">
+            <div @click.outside="deleteModal.show = false" class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
 
                 <h3 class="text-lg font-semibold text-gray-800 mb-2">Delete Log</h3>
                 <p class="text-sm text-gray-500 mb-6">
-                    Are you sure you want to delete <span class="font-medium text-gray-700" x-text="deleteModal.name"></span>?
+                    Are you sure you want to delete <span class="font-medium text-gray-700"
+                        x-text="deleteModal.name"></span>?
                     This can't be undone.
                 </p>
 
-                <form method="POST" :action="'{{ url('attendance-logs') }}/' + deleteModal.id" data-password-confirmation-required>
+                <form method="POST" :action="'{{ url('attendance-logs') }}/' + deleteModal.id"
+                    data-password-confirmation-required>
                     @csrf
                     @method('DELETE')
 
                     <div class="flex items-center gap-3">
-                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded">
+                        <button type="submit"
+                            class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded">
                             Delete
                         </button>
-                        <button type="button" @click="deleteModal.show = false" class="text-sm text-gray-500 hover:text-gray-700">
+                        <button type="button" @click="deleteModal.show = false"
+                            class="text-sm text-gray-500 hover:text-gray-700">
                             Cancel
                         </button>
                     </div>

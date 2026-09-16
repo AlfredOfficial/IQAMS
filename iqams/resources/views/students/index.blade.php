@@ -7,84 +7,121 @@
     </x-slot>
 
     <div class="py-8" x-data="{
-            showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
-            createEnrollmentType: '{{ old('enrollment_type', 'regular') }}',
-            editModal: { show: false, id: null, course_id: '', section_id: '', enrollment_type: 'regular', enrollment_group_ids: [], student_no: '', email: '', first_name: '', last_name: '', middle_name: '', status: '', avatar_url: '' },
-            deleteModal: { show: false, id: null, name: '' },
-            statusModal: { show: false, userId: null, name: '', status: '' },
-            qrModal: { show: false, value: '', label: '' },
-            selectedIds: [], allIds: @js($studentUserIds), toggleAll() { this.selectedIds = this.selectedIds.length === this.allIds.length ? [] : [...this.allIds]; }
-        }">
+        showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
+        createEnrollmentType: '{{ old('enrollment_type', 'regular') }}',
+        editModal: { show: false, id: null, course_id: '', section_id: '', enrollment_type: 'regular', enrollment_group_ids: [], student_no: '', email: '', first_name: '', last_name: '', middle_name: '', status: '', avatar_url: '' },
+        deleteModal: { show: false, id: null, name: '' },
+        statusModal: { show: false, userId: null, name: '', status: '' },
+        qrModal: { show: false, value: '', label: '' },
+        selectedIds: [],
+        allIds: @js($studentUserIds),
+        toggleAll() { this.selectedIds = this.selectedIds.length === this.allIds.length ? [] : [...this.allIds]; }
+    }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
 
             <div class="bg-white shadow-sm rounded-lg">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                     <span class="text-sm text-gray-500">{{ $students->total() }} total</span>
-                    <div class="flex items-center gap-2"><button type="button" @click="window.ensureIqamsQrCode().then(() => window.printIqamsIdCards(selectedIds.map(id => '{{ url('admin/id-cards') }}/' + id))).catch(error => window.alert(error.message))" :disabled="selectedIds.length === 0" class="rounded border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">Print selected ID cards</button><button @click="showCreateModal = true"
-                       class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
-                        + Add Student
-                    </button></div>
+                    <div class="flex items-center gap-2"><button type="button"
+                            @click="window.ensureIqamsQrCode().then(() => window.printIqamsIdCards(selectedIds.map(id => '{{ url('admin/id-cards') }}/' + id))).catch(error => window.alert(error.message))"
+                            :disabled="selectedIds.length === 0"
+                            class="rounded border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">Print
+                            selected ID cards</button><button @click="showCreateModal = true"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
+                            + Add Student
+                        </button></div>
                 </div>
 
                 <div class="overflow-x-auto">
-                <table class="min-w-[1080px] w-full table-fixed text-left text-sm [&_th]:px-5 [&_th]:py-4 [&_th]:align-middle [&_th]:font-medium [&_th]:tracking-wide [&_td]:h-20 [&_td]:px-5 [&_td]:py-4 [&_td]:align-middle">
-                    <colgroup><col class="w-16"><col class="w-32"><col class="w-20"><col class="w-48"><col class="w-32"><col class="w-32"><col class="w-36"><col class="w-20"></colgroup>
-                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
-                        <tr>
-                            <th class="px-6 py-3"><label class="flex items-center gap-2 normal-case"><input type="checkbox" :checked="selectedIds.length === allIds.length && allIds.length > 0" @change="toggleAll()" class="rounded border-gray-300 text-indigo-600"><span>Select all</span></label></th><th class="px-6 py-3">Student No.</th>
-                            <th class="px-6 py-3">Profile</th>
-                            <th class="px-6 py-3">Name</th>
-                            <th class="px-6 py-3">Course</th>
-                            <th class="px-6 py-3">Section</th>
-                            <th class="px-6 py-3">Enrollment</th>
-                            <th class="px-6 py-3">Account Status</th>
-                            <th class="px-6 py-3 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        @forelse ($students as $student)
-                            <tr class="transition-colors hover:bg-gray-50/80">
-                                <td class="px-6 py-3"><input type="checkbox" value="{{ $student->user_id }}" :checked="selectedIds.includes({{ $student->user_id }})" @change="selectedIds = $event.target.checked ? [...selectedIds, {{ $student->user_id }}] : selectedIds.filter(id => id !== {{ $student->user_id }})" class="rounded border-gray-300 text-indigo-600"></td><td class="whitespace-nowrap px-6 py-3 font-medium text-gray-800">{{ $student->student_no }}</td>
-                                <td class="px-6 py-3"><img loading="lazy" width="40" height="40" src="{{ $student->user->avatar_thumbnail_url ?? asset('images/default-avatar.svg') }}" alt="Profile photo" class="h-10 w-10 rounded-full object-cover"></td>
-                                <td class="whitespace-nowrap px-6 py-3 text-gray-600">{{ $student->first_name }} {{ $student->last_name }}</td>
-                                <td class="px-6 py-3 text-gray-600">{{ $student->course->course_code ?? '—' }}</td>
-                                <td class="whitespace-nowrap px-6 py-3 text-gray-600">{{ $student->section->section_name ?? '—' }}</td>
-                                <td class="px-6 py-3"><span class="rounded-full px-2 py-1 text-xs font-medium {{ $student->enrollment_type === 'irregular' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800' }}">{{ ucfirst($student->enrollment_type) }}</span></td>
+                    <table
+                        class="min-w-[1080px] w-full table-fixed text-left text-sm [&_th]:px-5 [&_th]:py-4 [&_th]:align-middle [&_th]:font-medium [&_th]:tracking-wide [&_td]:h-20 [&_td]:px-5 [&_td]:py-4 [&_td]:align-middle">
+                        <colgroup>
+                            <col class="w-16">
+                            <col class="w-32">
+                            <col class="w-20">
+                            <col class="w-48">
+                            <col class="w-32">
+                            <col class="w-32">
+                            <col class="w-36">
+                            <col class="w-20">
+                        </colgroup>
+                        <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+                            <tr>
+                                <th class="px-6 py-3"><label class="flex items-center gap-2 normal-case"><input
+                                            type="checkbox"
+                                            :checked="selectedIds.length === allIds.length && allIds.length > 0"
+                                            @change="toggleAll()"
+                                            class="rounded border-gray-300 text-indigo-600"><span>Select
+                                            all</span></label></th>
+                                <th class="px-6 py-3">Student No.</th>
+                                <th class="px-6 py-3">Profile</th>
+                                <th class="px-6 py-3">Name</th>
+                                <th class="px-6 py-3">Course</th>
+                                <th class="px-6 py-3">Section</th>
+                                <th class="px-6 py-3">Enrollment</th>
+                                <th class="px-6 py-3">Account Status</th>
+                                <th class="px-6 py-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @forelse ($students as $student)
+                                <tr class="transition-colors hover:bg-gray-50/80">
+                                    <td class="px-6 py-3"><input type="checkbox" value="{{ $student->user_id }}"
+                                            :checked="selectedIds.includes({{ $student->user_id }})"
+                                            @change="selectedIds = $event.target.checked ? [...selectedIds, {{ $student->user_id }}] : selectedIds.filter(id => id !== {{ $student->user_id }})"
+                                            class="rounded border-gray-300 text-indigo-600"></td>
+                                    <td class="whitespace-nowrap px-6 py-3 font-medium text-gray-800">
+                                        {{ $student->student_no }}</td>
+                                    <td class="px-6 py-3"><img loading="lazy" width="40" height="40"
+                                            src="{{ $student->user->avatar_thumbnail_url ?? asset('images/default-avatar.svg') }}"
+                                            alt="Profile photo" class="h-10 w-10 rounded-full object-cover"></td>
+                                    <td class="whitespace-nowrap px-6 py-3 text-gray-600">{{ $student->first_name }}
+                                        {{ $student->last_name }}</td>
+                                    <td class="px-6 py-3 text-gray-600">{{ $student->course->course_code ?? '—' }}</td>
+                                    <td class="whitespace-nowrap px-6 py-3 text-gray-600">
+                                        {{ $student->section->section_name ?? '—' }}</td>
+                                    <td class="px-6 py-3"><span
+                                            class="rounded-full px-2 py-1 text-xs font-medium {{ $student->enrollment_type === 'irregular' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800' }}">{{ ucfirst($student->enrollment_type) }}</span>
+                                    </td>
                                     <td class="whitespace-nowrap px-6 py-3">
                                         <x-student-status :status="$student->user->status" />
                                         @if ($student->user->must_change_password)
-                                            <span class="mt-1 block text-xs font-medium text-amber-700">Password setup required</span>
+                                            <span class="mt-1 block text-xs font-medium text-amber-700">Password setup
+                                                required</span>
                                         @endif
                                     </td>
-                                <td class="px-6 py-3 text-right">
-                                    <x-action-menu
-                                        :delete-action="route('students.destroy', $student)"
-                                        :toggle-action="route('users.status.update', $student->user)"
-                                        :next-status="$student->user->isAccountActive() ? 'inactive' : 'active'"
-                                        :is-active="$student->user->isAccountActive()"
-                                        :requires-password-confirmation="true"
-                                        :delete-name="$student->fullName()">
-                                        <x-slot:reset>
-                                            <form method="POST" action="{{ route('users.password.reset', $student->user) }}" data-password-confirmation-required data-password-reset-confirmation-required>
-                                                @csrf
-                                                <button type="submit">Send password reset link</button>
-                                            </form>
-                                        </x-slot:reset>
-                                        <x-slot:qr><button type="button" @click="fetch('{{ url('admin/id-cards') }}/{{ $student->user_id }}', { headers: { Accept: 'application/json' }, credentials: 'same-origin' }).then(response => response.json().then(data => { if (!response.ok) throw new Error(data.message || 'QR unavailable.'); qrModal = { show: true, value: data.qr_code, label: data.name }; })).catch(error => window.alert(error.message))">View QR</button><button type="button" @click="window.ensureIqamsQrCode().then(() => window.printIqamsIdCard('{{ url('admin/id-cards') }}/{{ $student->user_id }}')).catch(error => window.alert(error.message))">Print ID Card</button></x-slot:qr>
-                                        <x-slot:edit><button type="button" @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $student->id, 'course_id' => (string) $student->course_id, 'section_id' => (string) $student->section_id, 'enrollment_type' => $student->enrollment_type, 'enrollment_group_ids' => $student->scheduleEnrollments->pluck('recurring_schedule_group_id')->values(), 'student_no' => $student->student_no, 'email' => $student->user->email ?? '', 'first_name' => $student->first_name, 'last_name' => $student->last_name, 'middle_name' => $student->middle_name, 'status' => $student->status, 'avatar_url' => $student->user->avatar_thumbnail_url ?? asset('images/default-avatar.svg')]) }}">Edit</button></x-slot:edit>
-                                    </x-action-menu>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="9" class="px-6 py-8 text-center text-gray-400">
-                                    No students yet. Add your first one.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                                    <td class="px-6 py-3 text-right">
+                                        <x-action-menu :delete-action="route('students.destroy', $student)" :toggle-action="route('users.status.update', $student->user)" :next-status="$student->user->isAccountActive() ? 'inactive' : 'active'"
+                                            :is-active="$student->user->isAccountActive()" :requires-password-confirmation="true" :delete-name="$student->fullName()">
+                                            <x-slot:reset>
+                                                <form method="POST"
+                                                    action="{{ route('users.password.reset', $student->user) }}"
+                                                    data-password-confirmation-required
+                                                    data-password-reset-confirmation-required>
+                                                    @csrf
+                                                    <button type="submit">Send password reset link</button>
+                                                </form>
+                                            </x-slot:reset>
+                                            <x-slot:qr><button type="button"
+                                                    @click="fetch('{{ url('admin/id-cards') }}/{{ $student->user_id }}', { headers: { Accept: 'application/json' }, credentials: 'same-origin' }).then(response => response.json().then(data => { if (!response.ok) throw new Error(data.message || 'QR unavailable.'); qrModal = { show: true, value: data.qr_code, label: data.name }; })).catch(error => window.alert(error.message))">View
+                                                    QR</button><button type="button"
+                                                    @click="window.ensureIqamsQrCode().then(() => window.printIqamsIdCard('{{ url('admin/id-cards') }}/{{ $student->user_id }}')).catch(error => window.alert(error.message))">Print
+                                                    ID Card</button></x-slot:qr>
+                                            <x-slot:edit><button type="button"
+                                                    @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $student->id, 'course_id' => (string) $student->course_id, 'section_id' => (string) $student->section_id, 'enrollment_type' => $student->enrollment_type, 'enrollment_group_ids' => $student->scheduleEnrollments->pluck('recurring_schedule_group_id')->values(), 'student_no' => $student->student_no, 'email' => $student->user->email ?? '', 'first_name' => $student->first_name, 'last_name' => $student->last_name, 'middle_name' => $student->middle_name, 'status' => $student->status, 'avatar_url' => $student->user->avatar_thumbnail_url ?? asset('images/default-avatar.svg')]) }}">Edit</button></x-slot:edit>
+                                        </x-action-menu>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="9" class="px-6 py-8 text-center text-gray-400">
+                                        No students yet. Add your first one.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
                 </div>
 
                 <div class="px-6 py-4 border-t border-gray-200">
@@ -94,151 +131,166 @@
         </div>
 
         {{-- Create Student Modal --}}
-        <div x-show="showCreateModal" x-cloak
-             class="fixed inset-0 z-[70] overflow-y-auto px-4 py-4 sm:px-6"
-             style="background: rgba(0,0,0,0.4);">
+        <div x-show="showCreateModal" x-cloak class="fixed inset-0 z-[70] overflow-y-auto px-4 py-4 sm:px-6"
+            style="background: rgba(0,0,0,0.4);">
             <div class="flex min-h-full items-center justify-center">
-            <div @click.outside="showCreateModal = false"
-                 class="w-full max-w-2xl rounded-lg bg-white p-5 shadow-xl sm:p-6">
+                <div @click.outside="showCreateModal = false"
+                    class="w-full max-w-2xl rounded-lg bg-white p-5 shadow-xl sm:p-6">
 
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold text-gray-800">Add Student</h3>
-                    <button @click="showCreateModal = false" class="text-gray-400 hover:text-gray-600">
-                        <x-heroicon-o-x-mark class="w-5 h-5" />
-                    </button>
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">Add Student</h3>
+                        <button @click="showCreateModal = false" class="text-gray-400 hover:text-gray-600">
+                            <x-heroicon-o-x-mark class="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    <form method="POST" action="{{ route('students.store') }}" enctype="multipart/form-data"
+                        class="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+                        @csrf
+                        <div class="mb-4 sm:col-span-2">
+                            <label class="mb-1 block text-sm font-medium text-gray-700">
+                                Profile Photo
+                            </label>
+                            <input type="file" name="avatar" accept="image/jpeg,image/png" required
+                                class="block w-full text-sm text-gray-600">
+                            @error('avatar')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="mb-4 grid grid-cols-1 gap-3 sm:contents">
+                            <div class="order-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
+                                <select name="course_id"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="">-- Select Course --</option>
+                                    @foreach ($courses as $course)
+                                        <option value="{{ $course->id }}" @selected(old('course_id') == $course->id)>
+                                            {{ $course->course_code }} - {{ $course->course_name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('course_id')
+                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div class="order-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Section <span
+                                        class="text-gray-400 font-normal">(optional)</span></label>
+                                <select name="section_id"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="">-- No Section Yet --</option>
+                                    @foreach ($sections as $section)
+                                        <option value="{{ $section->id }}" @selected(old('section_id') == $section->id)>
+                                            {{ $section->section_name }} ({{ $section->course->course_code ?? '—' }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('section_id')
+                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="order-3 mb-4">
+                            <label class="mb-1 block text-sm font-medium text-gray-700">Enrollment type</label>
+                            <select name="enrollment_type" x-model="createEnrollmentType"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="regular">Regular — all home-section classes</option>
+                                <option value="irregular">Irregular — selected class offerings</option>
+                            </select>
+                        </div>
+                        <div x-show="createEnrollmentType === 'irregular'" x-cloak
+                            class="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 sm:col-span-2">
+                            <p class="mb-2 text-sm font-medium text-amber-900">Class offerings</p>
+                            <p class="mb-2 text-xs text-amber-800">Each selection includes every recurring day in that
+                                offering.</p>
+                            <div class="max-h-40 space-y-2 overflow-y-auto">
+                                @foreach ($offerings as $offering)
+                                    <label class="flex gap-2 text-sm text-gray-700"><input type="checkbox"
+                                            name="enrollment_group_ids[]" value="{{ $offering['id'] }}"
+                                            @checked(in_array($offering['id'], old('enrollment_group_ids', [])))><span>{{ $offering['label'] }}</span></label>
+                                @endforeach
+                            </div>
+                            @error('enrollment_group_ids')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="mb-4 grid grid-cols-1 gap-3 sm:contents">
+                            <div class="order-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Student No.</label>
+                                <input type="text" name="student_no" value="{{ old('student_no') }}"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                    placeholder="e.g. 2026-00123">
+                                <p class="mt-1 text-xs leading-4 text-gray-400">This will also become the student's
+                                    login username.</p>
+                                @error('student_no')
+                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div class="order-5">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                                <input type="text" name="first_name" value="{{ old('first_name') }}"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                @error('first_name')
+                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="mb-4 grid grid-cols-1 gap-3 sm:contents">
+                            <div class="order-6">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name <span
+                                        class="text-gray-400 font-normal">(optional)</span></label>
+                                <input type="text" name="middle_name" value="{{ old('middle_name') }}"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                @error('middle_name')
+                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div class="order-7">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                                <input type="text" name="last_name" value="{{ old('last_name') }}"
+                                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                @error('last_name')
+                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="order-8 mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <input type="email" name="email" value="{{ old('email') }}"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                placeholder="student@email.com">
+                            @error('email')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="order-last flex items-center justify-end gap-3 sm:col-span-2">
+                            <button type="button" @click="showCreateModal = false"
+                                class="text-sm text-gray-500 hover:text-gray-700">
+                                Cancel
+                            </button>
+                            <button type="submit"
+                                class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
+                                Save Student
+                            </button>
+                        </div>
+                    </form>
                 </div>
-
-                <form method="POST" action="{{ route('students.store') }}" enctype="multipart/form-data" class="grid gap-x-4 gap-y-3 sm:grid-cols-2">
-                    @csrf
-                    <div class="mb-4 sm:col-span-2">
-                        <label class="mb-1 block text-sm font-medium text-gray-700">
-                            Profile Photo
-                        </label>
-                        <input type="file" name="avatar" accept="image/jpeg,image/png" required class="block w-full text-sm text-gray-600">
-                        @error('avatar')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="mb-4 grid grid-cols-1 gap-3 sm:contents">
-                        <div class="order-1">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
-                            <select name="course_id" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                <option value="">-- Select Course --</option>
-                                @foreach ($courses as $course)
-                                    <option value="{{ $course->id }}" @selected(old('course_id') == $course->id)>
-                                        {{ $course->course_code }} - {{ $course->course_name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('course_id')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div class="order-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Section <span class="text-gray-400 font-normal">(optional)</span></label>
-                            <select name="section_id" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                <option value="">-- No Section Yet --</option>
-                                @foreach ($sections as $section)
-                                    <option value="{{ $section->id }}" @selected(old('section_id') == $section->id)>
-                                        {{ $section->section_name }} ({{ $section->course->course_code ?? '—' }})
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('section_id')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
-                        </div>
-                    </div>
-
-                    <div class="order-3 mb-4">
-                        <label class="mb-1 block text-sm font-medium text-gray-700">Enrollment type</label>
-                        <select name="enrollment_type" x-model="createEnrollmentType" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="regular">Regular — all home-section classes</option>
-                            <option value="irregular">Irregular — selected class offerings</option>
-                        </select>
-                    </div>
-                    <div x-show="createEnrollmentType === 'irregular'" x-cloak class="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 sm:col-span-2">
-                        <p class="mb-2 text-sm font-medium text-amber-900">Class offerings</p>
-                        <p class="mb-2 text-xs text-amber-800">Each selection includes every recurring day in that offering.</p>
-                        <div class="max-h-40 space-y-2 overflow-y-auto">
-                            @foreach ($offerings as $offering)
-                                <label class="flex gap-2 text-sm text-gray-700"><input type="checkbox" name="enrollment_group_ids[]" value="{{ $offering['id'] }}" @checked(in_array($offering['id'], old('enrollment_group_ids', [])))><span>{{ $offering['label'] }}</span></label>
-                            @endforeach
-                        </div>
-                        @error('enrollment_group_ids')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
-                    </div>
-
-                    <div class="mb-4 grid grid-cols-1 gap-3 sm:contents">
-                        <div class="order-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Student No.</label>
-                            <input type="text" name="student_no" value="{{ old('student_no') }}"
-                                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                   placeholder="e.g. 2026-00123">
-                            <p class="mt-1 text-xs leading-4 text-gray-400">This will also become the student's login username.</p>
-                            @error('student_no')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
-                        </div>
-                        <div class="order-5">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                            <input type="text" name="first_name" value="{{ old('first_name') }}"
-                                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            @error('first_name')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
-                        </div>
-                    </div>
-
-                    <div class="mb-4 grid grid-cols-1 gap-3 sm:contents">
-                        <div class="order-6">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name <span class="text-gray-400 font-normal">(optional)</span></label>
-                            <input type="text" name="middle_name" value="{{ old('middle_name') }}"
-                                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            @error('middle_name')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
-                        </div>
-                        <div class="order-7">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                            <input type="text" name="last_name" value="{{ old('last_name') }}"
-                                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            @error('last_name')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
-                        </div>
-                    </div>
-
-                    <div class="order-8 mb-6">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input type="email" name="email" value="{{ old('email') }}"
-                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                               placeholder="student@email.com">
-                        @error('email')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="order-last flex items-center justify-end gap-3 sm:col-span-2">
-                        <button type="button" @click="showCreateModal = false" class="text-sm text-gray-500 hover:text-gray-700">
-                            Cancel
-                        </button>
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
-                            Save Student
-                        </button>
-                    </div>
-                </form>
-            </div>
             </div>
         </div>
 
         {{-- Edit Student Modal --}}
         <div x-show="editModal.show" x-cloak
-             class="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto px-4 py-6"
-             style="background: rgba(0,0,0,0.4);">
+            class="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto px-4 py-6"
+            style="background: rgba(0,0,0,0.4);">
             <div @click.outside="editModal.show = false"
-                 class="w-full max-w-xl rounded-lg bg-white p-5 shadow-xl sm:p-6">
+                class="w-full max-w-xl rounded-lg bg-white p-5 shadow-xl sm:p-6">
 
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-semibold text-gray-800">Edit Student</h3>
@@ -247,85 +299,98 @@
                     </button>
                 </div>
 
-                <form method="POST" :action="'{{ url('students') }}/' + editModal.id" enctype="multipart/form-data" data-password-confirmation-required>
+                <form method="POST" :action="'{{ url('students') }}/' + editModal.id" enctype="multipart/form-data"
+                    data-password-confirmation-required>
                     @csrf
                     @method('PUT')
-                    <div class="mb-4 flex items-center gap-4"><img :src="editModal.avatar_url" alt="Current profile photo" class="h-14 w-14 rounded-full object-cover"><div><label class="mb-1 block text-sm font-medium text-gray-700">Replace Profile Photo</label><input type="file" name="avatar" accept="image/jpeg,image/png" class="block w-full text-sm text-gray-600"></div></div>
+                    <div class="mb-4 flex items-center gap-4"><img :src="editModal.avatar_url"
+                            alt="Current profile photo" class="h-14 w-14 rounded-full object-cover">
+                        <div><label class="mb-1 block text-sm font-medium text-gray-700">Replace Profile
+                                Photo</label><input type="file" name="avatar" accept="image/jpeg,image/png"
+                                class="block w-full text-sm text-gray-600"></div>
+                    </div>
 
                     <div class="mb-4 grid grid-cols-1 gap-x-5 gap-y-3 sm:grid-cols-2">
-                    <div class="order-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
-                        <select name="course_id" x-model="editModal.course_id"
+                        <div class="order-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
+                            <select name="course_id" x-model="editModal.course_id"
                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">-- Select Course --</option>
-                            @foreach ($courses as $course)
-                                <option value="{{ $course->id }}">{{ $course->course_code }} - {{ $course->course_name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
+                                <option value="">-- Select Course --</option>
+                                @foreach ($courses as $course)
+                                    <option value="{{ $course->id }}">{{ $course->course_code }} -
+                                        {{ $course->course_name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
 
                         <div class="order-5">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Section</label>
-                        <select name="section_id" x-model="editModal.section_id"
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Section</label>
+                            <select name="section_id" x-model="editModal.section_id"
                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">-- No Section --</option>
-                            @foreach ($sections as $section)
-                                <option value="{{ $section->id }}">{{ $section->section_name }} ({{ $section->course->course_code ?? '—' }})</option>
-                            @endforeach
-                        </select>
-                    </div>
+                                <option value="">-- No Section --</option>
+                                @foreach ($sections as $section)
+                                    <option value="{{ $section->id }}">{{ $section->section_name }}
+                                        ({{ $section->course->course_code ?? '—' }})</option>
+                                @endforeach
+                            </select>
+                        </div>
 
                         <div class="order-6">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Student No.</label>
-                        <input type="text" x-model="editModal.student_no" disabled
-                               class="w-full rounded-md border-gray-200 bg-gray-50 text-gray-500 shadow-sm">
-                    </div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Student No.</label>
+                            <input type="text" x-model="editModal.student_no" disabled
+                                class="w-full rounded-md border-gray-200 bg-gray-50 text-gray-500 shadow-sm">
+                        </div>
                         <div class="order-7">
                             <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                             <input type="text" name="first_name" x-model="editModal.first_name"
-                                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    </div>
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
                         <div class="order-8">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
                             <input type="text" name="middle_name" x-model="editModal.middle_name"
-                                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                        <input type="text" name="last_name" x-model="editModal.last_name"
-                               class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input type="email" x-model="editModal.email" disabled
-                               class="w-full rounded-md border-gray-200 bg-gray-50 text-gray-500 shadow-sm">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                        <select name="status" x-model="editModal.status"
                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                            <option value="graduated">Graduated</option>
-                            <option value="dropped">Dropped</option>
-                        </select>
-                    </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                            <input type="text" name="last_name" x-model="editModal.last_name"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <input type="email" x-model="editModal.email" disabled
+                                class="w-full rounded-md border-gray-200 bg-gray-50 text-gray-500 shadow-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                            <select name="status" x-model="editModal.status"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="graduated">Graduated</option>
+                                <option value="dropped">Dropped</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="mb-4">
                         <label class="mb-1 block text-sm font-medium text-gray-700">Enrollment type</label>
-                        <select name="enrollment_type" x-model="editModal.enrollment_type" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <select name="enrollment_type" x-model="editModal.enrollment_type"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="regular">Regular — all home-section classes</option>
                             <option value="irregular">Irregular — selected class offerings</option>
                         </select>
                     </div>
-                    <div x-show="editModal.enrollment_type === 'irregular'" x-cloak class="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                    <div x-show="editModal.enrollment_type === 'irregular'" x-cloak
+                        class="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                         <p class="mb-2 text-sm font-medium text-amber-900">Class offerings</p>
                         <div class="max-h-40 space-y-2 overflow-y-auto">
                             @foreach ($offerings as $offering)
-                                <label class="flex gap-2 text-sm text-gray-700"><input type="checkbox" name="enrollment_group_ids[]" value="{{ $offering['id'] }}" :checked="editModal.enrollment_group_ids.includes('{{ $offering['id'] }}')" @change="editModal.enrollment_group_ids = $event.target.checked ? [...editModal.enrollment_group_ids, '{{ $offering['id'] }}'] : editModal.enrollment_group_ids.filter(id => id !== '{{ $offering['id'] }}')"><span>{{ $offering['label'] }}</span></label>
+                                <label class="flex gap-2 text-sm text-gray-700"><input type="checkbox"
+                                        name="enrollment_group_ids[]" value="{{ $offering['id'] }}"
+                                        :checked="editModal.enrollment_group_ids.includes('{{ $offering['id'] }}')"
+                                        @change="editModal.enrollment_group_ids = $event.target.checked ? [...editModal.enrollment_group_ids, '{{ $offering['id'] }}'] : editModal.enrollment_group_ids.filter(id => id !== '{{ $offering['id'] }}')"><span>{{ $offering['label'] }}</span></label>
                             @endforeach
                         </div>
                     </div>
@@ -333,10 +398,12 @@
                     <p class="text-xs text-gray-400 mb-4">Email and login credentials can't be changed here yet.</p>
 
                     <div class="mt-4 flex items-center justify-end gap-3 border-t border-gray-100 pt-3">
-                        <button type="button" @click="editModal.show = false" class="rounded px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700">
+                        <button type="button" @click="editModal.show = false"
+                            class="rounded px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700">
                             Cancel
                         </button>
-                        <button type="submit" class="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+                        <button type="submit"
+                            class="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
                             Update Student
                         </button>
                     </div>
@@ -345,27 +412,29 @@
         </div>
 
         {{-- Delete Confirmation Modal --}}
-        <div x-show="deleteModal.show" x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center px-4"
-             style="background: rgba(0,0,0,0.4);">
-            <div @click.outside="deleteModal.show = false"
-                 class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
+        <div x-show="deleteModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4"
+            style="background: rgba(0,0,0,0.4);">
+            <div @click.outside="deleteModal.show = false" class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
 
                 <h3 class="text-lg font-semibold text-gray-800 mb-2">Deactivate Student</h3>
                 <p class="text-sm text-gray-500 mb-6">
-                    Are you sure you want to deactivate <span class="font-medium text-gray-700" x-text="deleteModal.name"></span>?
+                    Are you sure you want to deactivate <span class="font-medium text-gray-700"
+                        x-text="deleteModal.name"></span>?
                     Their login will be disabled and attendance history will be retained.
                 </p>
 
-                <form method="POST" :action="'{{ url('students') }}/' + deleteModal.id" data-password-confirmation-required>
+                <form method="POST" :action="'{{ url('students') }}/' + deleteModal.id"
+                    data-password-confirmation-required>
                     @csrf
                     @method('DELETE')
 
                     <div class="flex items-center justify-end gap-3">
-                        <button type="button" @click="deleteModal.show = false" class="text-sm text-gray-500 hover:text-gray-700">
+                        <button type="button" @click="deleteModal.show = false"
+                            class="text-sm text-gray-500 hover:text-gray-700">
                             Cancel
                         </button>
-                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded">
+                        <button type="submit"
+                            class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded">
                             Deactivate / Archive
                         </button>
                     </div>
