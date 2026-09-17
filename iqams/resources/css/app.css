@@ -30,6 +30,78 @@
     background: rgb(186 230 253 / 80%);
 }
 
+/* Keep the admin sidebar scrollbar unobtrusive until it is needed. */
+.app-sidebar-nav {
+    scrollbar-width: none;
+    scrollbar-color: rgb(156 163 175 / 75%) transparent;
+}
+
+.app-sidebar-nav::-webkit-scrollbar {
+    width: 0;
+    transition: width 160ms ease;
+}
+
+.app-sidebar-nav:hover,
+.app-sidebar-nav.is-scrolling,
+.app-sidebar-nav:focus-within {
+    scrollbar-width: thin;
+}
+
+.app-sidebar-nav:hover::-webkit-scrollbar,
+.app-sidebar-nav.is-scrolling::-webkit-scrollbar,
+.app-sidebar-nav:focus-within::-webkit-scrollbar {
+    width: 8px;
+}
+
+.app-sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.app-sidebar-nav::-webkit-scrollbar-thumb {
+    background: rgb(156 163 175 / 75%);
+    border-radius: 9999px;
+}
+
+.app-sidebar-nav::-webkit-scrollbar-thumb:hover {
+    background: rgb(107 114 128 / 85%);
+}
+
+/* Apply the same unobtrusive scrollbar behavior to the main dashboard area. */
+.app-main-scroll {
+    scrollbar-width: none;
+    scrollbar-color: rgb(156 163 175 / 75%) transparent;
+}
+
+.app-main-scroll::-webkit-scrollbar {
+    width: 0;
+    transition: width 160ms ease;
+}
+
+.app-main-scroll:hover,
+.app-main-scroll.is-scrolling,
+.app-main-scroll:focus-within {
+    scrollbar-width: thin;
+}
+
+.app-main-scroll:hover::-webkit-scrollbar,
+.app-main-scroll.is-scrolling::-webkit-scrollbar,
+.app-main-scroll:focus-within::-webkit-scrollbar {
+    width: 8px;
+}
+
+.app-main-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.app-main-scroll::-webkit-scrollbar-thumb {
+    background: rgb(156 163 175 / 75%);
+    border-radius: 9999px;
+}
+
+.app-main-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgb(107 114 128 / 85%);
+}
+
 /* Navigation feedback must not block another link or the browser's controls. */
 .global-page-loader {
     position: fixed;

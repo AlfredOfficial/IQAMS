@@ -34,7 +34,7 @@
 @endif
 
 {{-- Navigation links --}}
-<nav data-sidebar-nav class="flex-1 overflow-y-auto px-2 py-4 space-y-1" aria-label="Sidebar">
+<nav data-sidebar-nav class="app-sidebar-nav flex-1 overflow-y-auto px-2 py-4 space-y-1" aria-label="Sidebar">
     <x-sidebar-link :href="route('dashboard')" :active="request()->routeIs(
         'dashboard',
         'admin.dashboard',

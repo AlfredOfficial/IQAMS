@@ -44,7 +44,7 @@
             :class="sidebarCollapsed ? 'lg:ml-[80px]' : 'lg:ml-[260px]'"
         >
             @isset($header)
-                <header class="z-30 shrink-0 border-b border-gray-200 bg-white">
+                <header class="iqams-shell-header z-30 shrink-0 border-b border-gray-200 bg-white">
                     <div class="mx-auto flex min-h-20 max-w-7xl items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
                         <div class="min-w-0 flex-1">{{ $header }}</div>
                         <x-leave-notification-bell class="hidden lg:block" />
@@ -52,7 +52,7 @@
                 </header>
             @endisset
 
-            <main class="min-h-0 flex-1 overflow-y-auto">
+            <main class="app-main-scroll min-h-0 flex-1 overflow-y-auto">
                 {{ $slot }}
             </main>
         </div>

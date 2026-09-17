@@ -14,7 +14,6 @@
         analyticsTimer: null,
         clockTimer: null,
         clockDate: '',
-        clockTime: '',
         page: 1,
         perPage: 10,
         filters: { search: '', role: '', department: '', section: '', subject: '', status: '', period: 'today' },
@@ -35,7 +34,6 @@
         tick() {
             const now = new Date();
             this.clockDate = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-            this.clockTime = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
         },
         async refresh(signal) {
             if (this.loading || document.hidden) return;
@@ -118,7 +116,7 @@
         max(items) { return Math.max(1, ...items.map(item => item.value)); },
         points(items) { const max = this.max(items); const width = 560; const height = 120; return items.map((item, index) => `${items.length === 1 ? 0 : index * width / (items.length - 1)},${height - (item.value / max * 105)}`).join(' '); }
     }" @keydown.escape.window="confirmation = null">
-        <header class="sticky top-0 z-30 mb-6 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
+        <header class="sticky top-0 z-30 min-h-20 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
             <div class="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
@@ -127,18 +125,10 @@
                         <p class="mt-1 text-sm text-slate-500">Live college-wide attendance monitoring and analytics</p>
                     </div>
                     <div class="flex items-center gap-3">
-                        <div class="relative hidden md:block">
-                            <x-heroicon-o-magnifying-glass
-                                class="pointer-events-none absolute left-3 top-2.5 h-5 w-5 text-slate-400" />
-                            <input form="attendance-filters" name="search" x-model="filters.search" type="search"
-                                placeholder="Search attendance..."
-                                class="w-64 rounded-xl border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
                         <x-leave-notification-bell />
                         <div
-                            class="min-w-44 rounded-xl border border-slate-200 bg-white px-4 py-2 text-right shadow-sm">
+                            class="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-right shadow-sm">
                             <p class="text-sm font-semibold text-slate-800" x-text="clockDate"></p>
-                            <p class="text-xs text-slate-500" x-text="clockTime"></p>
                         </div>
                     </div>
                 </div>

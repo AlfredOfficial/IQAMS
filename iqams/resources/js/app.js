@@ -771,6 +771,19 @@ Alpine.data('classAttendanceBrowser', () => ({
 
 Alpine.start();
 
+// Show shared sidebar scrollbars briefly while the user scrolls.
+document.querySelectorAll('.app-sidebar-nav, .app-main-scroll').forEach((scrollArea) => {
+    let scrollTimer;
+
+    scrollArea.addEventListener('scroll', () => {
+        scrollArea.classList.add('is-scrolling');
+        window.clearTimeout(scrollTimer);
+        scrollTimer = window.setTimeout(() => {
+            scrollArea.classList.remove('is-scrolling');
+        }, 800);
+    }, { passive: true });
+});
+
 /**
  * Delayed, non-blocking feedback for native document navigation.
  * Never cover a usable page while waiting for secondary resources.
