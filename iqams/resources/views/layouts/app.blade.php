@@ -10,7 +10,7 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="h-screen overflow-hidden font-sans antialiased bg-gray-50"
+<body data-admin-shell class="h-screen overflow-hidden font-sans antialiased bg-gray-50"
       x-data="{
           sidebarCollapsed: localStorage.getItem('sidebarCollapsed') === 'true',
           mobileOpen: false

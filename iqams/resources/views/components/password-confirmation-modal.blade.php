@@ -44,6 +44,7 @@
                 const pendingForm = this.form;
                 this.close(true);
                 if (pendingForm) {
+                    window.setIqamsFormSubmitLoading?.(pendingForm);
                     HTMLFormElement.prototype.submit.call(pendingForm);
                 }
             } catch (error) {

@@ -513,31 +513,9 @@ Alpine.data('attendanceOverview', (series) => ({
     init() {
         this.$nextTick(() => {
             const svg = this.$root.querySelector('svg[viewBox="0 0 760 300"]');
-            if (!svg || svg.querySelector('[data-chart-axes]')) return;
-
-            const ns = 'http://www.w3.org/2000/svg';
-            const group = document.createElementNS(ns, 'g');
-            group.setAttribute('data-chart-axes', 'true');
-            group.setAttribute('pointer-events', 'none');
-
-            const line = (x1, y1, x2, y2, attributes = {}) => {
-                const element = document.createElementNS(ns, 'line');
-                Object.entries({ x1, y1, x2, y2, ...attributes }).forEach(([key, value]) => element.setAttribute(key, value));
-                return element;
-            };
-            const text = (x, y, value) => {
-                const element = document.createElementNS(ns, 'text');
-                element.setAttribute('x', x); element.setAttribute('y', y); element.setAttribute('text-anchor', 'end'); element.setAttribute('fill', '#526987'); element.setAttribute('font-size', '12'); element.textContent = value;
-                return element;
-            };
-
-            group.append(
-                line(58, 24, 58, 234, { stroke: '#64748b', 'stroke-width': '1.5' }),
-                line(58, 234, 730, 234, { stroke: '#64748b', 'stroke-width': '1.5' }),
-                line(58, this.y(this.target), 730, this.y(this.target), { stroke: '#f59e0b', 'stroke-dasharray': '6 4' }),
-                ...[100, 75, 50, 25, 0].map((value) => text(47, this.y(value) + 4, `${value}%`))
-            );
-            svg.prepend(group);
+            if (!svg) return;
+            this.renderChart(svg);
+            this.$watch('period', () => this.renderChart(svg));
 
             const chartWrapper = svg.parentElement;
             const chartFrame = chartWrapper.parentElement;
@@ -559,20 +537,52 @@ Alpine.data('attendanceOverview', (series) => ({
                 summary.style.marginTop = '20px';
                 summary.style.width = 'auto';
             }
-            document.querySelectorAll('[data-chart-scale]').forEach((scale) => {
-                if (scale.parentElement !== chartFrame) scale.remove();
-            });
-            if (chartFrame && !chartFrame.querySelector('[data-chart-scale]')) {
-                const scale = document.createElement('div');
-                scale.dataset.chartScale = 'true';
-                scale.className = 'pointer-events-none absolute left-0 top-6 z-10 flex h-[210px] w-10 flex-col justify-between text-right text-xs text-slate-600';
-                [100, 75, 50, 25, 0].forEach((value) => {
-                    const label = document.createElement('span');
-                    label.textContent = `${value}%`;
-                    scale.append(label);
-                });
-                chartFrame.append(scale);
-            }
+        });
+    },
+    renderChart(svg) {
+        const grid = svg.querySelector('[data-chart-grid]');
+        const line = svg.querySelector('[data-chart-line]');
+        const pointsGroup = svg.querySelector('[data-chart-points]');
+        if (!grid || !line || !pointsGroup) return;
+
+        const ns = 'http://www.w3.org/2000/svg';
+        grid.replaceChildren();
+        pointsGroup.replaceChildren();
+        [100, 75, 50, 25, 0].forEach((value) => {
+            const guide = document.createElementNS(ns, 'line');
+            guide.setAttribute('x1', '58'); guide.setAttribute('x2', '730');
+            guide.setAttribute('y1', this.y(value)); guide.setAttribute('y2', this.y(value));
+            guide.setAttribute('stroke', '#e8eef2');
+            const label = document.createElementNS(ns, 'text');
+            label.setAttribute('x', '47'); label.setAttribute('y', this.y(value) + 4);
+            label.setAttribute('text-anchor', 'end'); label.setAttribute('fill', '#526987');
+            label.setAttribute('font-size', '12'); label.textContent = `${value}%`;
+            grid.append(guide, label);
+        });
+        line.setAttribute('points', this.linePoints);
+        this.points.forEach((point, index) => {
+            const group = document.createElementNS(ns, 'g');
+            const circle = document.createElementNS(ns, 'circle');
+            circle.setAttribute('cx', this.x(index)); circle.setAttribute('cy', this.y(point.percentage));
+            circle.setAttribute('r', '5.5'); circle.setAttribute('fill', '#0f9f86');
+            circle.setAttribute('stroke', 'white'); circle.setAttribute('stroke-width', '2');
+            circle.classList.add('cursor-pointer');
+            circle.addEventListener('mouseenter', () => { this.active = point; });
+            circle.addEventListener('mouseleave', () => { this.active = null; });
+            const title = document.createElementNS(ns, 'title');
+            title.textContent = `${point.label}: ${this.format(point.percentage)}`;
+            circle.append(title);
+            const value = document.createElementNS(ns, 'text');
+            value.setAttribute('x', this.x(index)); value.setAttribute('y', this.y(point.percentage) - 14);
+            value.setAttribute('text-anchor', 'middle'); value.setAttribute('fill', '#087c6a');
+            value.setAttribute('font-size', '13'); value.setAttribute('font-weight', '700');
+            value.textContent = this.format(point.percentage);
+            const label = document.createElementNS(ns, 'text');
+            label.setAttribute('x', this.x(index)); label.setAttribute('y', '265');
+            label.setAttribute('text-anchor', 'middle'); label.setAttribute('fill', '#334a68');
+            label.setAttribute('font-size', '12'); label.textContent = point.label;
+            group.append(circle, value, label);
+            pointsGroup.append(group);
         });
     },
     get points() {
@@ -784,6 +794,26 @@ document.querySelectorAll('.app-sidebar-nav, .app-main-scroll').forEach((scrollA
     }, { passive: true });
 });
 
+// Native page navigation rebuilds the sidebar, so keep the user's menu position
+// when moving between pages instead of sending them back to the first item.
+const sidebarScrollKey = 'iqams.sidebar.scrollTop';
+const sidebarNav = document.querySelector('[data-sidebar-nav].app-sidebar-nav');
+
+if (sidebarNav) {
+    try {
+        const savedScrollTop = Number(sessionStorage.getItem(sidebarScrollKey));
+        if (Number.isFinite(savedScrollTop) && savedScrollTop > 0) {
+            sidebarNav.scrollTop = savedScrollTop;
+        }
+
+        window.addEventListener('pagehide', () => {
+            sessionStorage.setItem(sidebarScrollKey, String(sidebarNav.scrollTop));
+        });
+    } catch {
+        // Storage may be unavailable in privacy-restricted browser contexts.
+    }
+}
+
 /**
  * Delayed, non-blocking feedback for native document navigation.
  * Never cover a usable page while waiting for secondary resources.
@@ -895,3 +925,106 @@ document.addEventListener('submit', (event) => {
 });
 
 installNavigationFeedback(window, document, pageLoader);
+
+// Keep the admin shell mounted while navigating between admin pages. The
+// server-rendered response is still used, but only its shell content is swapped
+// so the sidebar does not visibly reset on every click.
+if (document.body.hasAttribute('data-admin-shell')) {
+    const navigateAdmin = async (url, addHistory = true) => {
+        const destination = new URL(url, window.location.href);
+        if (destination.origin !== window.location.origin) return false;
+
+        const currentContent = document.querySelector('#app-content');
+        const currentNav = document.querySelector('[data-sidebar-nav].app-sidebar-nav');
+        if (!currentContent || !currentNav) return false;
+
+        pageLoader.start();
+        window.dispatchEvent(new Event('iqams:navigating'));
+
+        try {
+            const response = await fetch(destination.href, {
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            if (!response.ok) throw new Error(`Navigation failed: ${response.status}`);
+
+            const html = await response.text();
+            const parsed = new DOMParser().parseFromString(html, 'text/html');
+            const nextContent = parsed.querySelector('#app-content');
+            const nextNav = parsed.querySelector('[data-sidebar-nav].app-sidebar-nav');
+            if (!nextContent || !nextNav) throw new Error('Navigation response has no admin shell');
+
+            const sidebarScrollTop = currentNav.scrollTop;
+            Alpine.destroyTree(currentContent);
+            Alpine.destroyTree(currentNav);
+            currentContent.replaceWith(nextContent);
+            currentNav.replaceWith(nextNav);
+            nextNav.scrollTop = sidebarScrollTop;
+            Alpine.initTree(nextNav);
+            Alpine.initTree(nextContent);
+
+            if (parsed.title) document.title = parsed.title;
+            if (addHistory) window.history.pushState({}, '', destination.href);
+            window.scrollTo(0, 0);
+            pageLoader.stop();
+            window.dispatchEvent(new Event('iqams:navigation-complete'));
+            return true;
+        } catch {
+            pageLoader.stop();
+            return false;
+        }
+    };
+
+    document.addEventListener('click', (event) => {
+        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey
+            || event.shiftKey || event.altKey) return;
+        const link = event.target.closest?.('a[data-sidebar-link][href]');
+        if (!link || (link.target && link.target.toLowerCase() !== '_self') || link.hasAttribute('download')) return;
+
+        const destination = new URL(link.href, window.location.href);
+        const current = new URL(window.location.href);
+        if (destination.origin !== current.origin || destination.hash
+            || destination.href === current.href) return;
+
+        event.preventDefault();
+        navigateAdmin(destination.href).then((handled) => {
+            if (!handled) window.location.assign(destination.href);
+        });
+    });
+
+    window.addEventListener('popstate', () => {
+        navigateAdmin(window.location.href, false).then((handled) => {
+            if (!handled) window.location.reload();
+        });
+    });
+}
+
+// Shared lightweight feedback for login and admin CRUD submit actions.
+const setFormSubmitLoading = (form) => {
+    const button = form?.querySelector('button[type="submit"]:not([disabled])');
+    if (!button || button.classList.contains('crud-submit-loading')) return;
+
+    button.disabled = true;
+    button.classList.add('crud-submit-loading');
+    button.setAttribute('aria-busy', 'true');
+};
+
+window.setIqamsFormSubmitLoading = setFormSubmitLoading;
+
+document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || event.defaultPrevented) return;
+
+    if (form.matches('[data-login-form]')) {
+        const button = form.querySelector('[data-login-submit]');
+        const label = form.querySelector('[data-login-label]');
+        if (!button || button.disabled) return;
+        button.disabled = true;
+        button.classList.add('is-loading');
+        button.setAttribute('aria-busy', 'true');
+        if (label) label.textContent = 'Signing in…';
+        return;
+    }
+
+    setFormSubmitLoading(form);
+});

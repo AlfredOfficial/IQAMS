@@ -9,7 +9,7 @@
         class="mb-5 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
         :status="session('status')" />
 
-    <form method="POST" action="{{ route('login') }}" class="space-y-5">
+    <form method="POST" action="{{ route('login') }}" class="space-y-5" data-login-form>
         @csrf
 
         <div>
@@ -53,10 +53,11 @@
             <span>Remember me for 30 days</span>
         </label>
 
-        <button type="submit"
-            class="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2">
-            Login
-            <x-heroicon-o-arrow-right class="h-4 w-4" />
+        <button type="submit" data-login-submit
+            class="login-submit-button flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2">
+            <span data-login-label>Login</span>
+            <span class="login-submit-spinner" data-login-spinner aria-hidden="true"></span>
+            <x-heroicon-o-arrow-right data-login-arrow class="h-4 w-4" />
         </button>
     </form>
 </x-guest-layout>

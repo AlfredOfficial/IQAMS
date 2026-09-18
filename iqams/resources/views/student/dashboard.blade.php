@@ -30,9 +30,8 @@
             <div class="relative px-3 pb-2 sm:px-7">
                 <div x-show="active" x-cloak
                     class="pointer-events-none absolute right-8 top-2 z-10 rounded-lg bg-slate-900 px-2 py-1 text-xs font-semibold text-white"
-                    x-text="active ? `${active.label}: ${format(active.percentage)}` : ''"></div><template
-                    x-if="points.length">
-                    <div class="overflow-x-auto"><svg class="h-72 min-w-[620px] w-full" viewBox="0 0 760 300"
+                    x-text="active ? `${active.label}: ${format(active.percentage)}` : ''"></div>
+                <div x-show="points.length" x-cloak class="w-full overflow-hidden"><svg class="h-72 w-full" viewBox="0 0 760 300"
                             role="img" aria-labelledby="attendance-chart-title attendance-chart-description">
                             <title id="attendance-chart-title">Attendance rate over time</title>
                             <desc id="attendance-chart-description">Attendance percentage by period with a 75 percent
@@ -43,34 +42,15 @@
                                     <stop offset="0" stop-color="#10b981" stop-opacity=".22" />
                                     <stop offset="1" stop-color="#10b981" stop-opacity=".02" />
                                 </linearGradient>
-                            </defs><template x-for="value in [0,25,50,75,100]" :key="value">
-                                <g>
-                                    <line x1="58" :y1="y(value)" x2="730" :y2="y(value)"
-                                        stroke="#e8eef2" /><text x="47" :y="y(value) + 4" text-anchor="end"
-                                        fill="#526987" font-size="12" x-text="`${value}%`"></text>
-                                </g>
-                            </template>
+                            </defs><g data-chart-grid></g>
                             <line x1="58" :y1="y(target)" x2="730" :y2="y(target)"
                                 stroke="#f59e0b" stroke-dasharray="6 4" /><text x="728" :y="y(target) - 10"
                                 text-anchor="end" fill="#f59e0b" font-size="12"
                                 x-text="`${target}% (passing rate)`"></text>
                             <polygon :points="areaPoints" fill="url(#studentAttendanceFill)"></polygon>
-                            <polyline :points="linePoints" fill="none" stroke="#0f9f86" stroke-width="3"
-                                stroke-linecap="round" stroke-linejoin="round"></polyline><template
-                                x-for="(point, index) in points" :key="`${period}-${index}`">
-                                <g>
-                                    <circle :cx="x(index)" :cy="y(point.percentage)" r="5.5" fill="#0f9f86"
-                                        stroke="white" stroke-width="2" class="cursor-pointer"
-                                        @mouseenter="active = point" @mouseleave="active = null">
-                                        <title x-text="`${point.label}: ${format(point.percentage)}`"></title>
-                                    </circle><text :x="x(index)" :y="y(point.percentage) - 14"
-                                        text-anchor="middle" fill="#087c6a" font-size="13" font-weight="700"
-                                        x-text="format(point.percentage)"></text><text :x="x(index)" y="265"
-                                        text-anchor="middle" fill="#334a68" font-size="12" x-text="point.label"></text>
-                                </g>
-                            </template>
+                            <polyline data-chart-line fill="none" stroke="#0f9f86" stroke-width="3"
+                                stroke-linecap="round" stroke-linejoin="round"></polyline><g data-chart-points></g>
                         </svg></div>
-                </template>
                 <p x-show="!points.length"
                     class="flex h-72 items-center justify-center text-center text-sm text-slate-500">No rated attendance
                     sessions are available for this period.</p>
