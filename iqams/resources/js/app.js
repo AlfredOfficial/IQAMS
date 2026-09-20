@@ -523,6 +523,7 @@ Alpine.data('attendanceOverview', (series) => ({
             chartWrapper.classList.add('chart-wrapper');
             chartWrapper.style.width = '100%';
             chartWrapper.style.maxWidth = '100%';
+            chartWrapper.style.height = '300px';
             chartWrapper.style.overflow = 'hidden';
             svg.style.width = '100%';
             svg.style.height = '100%';

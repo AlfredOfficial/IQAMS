@@ -17,10 +17,15 @@
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
-        <div class="flex items-center justify-end mt-4">
-            <x-primary-button>
+        <div class="mt-4 flex items-center">
+            <x-primary-button class="w-full justify-center rounded-xl py-3.5 text-sm normal-case tracking-normal">
                 {{ __('Email Setup or Reset Link') }}
             </x-primary-button>
         </div>
     </form>
+
+    <a href="{{ route('login') }}"
+        class="mt-3 flex min-h-[3.5rem] w-full items-center justify-center rounded-xl border border-gray-300 px-4 py-3.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2">
+        {{ __('Back to Login') }}
+    </a>
 </x-guest-layout>

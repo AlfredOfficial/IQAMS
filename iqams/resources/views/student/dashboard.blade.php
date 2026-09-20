@@ -31,7 +31,8 @@
                 <div x-show="active" x-cloak
                     class="pointer-events-none absolute right-8 top-2 z-10 rounded-lg bg-slate-900 px-2 py-1 text-xs font-semibold text-white"
                     x-text="active ? `${active.label}: ${format(active.percentage)}` : ''"></div>
-                <div x-show="points.length" x-cloak class="w-full overflow-hidden"><svg class="h-72 w-full" viewBox="0 0 760 300"
+                <div x-show="points.length" x-cloak class="h-[300px] w-full overflow-hidden"><svg class="block h-full w-full" viewBox="0 0 760 300"
+                            preserveAspectRatio="none"
                             role="img" aria-labelledby="attendance-chart-title attendance-chart-description">
                             <title id="attendance-chart-title">Attendance rate over time</title>
                             <desc id="attendance-chart-description">Attendance percentage by period with a 75 percent
