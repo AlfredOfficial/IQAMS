@@ -136,6 +136,29 @@ class InstructorClassAttendanceTest extends TestCase
         $this->assertStringStartsWith('PK', $response->streamedContent());
     }
 
+    public function test_instructor_sees_subject_dropout_risk_warning_at_five_absences(): void
+    {
+        [$instructorUser, $otherInstructorUser, $subject, $section, $otherSection] = $this->classroom();
+        $schedule = $this->schedule($instructorUser->instructor, $subject, $section, 'monday');
+        $otherSchedule = $this->schedule($otherInstructorUser->instructor, $subject, $otherSection, 'monday');
+        $student = $this->student($section, 'STU-RISK', 'Risk', 'Student');
+        $otherStudent = $this->student($otherSection, 'STU-OTHER', 'Other', 'Student');
+
+        for ($day = 3; $day <= 7; $day++) {
+            $this->log($student, $schedule, "2026-08-{$day} 10:05:00", 'absent');
+            $this->log($otherStudent, $otherSchedule, "2026-08-{$day} 10:05:00", 'absent');
+        }
+
+        $this->actingAs($instructorUser)
+            ->get(route('instructor.issues'))
+            ->assertOk()
+            ->assertSee('Student dropout-risk warnings')
+            ->assertSee('Risk Student')
+            ->assertSee('5 absences')
+            ->assertSee('At Risk')
+            ->assertDontSee('Other Student');
+    }
+
     public function test_date_must_match_the_selected_schedule_weekday(): void
     {
         [$instructorUser, , $subject, $section] = $this->classroom();

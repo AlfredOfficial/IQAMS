@@ -23,7 +23,7 @@ class StudentAttendanceSummary
     public function forStudent(Student $student): array
     {
         return $this->cache->rememberStudent((int) $student->user_id, function () use ($student): array {
-            return $this->totals($this->summaryQuery($student)->first());
+            return $this->totals($this->ratedRows($student));
         });
     }
 
@@ -37,14 +37,7 @@ class StudentAttendanceSummary
      */
     public function overviewForStudent(Student $student): array
     {
-        $rows = $this->summaryQuery($student)
-            ->select([
-                'attendance_logs.status',
-                'attendance_logs.attendance_date',
-                'school_events.attendance_mode as event_attendance_mode',
-            ])
-            ->orderBy('attendance_logs.attendance_date')
-            ->get();
+        $rows = $this->ratedRows($student);
 
         $today = now(config('app.timezone'))->startOfDay();
         $firstRated = $rows->first(fn ($row) => $row->status !== 'excused' && $row->event_attendance_mode !== 'cancelled');
@@ -84,11 +77,69 @@ class StudentAttendanceSummary
             ->selectRaw("\n                COALESCE(SUM(CASE WHEN {$notExcluded} AND attendance_logs.status = 'present' THEN 1 ELSE 0 END), 0) AS present,\n                COALESCE(SUM(CASE WHEN {$notExcluded} AND attendance_logs.status = 'late' THEN 1 ELSE 0 END), 0) AS late,\n                COALESCE(SUM(CASE WHEN {$notExcluded} AND attendance_logs.status = 'absent' THEN 1 ELSE 0 END), 0) AS absent,\n                COALESCE(SUM(CASE WHEN attendance_logs.status = 'excused' THEN 1 ELSE 0 END), 0) AS excused,\n                COALESCE(SUM(CASE WHEN {$cancelled} OR attendance_logs.status = 'excused' THEN 1 ELSE 0 END), 0) AS excluded\n            ");
     }
 
-    /** @return array{present:int,late:int,absent:int,excused:int,attended:int,excluded:int,scheduled:int,percentage:float} */
-    private function totals(?object $row): array
+    /** @return Collection<int, object> */
+    private function ratedRows(Student $student): Collection
     {
-        $present = (int) ($row->present ?? 0); $late = (int) ($row->late ?? 0); $absent = (int) ($row->absent ?? 0);
-        $excused = (int) ($row->excused ?? 0); $excluded = (int) ($row->excluded ?? 0); $attended = $present + $late; $scheduled = $attended + $absent;
+        $rows = $this->summaryQuery($student)
+            ->select([
+                'attendance_logs.status',
+                'attendance_logs.attendance_date',
+                'attendance_logs.schedule_id',
+                'school_events.attendance_mode as event_attendance_mode',
+            ])
+            ->orderBy('attendance_logs.attendance_date')
+            ->get();
+
+        // The absence command normally materializes these rows. Fill any gap
+        // for completed schedules on dates already represented in the history,
+        // so an unrecorded subject cannot make that period appear perfect.
+        $dates = $rows->pluck('attendance_date')->filter()->map(fn ($date) => Carbon::parse($date, config('app.timezone'))->toDateString())->unique();
+        if ($dates->isEmpty()) {
+            return $rows;
+        }
+
+        $schedules = $this->eligibility->schedulesFor($student)->get(['id', 'day', 'start_time', 'end_time']);
+        $existing = $rows->filter(fn ($row) => $row->schedule_id !== null)
+            ->map(fn ($row) => Carbon::parse($row->attendance_date, config('app.timezone'))->toDateString().'|'.$row->schedule_id)
+            ->flip();
+
+        foreach ($dates as $dateString) {
+            if ($rows->contains(fn ($row) => Carbon::parse($row->attendance_date, config('app.timezone'))->toDateString() === $dateString
+                && $row->event_attendance_mode === 'cancelled')) {
+                continue;
+            }
+            $date = Carbon::parse($dateString, config('app.timezone'));
+            foreach ($schedules as $schedule) {
+                if (strtolower($date->format('l')) !== strtolower((string) $schedule->day)) {
+                    continue;
+                }
+
+                $occurrence = app(\App\Services\ScheduleOccurrenceResolver::class)->forDate($schedule, $date);
+                if (! $occurrence || now(config('app.timezone'))->lessThanOrEqualTo($occurrence->endsAt)) {
+                    continue;
+                }
+
+                $key = $dateString.'|'.$schedule->id;
+                if (! $existing->has($key)) {
+                    $rows->push((object) [
+                        'status' => 'absent',
+                        'attendance_date' => $dateString,
+                        'schedule_id' => $schedule->id,
+                        'event_attendance_mode' => null,
+                    ]);
+                    $existing->put($key, true);
+                }
+            }
+        }
+
+        return $rows->sortBy('attendance_date')->values();
+    }
+
+    /** @param Collection<int, object> $rows @return array{present:int,late:int,absent:int,excused:int,attended:int,excluded:int,scheduled:int,percentage:float} */
+    private function totals(Collection $rows): array
+    {
+        $present = $rows->where('status', 'present')->count(); $late = $rows->where('status', 'late')->count(); $absent = $rows->where('status', 'absent')->count();
+        $excused = $rows->where('status', 'excused')->count(); $excluded = $rows->filter(fn ($row) => $row->status === 'excused' || $row->event_attendance_mode === 'cancelled')->count(); $attended = $present + $late; $scheduled = $attended + $absent;
         return compact('present', 'late', 'absent', 'excused', 'attended', 'excluded', 'scheduled') + ['percentage' => $scheduled > 0 ? round($attended / $scheduled * 100, 2) : 0.0];
     }
 

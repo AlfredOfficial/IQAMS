@@ -92,7 +92,7 @@
 @endphp
 <x-instructor-layout title="Dashboard">
     <div x-data="instructorWorkspace" data-realtime-url="{{ route('instructor.dashboard.realtime') }}"
-        data-id-card-url="{{ route('id-card.show') }}" class="mx-auto max-w-[1500px] space-y-4">
+        data-id-card-url="{{ route('id-card.show') }}" class="mx-auto w-full min-w-0 max-w-[1500px] space-y-4">
         @unless (Auth::user()->isAccountActive())
             <div class="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-800">
                 <div class="flex items-center gap-3"><span
@@ -102,8 +102,8 @@
                 </div>
             </div>
         @endunless
-        <div class="grid gap-4 xl:grid-cols-[minmax(0,1.9fr)_minmax(310px,1fr)]">
-            <div class="space-y-4">
+        <div class="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.9fr)_minmax(310px,1fr)]">
+            <div class="min-w-0 space-y-4">
                 <section class="rounded-xl border border-gray-200 bg-white px-4 py-4 sm:px-5">
                     <div class="mb-3">
                         <h2 class="text-lg font-semibold text-gray-900">Today's attendance</h2>
@@ -184,6 +184,22 @@
                     </section>
                 </div>
 
+                @if($studentWarnings->isNotEmpty())
+                    <section class="rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm" aria-labelledby="student-risk-summary-title">
+                        <div class="flex items-center justify-between gap-2">
+                            <h2 id="student-risk-summary-title" class="text-xs font-extrabold uppercase text-rose-900">Student dropout-risk warnings</h2>
+                            <a href="{{ route('instructor.issues') }}" class="text-[11px] font-bold text-rose-700">Review</a>
+                        </div>
+                        <div class="mt-3 space-y-2">
+                            @foreach($studentWarnings->take(3) as $warning)
+                                <div class="rounded-lg bg-white px-3 py-2 ring-1 ring-rose-200">
+                                    <p class="truncate text-xs font-bold text-slate-900">{{ $warning['student_name'] }}</p>
+                                    <p class="text-[10px] text-slate-600">{{ $warning['subject_code'] }} · {{ $warning['absence_count'] }} absences</p>
+                                </div>
+                            @endforeach
+                        </div>
+                    </section>
+                @endif
                 <section class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
                     <div class="flex items-center justify-between gap-3">
                         <div>
@@ -195,8 +211,8 @@
                             class="shrink-0 rounded-lg bg-slate-50 px-3 py-1.5 text-[10px] font-semibold">{{ now()->format('F Y') }}⌄</a>
                     </div>
                     @if ($chartHasData)
-                        <div class="mt-4 overflow-x-auto rounded-xl border border-slate-100 bg-slate-50/40 px-2 pt-2">
-                            <svg class="h-64 min-w-[680px] w-full"
+                        <div class="mt-4 w-full overflow-hidden rounded-xl border border-slate-100 bg-slate-50/40 px-1 pt-2 sm:px-2">
+                            <svg class="block h-56 w-full sm:h-64"
                                 viewBox="0 0 {{ $chartWidth }} {{ $chartHeight }}" role="img"
                                 aria-labelledby="instructor-attendance-chart-title instructor-attendance-chart-description">
                                 <title id="instructor-attendance-chart-title">Daily attendance completion</title>
@@ -247,10 +263,10 @@
                 </section>
             </div>
 
-            <aside class="space-y-4">
+            <aside class="min-w-0 space-y-4">
                 <section class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
                     <h2 class="text-sm font-extrabold uppercase text-[#10294b]">My Profile</h2>
-                    <div class="mt-4 flex items-center gap-4">
+                    <div class="mt-4 flex min-w-0 items-center gap-3 sm:gap-4">
                         <div class="h-20 w-20 shrink-0 overflow-hidden rounded-full bg-blue-100 text-blue-800">
                             @if (auth()->user()->avatar_thumbnail_url)
                                 <img loading="lazy" width="80" height="80"
@@ -261,7 +277,7 @@
                                 </div>
                             @endif
                         </div>
-                        <div class="min-w-0 text-sm leading-6">
+                        <div class="min-w-0 flex-1 text-sm leading-6">
                             <p class="truncate text-base font-extrabold text-slate-950">{{ $instructor->fullName() }}
                             </p>
                             <p class="text-slate-600">Instructor ID: {{ $instructor->employee_no }}</p>
@@ -323,7 +339,7 @@
             </aside>
         </div>
 
-        <section class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+        {{-- <section class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
             <h2 class="text-xs font-extrabold uppercase text-[#10294b]">Quick Access</h2>
             <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
                 @foreach ([['attendance', 'My Attendance'], ['history', 'Attendance History'], ['summary', 'Monthly Summary'], ['schedule', 'My Teaching Schedule'], ['issues', 'Attendance Issues'], ['profile', 'Profile']] as [$route, $label])
@@ -336,6 +352,6 @@
                         </svg>{{ $label }}</a>
                 @endforeach
             </div>
-        </section>
+        </section> --}}
     </div>
 </x-instructor-layout>

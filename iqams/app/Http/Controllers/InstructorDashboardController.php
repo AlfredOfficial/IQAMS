@@ -5,13 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\AttendanceLog;
 use App\Models\Schedule;
 use App\Services\PersonnelAttendanceSummary;
+use App\Services\InstructorStudentAbsenceWarningService;
 use App\Services\ScheduleOccurrenceResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
 class InstructorDashboardController extends Controller
 {
-    public function index(Request $request, PersonnelAttendanceSummary $summary, ScheduleOccurrenceResolver $occurrences)
+    public function index(Request $request, PersonnelAttendanceSummary $summary, ScheduleOccurrenceResolver $occurrences, InstructorStudentAbsenceWarningService $studentWarnings)
     {
         $user = $request->user()->load([
             'instructor:id,user_id,department_id,employee_no,name_prefix,first_name,middle_name,last_name,professional_credentials',
@@ -59,7 +60,8 @@ class InstructorDashboardController extends Controller
         }
         $issues = $monthDays->filter(fn ($day) => $day['status'] === 'Absent' || $day['isIncomplete'] || $day['late'] || $day['early'])
             ->reverse()->take(3)->values();
-        return view('instructor.dashboard', compact('instructor', 'today', 'totals', 'monthDays', 'todaySchedules', 'nextSchedule', 'nextScheduleOccurrence', 'issues'));
+        $studentWarnings = $studentWarnings->forInstructor($instructor);
+        return view('instructor.dashboard', compact('instructor', 'today', 'totals', 'monthDays', 'todaySchedules', 'nextSchedule', 'nextScheduleOccurrence', 'issues', 'studentWarnings'));
     }
 
     public function realtime(Request $request, PersonnelAttendanceSummary $summary)

@@ -83,6 +83,38 @@ class StudentAttendanceSummaryTest extends TestCase
         $this->assertSame(0.0, $summary['percentage']);
     }
 
+    public function test_completed_same_day_schedules_without_logs_are_counted_as_absent(): void
+    {
+        [$student, $schedule] = $this->fixture();
+        Schedule::create([
+            'subject_id' => $schedule->subject_id,
+            'instructor_id' => $schedule->instructor_id,
+            'section_id' => $schedule->section_id,
+            'day' => 'monday',
+            'start_time' => '10:00',
+            'end_time' => '12:00',
+            'room' => 'Room 2',
+        ]);
+        Schedule::create([
+            'subject_id' => $schedule->subject_id,
+            'instructor_id' => $schedule->instructor_id,
+            'section_id' => $schedule->section_id,
+            'day' => 'monday',
+            'start_time' => '13:00',
+            'end_time' => '15:00',
+            'room' => 'Room 3',
+        ]);
+
+        $this->log($student->user, $schedule, Carbon::parse('2026-08-03 08:05', 'Asia/Manila'), 'present');
+
+        $summary = app(StudentAttendanceSummary::class)->forStudent($student->fresh());
+
+        $this->assertSame(1, $summary['attended']);
+        $this->assertSame(2, $summary['absent']);
+        $this->assertSame(3, $summary['scheduled']);
+        $this->assertSame(33.33, $summary['percentage']);
+    }
+
     public function test_cached_summary_is_invalidated_when_attendance_is_created(): void
     {
         [$student, $schedule] = $this->fixture();

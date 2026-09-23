@@ -9,7 +9,10 @@ use Illuminate\Validation\ValidationException;
 
 class PersonnelAttendancePages
 {
-    public function __construct(private PersonnelAttendanceSummary $summary) {}
+    public function __construct(
+        private PersonnelAttendanceSummary $summary,
+        private InstructorStudentAbsenceWarningService $studentWarnings,
+    ) {}
 
     public function history(User $user, array $filters): array
     {
@@ -111,6 +114,10 @@ class PersonnelAttendancePages
             ->reverse()
             ->values();
 
-        return compact('days');
+        return compact('days') + [
+            'studentWarnings' => $user->instructor
+                ? $this->studentWarnings->forInstructor($user->instructor)
+                : collect(),
+        ];
     }
 }
