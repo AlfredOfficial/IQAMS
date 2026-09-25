@@ -60,6 +60,7 @@ class IdCardController extends Controller
             'year_level' => $card['year_level'],
             'qr_code' => $qrCode,
             'avatar_url' => $user->avatar_url ?: asset('images/default-avatar.svg'),
+            'fallback_avatar_url' => asset('images/default-avatar.svg'),
             'logo_url' => asset('favicon.svg'),
             'filename' => $card['filename'],
         ])->header('Cache-Control', 'private, no-store');

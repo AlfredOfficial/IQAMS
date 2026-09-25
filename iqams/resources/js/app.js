@@ -478,15 +478,15 @@ Alpine.data('studentWorkspace', () => pollingWorkspace((root, data) => {
     if (attended && data.summary) attended.textContent = data.summary.attended;
     const tableBody = root.querySelector('[data-recent-attendance] tbody');
     if (tableBody) {
-        const statusClasses = { present: 'bg-emerald-100 text-emerald-700', late: 'bg-amber-100 text-amber-700', absent: 'bg-rose-100 text-rose-700', excused: 'bg-sky-100 text-sky-700' };
+        const statusClasses = { present: 'bg-emerald-50 text-emerald-700 ring-emerald-200', late: 'bg-amber-50 text-amber-700 ring-amber-200', absent: 'bg-red-50 text-red-700 ring-red-200', excused: 'bg-sky-50 text-sky-700 ring-sky-200' };
         if (!data.recent.length) {
-            const row = document.createElement('tr'); const cell = document.createElement('td'); cell.colSpan = 5; cell.className = 'px-4 py-12 text-center text-sm text-slate-500'; cell.textContent = 'No attendance records yet.'; row.append(cell); tableBody.replaceChildren(row); return;
+            const row = document.createElement('tr'); const cell = document.createElement('td'); cell.colSpan = 4; cell.className = 'px-4 py-12 text-center text-sm text-slate-500'; cell.textContent = 'No attendance records yet.'; row.append(cell); tableBody.replaceChildren(row); return;
         }
         tableBody.replaceChildren(...data.recent.map(log => {
             const row = document.createElement('tr'); row.className = 'border-b border-slate-100 text-sm last:border-0';
             const cell = (text, classes = 'px-4 py-3.5 text-slate-600') => { const element = document.createElement('td'); element.className = classes; element.textContent = text; return element; };
-            row.append(cell(log.date, 'whitespace-nowrap px-4 py-3.5 text-slate-600'), cell(log.title, 'px-4 py-3.5 font-medium text-[#10294b]'), cell('—', 'px-4 py-3.5 text-slate-600'));
-            const statusCell = document.createElement('td'); statusCell.className = 'px-4 py-3.5'; const badge = document.createElement('span'); badge.className = `inline-flex rounded-full px-3 py-1 text-xs font-semibold capitalize ${statusClasses[log.status] || 'bg-slate-100 text-slate-700'}`; badge.textContent = log.status; statusCell.append(badge); row.append(statusCell);
+            row.append(cell(log.date, 'whitespace-nowrap px-4 py-3.5 text-slate-600'), cell(log.title, 'px-4 py-3.5 font-medium text-[#10294b]'));
+            const statusCell = document.createElement('td'); statusCell.className = 'px-4 py-3.5'; const badge = document.createElement('span'); badge.className = `inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-semibold capitalize ring-1 ring-inset ${statusClasses[log.status] || 'bg-slate-50 text-slate-600 ring-slate-200'}`; const dot = document.createElement('span'); dot.className = 'h-1.5 w-1.5 rounded-full bg-current opacity-70'; badge.append(dot, document.createTextNode(log.status || 'Unknown')); statusCell.append(badge); row.append(statusCell);
             row.append(cell(log.time || '—', 'whitespace-nowrap px-4 py-3.5 text-slate-600')); return row;
         }));
         return;

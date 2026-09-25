@@ -91,7 +91,6 @@
                         <tr class="bg-slate-50 text-xs font-semibold text-slate-500">
                             <th class="px-4 py-3">Date</th>
                             <th class="px-4 py-3">Subject</th>
-                            <th class="px-4 py-3">Section</th>
                             <th class="px-4 py-3">Status</th>
                             <th class="px-4 py-3">Time</th>
                         </tr>
@@ -104,14 +103,12 @@
                                 <td class="px-4 py-3.5 font-medium text-[#10294b]">
                                     {{ $log->schoolEvent?->title ?? ($log->schedule?->subject?->subject_name ?? 'Attendance record') }}
                                 </td>
-                                <td class="px-4 py-3.5 text-slate-600">{{ $student->section?->section_name ?? '—' }}
-                                </td>
                                 <td class="px-4 py-3.5"><x-student-status :status="$log->status" /></td>
                                 <td class="whitespace-nowrap px-4 py-3.5 text-slate-600">
                                     {{ $log->status === 'absent' ? '—' : \Illuminate\Support\Carbon::parse($log->scan_time)->format('g:i A') }}
                                 </td>
                         </tr>@empty<tr>
-                                <td colspan="5" class="px-4 py-12 text-center text-sm text-slate-500">No attendance
+                                <td colspan="4" class="px-4 py-12 text-center text-sm text-slate-500">No attendance
                                     records yet.</td>
                             </tr>
                         @endforelse

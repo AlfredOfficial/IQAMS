@@ -34,6 +34,10 @@
         tick() {
             const now = new Date();
             this.clockDate = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+            const localDate = now.toLocaleDateString('en-CA');
+            if (this.data.date && this.data.date !== localDate) {
+                window.location.reload();
+            }
         },
         async refresh(signal) {
             if (this.loading || document.hidden) return;
@@ -44,6 +48,12 @@
                 const response = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin', signal });
                 if (!response.ok) throw new Error('Unable to refresh');
                 const fresh = await response.json();
+                if (fresh.date !== this.data.date) {
+                    this.data = { ...this.data, ...fresh, scans: [] };
+                    this.cursor = fresh.cursor;
+                    this.page = 1;
+                    return;
+                }
                 const newest = [...fresh.scans].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
                 if (newest && !this.data.scans.some(scan => scan.id === newest.id)) {
                     this.confirmation = newest;

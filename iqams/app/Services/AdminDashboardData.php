@@ -27,7 +27,7 @@ class AdminDashboardData
         $weekStart = $generatedAt->copy()->startOfWeek()->startOfDay();
         $references = DashboardReferenceCache::data();
 
-        $scanQuery = $this->scanQuery()
+        $scanQuery = $this->scanQuery($today, $tomorrow)
             ->when($cursor, fn (Builder $query) => $query
                 ->where('attendance_logs.updated_at', '>=', $cursor)
                 ->where('attendance_logs.updated_at', '<=', $generatedAt));
@@ -40,6 +40,7 @@ class AdminDashboardData
 
         $payload = [
             'generated_at' => $generatedAt->toIso8601String(),
+            'date' => $today->toDateString(),
             'cursor' => $nextCursor->toIso8601String(),
             'stats' => $analytics['stats'],
             'scans' => $scans->map(fn (AttendanceLog $log) => $this->formatLog($log))->values()->all(),
@@ -59,8 +60,10 @@ class AdminDashboardData
         $generatedAt = now();
         $nextCursor = $generatedAt->copy()->subSecond()->startOfSecond();
         $effectiveCursor = $cursor ?? $generatedAt->copy()->subDay();
+        $today = $generatedAt->copy()->startOfDay();
+        $tomorrow = $today->copy()->addDay();
 
-        $scans = $this->deltaScanQuery()
+        $scans = $this->deltaScanQuery($today, $tomorrow)
             ->where('attendance_logs.updated_at', '>=', $effectiveCursor)
             ->where('attendance_logs.updated_at', '<=', $generatedAt)
             ->orderByDesc('attendance_logs.updated_at')
@@ -70,6 +73,7 @@ class AdminDashboardData
 
         return [
             'generated_at' => $generatedAt->toIso8601String(),
+            'date' => $today->toDateString(),
             'cursor' => $nextCursor->toIso8601String(),
             'scans' => $scans->map(fn (AttendanceLog $log) => $this->formatLog($log))->values()->all(),
         ];
@@ -132,10 +136,12 @@ class AdminDashboardData
         });
     }
 
-    private function scanQuery(): Builder
+    private function scanQuery(Carbon $today, Carbon $tomorrow): Builder
     {
         return AttendanceLog::canonical()
             ->where('attendance_logs.record_origin', 'scanner')
+            ->where('attendance_logs.scan_time', '>=', $today)
+            ->where('attendance_logs.scan_time', '<', $tomorrow)
             ->select([
                 'attendance_logs.id', 'attendance_logs.user_id', 'attendance_logs.schedule_id',
                 'attendance_logs.school_event_id', 'attendance_logs.attendance_type',
@@ -161,10 +167,12 @@ class AdminDashboardData
             ]);
     }
 
-    private function deltaScanQuery(): Builder
+    private function deltaScanQuery(Carbon $today, Carbon $tomorrow): Builder
     {
         return AttendanceLog::query()
             ->where('attendance_logs.record_origin', 'scanner')
+            ->where('attendance_logs.scan_time', '>=', $today)
+            ->where('attendance_logs.scan_time', '<', $tomorrow)
             ->select([
                 'attendance_logs.id', 'attendance_logs.user_id', 'attendance_logs.schedule_id',
                 'attendance_logs.school_event_id', 'attendance_logs.attendance_type',
