@@ -435,7 +435,7 @@ class AdminDashboardData
             ->where('record_state', 'canonical')
             ->selectRaw("{$expression} as bucket, COUNT(*) as aggregate")->groupBy('bucket')->pluck('aggregate', 'bucket');
 
-        return collect(range(0, 6))->map(function ($offset) use ($from, $counts) {
+        return collect(range(0, 4))->map(function ($offset) use ($from, $counts) {
             $day = $from->copy()->addDays($offset);
 
             return ['label' => $day->format('D'), 'value' => (int) ($counts->get($day->toDateString()) ?? 0)];

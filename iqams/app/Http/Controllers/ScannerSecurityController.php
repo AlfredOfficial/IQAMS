@@ -22,7 +22,7 @@ class ScannerSecurityController extends Controller
 {
     public function index()
     {
-        $terminals = ScannerTerminal::latest()->get(['id', 'name', 'location', 'is_active']);
+        $terminals = ScannerTerminal::latest()->get(['id', 'name', 'location', 'is_active', 'last_used_at']);
         $audits = AttendanceScanAudit::query()
             ->with([
                 'user:id,name',
