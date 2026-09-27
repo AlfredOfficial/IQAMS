@@ -34,58 +34,58 @@
 
                 <div class="overflow-x-auto">
                     <table
-                        class="min-w-[1200px] w-full table-fixed text-left text-sm [&_th]:px-5 [&_th]:py-4 [&_th]:align-middle [&_th]:font-medium [&_th]:tracking-wide [&_td]:h-20 [&_td]:px-5 [&_td]:py-4 [&_td]:align-middle">
+                        class="min-w-[1200px] w-full table-fixed text-left text-sm [&_th]:px-4 [&_th]:py-3 [&_th]:align-middle [&_th]:text-xs [&_th]:font-semibold [&_th]:tracking-wide [&_td]:px-4 [&_td]:py-4 [&_td]:align-middle [&_td:nth-child(7)]:whitespace-nowrap [&_td:nth-child(8)]:whitespace-nowrap">
                         <colgroup>
-                            <col class="w-16">
+                            <col class="w-12">
                             <col class="w-32">
                             <col class="w-20">
-                            <col class="w-48">
-                            <col class="w-48">
-                            <col class="w-64">
-                            <col class="w-36">
-                            <col class="w-20">
+                            <col class="w-56">
+                            <col class="w-60">
+                            <col class="w-72">
+                            <col class="w-44">
+                            <col class="w-24">
                         </colgroup>
                         <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
                             <tr>
-                                <th class="px-6 py-3"><label class="flex items-center gap-2 normal-case"><input
+                                <th><label class="flex items-center gap-2 normal-case whitespace-nowrap"><input
                                             type="checkbox"
                                             :checked="selectedIds.length === allIds.length && allIds.length > 0"
                                             @change="toggleAll()"
-                                            class="rounded border-gray-300 text-indigo-600"><span>Select
-                                            all</span></label></th>
-                                <th class="px-6 py-3">Staff ID</th> {{-- never mind the table keep the employee no in the data base --}}
-                                <th class="px-6 py-3">Profile</th>
-                                <th class="px-6 py-3">Name</th>
-                                <th class="px-6 py-3">Office/Unit</th>
-                                <th class="px-6 py-3">Email</th>
-                                <th class="px-6 py-3">Status</th>
-                                <th class="px-6 py-3 text-right">Actions</th>
+                                            class="rounded border-gray-300 text-indigo-600"><span>
+                                            </span></label></th>
+                                <th>Staff ID</th> {{-- never mind the table keep the employee no in the data base --}}
+                                <th>Profile</th>
+                                <th>Name</th>
+                                <th>Office/Unit</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th class="text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
                             @forelse ($staffMembers as $staff)
                                 <tr class="transition-colors hover:bg-gray-50/80">
-                                    <td class="px-6 py-3"><input type="checkbox" value="{{ $staff->user_id }}"
+                                    <td><input type="checkbox" value="{{ $staff->user_id }}"
                                             :checked="selectedIds.includes({{ $staff->user_id }})"
                                             @change="selectedIds = $event.target.checked ? [...selectedIds, {{ $staff->user_id }}] : selectedIds.filter(id => id !== {{ $staff->user_id }})"
                                             class="rounded border-gray-300 text-indigo-600"></td>
-                                    <td class="whitespace-nowrap px-6 py-3 font-medium text-gray-800">
+                                    <td class="whitespace-nowrap font-medium text-gray-800">
                                         {{ $staff->employee_no }}</td>
-                                    <td class="px-6 py-3"><img loading="lazy" width="40" height="40"
+                                    <td><img loading="lazy" width="40" height="40"
                                             src="{{ $staff->user->avatar_thumbnail_url ?? asset('images/default-avatar.svg') }}"
                                             alt="Profile photo" class="h-10 w-10 rounded-full object-cover"></td>
-                                    <td class="break-words px-6 py-3 text-gray-600">{{ $staff->fullName() }}</td>
-                                    <td class="px-6 py-3 text-gray-600">
+                                    <td class="break-words text-gray-600">{{ $staff->fullName() }}</td>
+                                    <td class="text-gray-600">
                                         {{ $staff->officeUnit?->name ?? 'Not assigned' }}</td>
-                                    <td class="px-6 py-3 text-gray-600">{{ $staff->user->email ?? '—' }}</td>
-                                    <td class="whitespace-nowrap px-6 py-3">
+                                    <td class="truncate text-gray-600" title="{{ $staff->user->email ?? '—' }}">{{ $staff->user->email ?? '—' }}</td>
+                                    <td class="whitespace-nowrap">
                                         <x-student-status :status="$staff->user->status" />
                                         @if ($staff->user->must_change_password)
                                             <span class="mt-1 block text-xs font-medium text-amber-700">Password setup
                                                 required</span>
                                         @endif
                                     </td>
-                                    <td class="px-6 py-3 text-right">
+                                    <td class="text-right">
                                         <x-action-menu :delete-action="route('non-teaching-staff.destroy', $staff)" :toggle-action="route('users.status.update', $staff->user)" :next-status="$staff->user->isAccountActive() ? 'inactive' : 'active'"
                                             :is-active="$staff->user->isAccountActive()" :requires-password-confirmation="true" :delete-name="$staff->fullName()">
                                             <x-slot:reset>

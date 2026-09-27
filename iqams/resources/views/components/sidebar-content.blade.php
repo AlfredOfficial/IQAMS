@@ -91,7 +91,7 @@
         <div class="px-3 pb-2 pt-5" @if ($collapsible) x-show="!sidebarCollapsed" x-cloak @endif>
             <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Reports</p>
         </div>
-        <x-sidebar-link :href="route('admin.reports.daily-personnel.index')" :active="request()->routeIs('admin.reports.daily-personnel.*')" :collapsible="$collapsible" label="Daily Personnel Attendance">
+        <x-sidebar-link :href="route('admin.reports.daily-personnel.index')" :active="request()->routeIs('admin.reports.daily-personnel.*')" :collapsible="$collapsible" label="Personnel Attendance">
             <x-slot name="icon"><x-heroicon-o-document-chart-bar class="h-5 w-5" /></x-slot>
         </x-sidebar-link>
         <div class="px-3 pt-5 pb-2" @if ($collapsible) x-show="!sidebarCollapsed" x-cloak @endif>

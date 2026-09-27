@@ -35,63 +35,64 @@
 
                 <div class="overflow-x-auto">
                     <table
-                        class="min-w-[1080px] w-full table-fixed text-left text-sm [&_th]:px-5 [&_th]:py-4 [&_th]:align-middle [&_th]:font-medium [&_th]:tracking-wide [&_td]:h-20 [&_td]:px-5 [&_td]:py-4 [&_td]:align-middle">
+                        class="min-w-[1240px] w-full table-fixed text-left text-sm [&_th]:px-4 [&_th]:py-3 [&_th]:align-middle [&_th]:text-xs [&_th]:font-semibold [&_th]:tracking-wide [&_td]:px-4 [&_td]:py-4 [&_td]:align-middle [&_td:nth-child(8)]:whitespace-nowrap [&_td:nth-child(9)]:whitespace-nowrap">
                         <colgroup>
-                            <col class="w-16">
+                            <col class="w-12">
                             <col class="w-32">
                             <col class="w-20">
-                            <col class="w-48">
-                            <col class="w-32">
-                            <col class="w-32">
-                            <col class="w-36">
-                            <col class="w-20">
+                            <col class="w-56">
+                            <col class="w-40">
+                            <col class="w-40">
+                            <col class="w-44">
+                            <col class="w-44">
+                            <col class="w-24">
                         </colgroup>
                         <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
                             <tr>
-                                <th class="px-6 py-3"><label class="flex items-center gap-2 normal-case"><input
+                                <th><label class="flex items-center gap-2 normal-case whitespace-nowrap"><input
                                             type="checkbox"
                                             :checked="selectedIds.length === allIds.length && allIds.length > 0"
                                             @change="toggleAll()"
-                                            class="rounded border-gray-300 text-indigo-600"><span>Select
-                                            all</span></label></th>
-                                <th class="px-6 py-3">Student No.</th>
-                                <th class="px-6 py-3">Profile</th>
-                                <th class="px-6 py-3">Name</th>
-                                <th class="px-6 py-3">Course</th>
-                                <th class="px-6 py-3">Section</th>
-                                <th class="px-6 py-3">Enrollment</th>
-                                <th class="px-6 py-3">Account Status</th>
-                                <th class="px-6 py-3 text-right">Actions</th>
+                                            class="rounded border-gray-300 text-indigo-600"><span>
+                                            </span></label></th>
+                                <th>Student No.</th>
+                                <th>Profile</th>
+                                <th>Name</th>
+                                <th>Course</th>
+                                <th>Section</th>
+                                <th>Enrollment</th>
+                                <th>Account Status</th>
+                                <th class="text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
                             @forelse ($students as $student)
                                 <tr class="transition-colors hover:bg-gray-50/80">
-                                    <td class="px-6 py-3"><input type="checkbox" value="{{ $student->user_id }}"
+                                    <td><input type="checkbox" value="{{ $student->user_id }}"
                                             :checked="selectedIds.includes({{ $student->user_id }})"
                                             @change="selectedIds = $event.target.checked ? [...selectedIds, {{ $student->user_id }}] : selectedIds.filter(id => id !== {{ $student->user_id }})"
                                             class="rounded border-gray-300 text-indigo-600"></td>
-                                    <td class="whitespace-nowrap px-6 py-3 font-medium text-gray-800">
+                                    <td class="whitespace-nowrap font-medium text-gray-800">
                                         {{ $student->student_no }}</td>
-                                    <td class="px-6 py-3"><img loading="lazy" width="40" height="40"
+                                    <td><img loading="lazy" width="40" height="40"
                                             src="{{ $student->user->avatar_thumbnail_url ?? asset('images/default-avatar.svg') }}"
                                             alt="Profile photo" class="h-10 w-10 rounded-full object-cover"></td>
-                                    <td class="whitespace-nowrap px-6 py-3 text-gray-600">{{ $student->first_name }}
+                                    <td class="whitespace-nowrap text-gray-600">{{ $student->first_name }}
                                         {{ $student->last_name }}</td>
-                                    <td class="px-6 py-3 text-gray-600">{{ $student->course->course_code ?? '—' }}</td>
-                                    <td class="whitespace-nowrap px-6 py-3 text-gray-600">
+                                    <td class="text-gray-600">{{ $student->course->course_code ?? '—' }}</td>
+                                    <td class="whitespace-nowrap text-gray-600">
                                         {{ $student->section->section_name ?? '—' }}</td>
-                                    <td class="px-6 py-3"><span
+                                    <td><span
                                             class="rounded-full px-2 py-1 text-xs font-medium {{ $student->enrollment_type === 'irregular' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800' }}">{{ ucfirst($student->enrollment_type) }}</span>
                                     </td>
-                                    <td class="whitespace-nowrap px-6 py-3">
+                                    <td class="whitespace-nowrap">
                                         <x-student-status :status="$student->user->status" />
                                         @if ($student->user->must_change_password)
                                             <span class="mt-1 block text-xs font-medium text-amber-700">Password setup
                                                 required</span>
                                         @endif
                                     </td>
-                                    <td class="px-6 py-3 text-right">
+                                    <td class="text-right">
                                         <x-action-menu :delete-action="route('students.destroy', $student)" :toggle-action="route('users.status.update', $student->user)" :next-status="$student->user->isAccountActive() ? 'inactive' : 'active'"
                                             :is-active="$student->user->isAccountActive()" :requires-password-confirmation="true" :delete-name="$student->fullName()">
                                             <x-slot:reset>
