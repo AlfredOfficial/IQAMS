@@ -92,7 +92,7 @@
 @endphp
 <x-instructor-layout title="Dashboard">
     <div x-data="instructorWorkspace" data-realtime-url="{{ route('instructor.dashboard.realtime') }}"
-        data-id-card-url="{{ route('id-card.show') }}" class="mx-auto w-full min-w-0 max-w-[1500px] space-y-4">
+        data-id-card-url="{{ route('id-card.show') }}" class="instructor-dashboard mx-auto w-full min-w-0 max-w-[1500px] space-y-3">
         @unless (Auth::user()->isAccountActive())
             <div class="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-800">
                 <div class="flex items-center gap-3"><span
@@ -102,9 +102,31 @@
                 </div>
             </div>
         @endunless
-        <div class="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.9fr)_minmax(310px,1fr)]">
-            <div class="min-w-0 space-y-4">
-                <section class="rounded-xl border border-gray-200 bg-white px-4 py-4 sm:px-5">
+        <section class="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label="Attendance summary">
+            <div class="dashboard-card rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm">
+                <p class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Attendance rate</p>
+                <p data-stat="percentage" class="mt-1 text-xl font-extrabold text-blue-700">{{ $totals['percentage'] }}%</p>
+                <p class="mt-0.5 text-[10px] text-slate-500">This month</p>
+            </div>
+            <div class="dashboard-card rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm">
+                <p class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Present days</p>
+                <p data-stat="present" class="mt-1 text-xl font-extrabold text-emerald-700">{{ $totals['presentDays'] }}</p>
+                <p class="mt-0.5 text-[10px] text-slate-500">This month</p>
+            </div>
+            <div class="dashboard-card rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm">
+                <p class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Late count</p>
+                <p data-stat="late" class="mt-1 text-xl font-extrabold text-orange-600">{{ $totals['lateCount'] }}</p>
+                <p class="mt-0.5 text-[10px] text-slate-500">Recorded late arrivals</p>
+            </div>
+            <div class="dashboard-card rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm">
+                <p class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Open issues</p>
+                <p class="mt-1 text-xl font-extrabold text-amber-700">{{ $issues->count() }}</p>
+                <p class="mt-0.5 text-[10px] text-slate-500">Needs review</p>
+            </div>
+        </section>
+        <div class="grid min-w-0 gap-3 xl:grid-cols-12">
+            <div class="min-w-0 space-y-3 xl:col-span-8">
+                <section class="dashboard-card rounded-xl border border-gray-200 bg-white px-4 py-3 sm:px-4">
                     <div class="mb-3">
                         <h2 class="text-lg font-semibold text-gray-900">Today's attendance</h2>
                         <p class="text-sm text-gray-500">Your four daily attendance periods</p>
@@ -126,11 +148,11 @@
                             class="h-full rounded-full bg-emerald-500 transition-[width] duration-300"
                             style="width: {{ $today['progressPercentage'] }}%"></div>
                     </div>
-                    <div class="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 lg:grid-cols-4">
+                    <div class="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
                         @foreach ($progressPeriods as $key => $label)
                             @php($log = $today['events'][$key])
                             <div data-instructor-milestone="{{ $key }}"
-                                class="flex min-w-0 items-center gap-2 rounded-lg px-2 py-2 {{ $today['nextPeriod'] === $key ? 'bg-emerald-50' : '' }}">
+                                class="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 {{ $today['nextPeriod'] === $key ? 'bg-emerald-50' : '' }}">
                                 <span data-instructor-milestone-icon
                                     class="grid h-6 w-6 shrink-0 place-items-center rounded-full text-sm font-bold {{ $log ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-500' }}">{{ $log ? '✓' : '○' }}</span>
                                 <span data-instructor-milestone-label
@@ -138,14 +160,14 @@
                             </div>
                         @endforeach
                     </div>
-                    <p class="mt-3 border-t border-gray-100 pt-3 text-sm font-medium text-slate-600">Next: <span
+                    <p class="mt-2 border-t border-gray-100 pt-2 text-sm font-medium text-slate-600">Next: <span
                             data-instructor-next
                             class="font-bold text-slate-900">{{ $today['nextPeriod'] ? str($today['nextPeriod'])->replace('_', ' ')->title() : 'Complete' }}</span>
                     </p>
                 </section>
 
-                <div class="grid gap-4 lg:grid-cols-[.85fr_1.15fr]">
-                    <section class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                <div class="grid gap-3 lg:grid-cols-[.85fr_1.15fr]">
+                    <section class="dashboard-card rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
                         <h2 class="text-xs font-extrabold uppercase text-[#10294b]">Punctuality Today</h2>
                         <div class="mt-3 divide-y divide-slate-100">
                             @foreach ($periods as $key => [$session, $label])
@@ -159,15 +181,15 @@
                             @endforeach
                         </div>
                     </section>
-                    <section class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                    <section class="dashboard-card rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
                         <div class="flex items-center justify-between gap-3">
                             <h2 class="text-xs font-extrabold uppercase text-[#10294b]">Monthly Attendance Overview</h2>
                             <a href="{{ route('instructor.summary') }}"
                                 class="shrink-0 rounded-lg bg-slate-50 px-2.5 py-1.5 text-[10px] font-semibold">{{ now()->format('F Y') }}⌄</a>
                         </div>
-                        <div class="mt-3 grid grid-cols-2 gap-2 text-center sm:grid-cols-3">
+                        <div class="mt-2 grid grid-cols-2 gap-1.5 text-center sm:grid-cols-3">
                             @foreach ([['Attendance Rate', 'attendance', $totals['percentage'] . '%', 'bg-blue-50 text-blue-700'], ['Present', 'present', $totals['presentDays'] . ' days', 'bg-emerald-50 text-emerald-700'], ['Absent', 'absent', $totals['absentDays'] . ' days', 'bg-rose-50 text-rose-700'], ['Late', 'late', $totals['lateCount'] . ' days', 'bg-orange-50 text-orange-600'], ['Early Out', 'early', $totals['earlyOutCount'] . ' days', 'bg-purple-50 text-purple-700'], ['Incomplete', 'incomplete', $totals['incompleteCount'] . ' days', 'bg-amber-50 text-amber-700'], ['In Progress', 'in_progress', $totals['inProgressCount'] . ' day' . ($totals['inProgressCount'] === 1 ? '' : 's'), 'bg-sky-50 text-sky-700']] as [$label, $key, $value, $class])
-                                <div class="rounded-lg p-2 {{ $class }}">
+                                <div class="rounded-lg px-2 py-1.5 {{ $class }}">
                                     <p class="text-[10px] text-slate-600">{{ $label }}</p>
                                     <p data-stat="{{ $key }}" class="mt-1 text-lg font-extrabold">
                                         {{ $value }}</p>
@@ -185,9 +207,9 @@
                 </div>
 
                 @if($studentWarnings->isNotEmpty())
-                    <section class="rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm" aria-labelledby="student-risk-summary-title">
+                    <section class="dashboard-card rounded-xl border border-amber-200 bg-amber-50/70 p-4 shadow-sm" aria-labelledby="student-risk-summary-title">
                         <div class="flex items-center justify-between gap-2">
-                            <h2 id="student-risk-summary-title" class="text-xs font-extrabold uppercase text-rose-900">Student dropout-risk warnings</h2>
+                            <h2 id="student-risk-summary-title" class="text-xs font-extrabold uppercase text-amber-900">Attendance Warnings</h2>
                             <a href="{{ route('instructor.issues') }}" class="text-[11px] font-bold text-rose-700">Review</a>
                         </div>
                         <div class="mt-3 space-y-2">
@@ -200,7 +222,7 @@
                         </div>
                     </section>
                 @endif
-                <section class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                <section class="dashboard-card rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
                     <div class="flex items-center justify-between gap-3">
                         <div>
                             <h2 class="text-xs font-extrabold uppercase text-[#10294b]">My Attendance This Month</h2>
@@ -212,7 +234,7 @@
                     </div>
                     @if ($chartHasData)
                         <div class="mt-4 w-full overflow-hidden rounded-xl border border-slate-100 bg-slate-50/40 px-1 pt-2 sm:px-2">
-                            <svg class="block h-56 w-full sm:h-64"
+                            <svg class="block h-44 w-full sm:h-52"
                                 viewBox="0 0 {{ $chartWidth }} {{ $chartHeight }}" role="img"
                                 aria-labelledby="instructor-attendance-chart-title instructor-attendance-chart-description">
                                 <title id="instructor-attendance-chart-title">Daily attendance completion</title>
@@ -263,10 +285,10 @@
                 </section>
             </div>
 
-            <aside class="min-w-0 space-y-4">
-                <section class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+            <aside class="min-w-0 space-y-3 xl:col-span-4">
+                <section class="dashboard-card rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
                     <h2 class="text-sm font-extrabold uppercase text-[#10294b]">My Profile</h2>
-                    <div class="mt-4 flex min-w-0 items-center gap-3 sm:gap-4">
+                    <div class="mt-3 flex min-w-0 items-center gap-3 sm:gap-4">
                         <div class="h-20 w-20 shrink-0 overflow-hidden rounded-full bg-blue-100 text-blue-800">
                             @if (auth()->user()->avatar_thumbnail_url)
                                 <img loading="lazy" width="80" height="80"
@@ -287,7 +309,7 @@
                             <p class="text-slate-600">Position: Instructor</p>
                         </div>
                     </div>
-                    <div class="mt-4 text-center">
+                    <div class="mt-3 text-center">
                         <p class="text-xs font-bold text-slate-800">My QR Code</p>
                         <div id="instructor-qr"
                             class="mx-auto mt-2 w-fit rounded-lg border border-slate-200 bg-white p-2"></div>
@@ -297,7 +319,7 @@
                                 class="h-4 w-4" />Download ID Card</button>
                     </div>
                 </section>
-                <section class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                <section class="dashboard-card rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
                     <h2 class="text-xs font-extrabold uppercase text-[#10294b]">Next Teaching Schedule</h2>
                     @if ($nextSchedule)
                         <div class="mt-3 border-t border-slate-100 pt-3">
@@ -313,7 +335,7 @@
                             upcoming teaching schedule today.</p>
                     @endif
                 </section>
-                <section class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+                <section class="dashboard-card rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
                     <div class="flex items-center justify-between">
                         <h2 class="text-xs font-extrabold uppercase text-[#10294b]">Attendance Issues</h2><a
                             href="{{ route('instructor.issues') }}" class="text-[11px] font-bold text-blue-600">View

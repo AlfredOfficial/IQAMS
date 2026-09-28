@@ -1,8 +1,11 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Attendance Logs
-        </h2>
+        <div>
+            <h2 class="text-xl font-semibold leading-tight text-gray-800">
+                Attendance Logs
+            </h2>
+            <p class="mt-1 text-sm text-gray-500">Review, filter, and manage attendance records.</p>
+        </div>
     </x-slot>
 
     <div class="py-8" x-data="{
@@ -17,23 +20,23 @@
 
             {{-- Filters --}}
             <form method="GET" action="{{ route('attendance-logs.index') }}"
-                class="mb-4 grid grid-cols-1 items-start gap-3 rounded-lg bg-white p-4 shadow-sm md:grid-cols-2 lg:grid-cols-4">
-                <div class="min-w-0 md:col-span-2 lg:col-span-2">
-                    <label class="block text-xs font-medium text-gray-500 mb-1">Person</label>
+                class="mb-4 grid grid-cols-1 items-start gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-2 lg:grid-cols-[minmax(0,1.8fr)_minmax(140px,.55fr)_minmax(180px,.75fr)]">
+                <div class="min-w-0 lg:row-span-2">
+                    <label class="mb-1.5 block text-xs font-semibold text-gray-600">Person</label>
                     <x-admin-lookup-field :endpoint="route('admin.lookups.people')" name="user_id" model="filterUserId" :selected="request('user_id')"
                         placeholder="Search people..." empty-label="All" />
                 </div>
 
-                <div class="min-w-0 lg:col-span-1">
-                    <label class="block text-xs font-medium text-gray-500 mb-1">Date</label>
+                <div class="min-w-0">
+                    <label class="mb-1.5 block text-xs font-semibold text-gray-600">Date</label>
                     <input type="date" name="date" value="{{ request('date') }}" placeholder="dd/mm/yyyy"
-                        class="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        class="h-10 w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                 </div>
 
-                <div class="min-w-0 lg:col-span-1">
-                    <label class="block text-xs font-medium text-gray-500 mb-1">Status</label>
+                <div class="min-w-0">
+                    <label class="mb-1.5 block text-xs font-semibold text-gray-600">Status</label>
                     <select name="status"
-                        class="w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        class="h-10 w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         <option value="">All statuses</option>
                         @foreach (['present', 'late', 'absent', 'excused'] as $status)
                             <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}
@@ -42,54 +45,58 @@
                     </select>
                 </div>
 
-                <div class="flex items-center gap-2 md:col-span-2 lg:col-span-4">
+                <div class="flex items-center gap-3 md:col-span-2 lg:col-start-1">
                     <button type="submit"
-                        class="bg-gray-800 hover:bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded">
+                        class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
                         Apply filters
                     </button>
-                    <a href="{{ route('attendance-logs.index') }}" class="text-sm text-gray-500 hover:text-gray-700">
+                    <a href="{{ route('attendance-logs.index') }}" class="rounded-lg px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700">
                         Clear
                     </a>
                 </div>
             </form>
 
-            <div class="bg-white shadow-sm rounded-lg">
-                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                    <span class="text-sm text-gray-500">{{ $logs->total() }} total</span>
+            <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div class="flex items-center justify-between border-b border-gray-200 px-5 py-3.5 sm:px-6">
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-sm font-semibold text-gray-800">{{ $logs->total() }}</span>
+                        <span class="text-sm text-gray-500">attendance records</span>
+                    </div>
                     <button @click="showCreateModal = true"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
+                        class="rounded-lg bg-indigo-600 px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700">
                         + Add Log
                     </button>
                 </div>
 
-                <table class="w-full text-sm text-left">
+                <div class="overflow-x-auto">
+                <table class="min-w-[900px] w-full text-left text-sm">
                     <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
                         <tr>
-                            <th class="px-6 py-3">Person</th>
-                            <th class="px-6 py-3">Schedule</th>
-                            <th class="px-6 py-3">Type</th>
-                            <th class="px-6 py-3">Scan Time</th>
-                            <th class="px-6 py-3">Status</th>
-                            <th class="px-6 py-3 text-right">Actions</th>
+                            <th class="w-[24%] px-5 py-3">Person</th>
+                            <th class="w-[28%] px-3 py-3">Schedule</th>
+                            <th class="w-[12%] px-3 py-3">Type</th>
+                            <th class="w-[19%] whitespace-nowrap px-3 py-3">Scan Time</th>
+                            <th class="w-[10%] px-3 py-3">Status</th>
+                            <th class="w-[7%] px-5 py-3 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         @forelse ($logs as $log)
-                            <tr>
-                                <td class="px-6 py-3 text-gray-800 font-medium">
+                            <tr class="hover:bg-gray-50/70">
+                                <td class="px-5 py-3.5 font-medium text-gray-800">
                                     {{ $log->user?->nonTeachingStaff?->fullName() ?? ($log->user?->name ?? '—') }}</td>
-                                <td class="px-6 py-3 text-gray-600">
+                                <td class="px-3 py-3.5 text-gray-600">
                                     {{ $log->schoolEvent?->title ?? ($log->schedule?->subject?->subject_code ?? '—') }}
                                     ({{ $log->schedule->section->section_name ?? '—' }})
                                 </td>
-                                <td class="px-6 py-3 text-gray-600">
+                                <td class="px-3 py-3.5 text-gray-600">
                                     {{ $log->attendance_type === 'time_in' ? 'Time In' : 'Time Out' }}</td>
-                                <td class="px-6 py-3 text-gray-600">
+                                <td class="whitespace-nowrap px-3 py-3.5 text-gray-600">
                                     {{ \Illuminate\Support\Carbon::parse($log->scan_time)->format('M d, Y g:i A') }}
                                 </td>
-                                <td class="px-6 py-3">
+                                <td class="px-3 py-3.5">
                                     <span @class([
-                                        'px-2 py-1 rounded text-xs font-medium',
+                                        'inline-flex min-h-7 items-center justify-center whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-medium',
                                         'bg-green-50 text-green-700' => $log->status === 'present',
                                         'bg-yellow-50 text-yellow-700' => $log->status === 'late',
                                         'bg-red-50 text-red-700' => $log->status === 'absent',
@@ -98,7 +105,7 @@
                                         {{ ucfirst($log->status) }}
                                     </span>
                                 </td>
-                                <td class="px-6 py-3 text-right">
+                                <td class="px-5 py-3.5 text-right">
                                     <x-record-action-menu>
                                         <button type="button"
                                             @click="editModal = {{ Illuminate\Support\Js::from([
@@ -122,13 +129,14 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-6 py-8 text-center text-gray-400">
+                                    <td colspan="6" class="px-6 py-8 text-center text-gray-400">
                                     No attendance logs found.
                                 </td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
+                </div>
 
                 <div class="px-6 py-4 border-t border-gray-200">
                     {{ $logs->links() }}

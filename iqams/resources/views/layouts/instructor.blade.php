@@ -41,11 +41,11 @@
         <form method="POST" action="{{ route('logout') }}" class="border-t border-white/10 p-3">@csrf<button class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-blue-50/85 hover:bg-white/10"><x-heroicon-o-arrow-right-start-on-rectangle class="h-5 w-5" />Logout</button></form>
     </aside>
     <div class="min-w-0 flex-1">
-        <header class="flex min-h-[76px] min-w-0 items-center bg-white px-3 sm:min-h-[92px] sm:px-7 lg:px-8">
+        <header class="flex min-h-[64px] min-w-0 items-center bg-white px-3 sm:min-h-[72px] sm:px-7 lg:px-8">
             <button @click="sidebarOpen=true" class="mr-4 rounded-lg bg-slate-50 p-2.5 text-[#15355e] hover:bg-slate-100 lg:hidden" aria-label="Open navigation"><x-heroicon-o-bars-3 class="h-6 w-6" /></button>
             <div class="min-w-0"><h1 class="truncate text-lg font-extrabold text-slate-950 sm:text-xl">{{ $title === 'Dashboard' ? $portalGreeting.', '.$portalName.'! ' : $title }}</h1><p class="mt-1 text-xs text-slate-500 sm:text-sm">Teaching Personnel <span class="mx-2">•</span> {{ $portalInstructor?->department?->department_name ?? 'Department not assigned' }}</p></div>
             <div class="ml-2 flex shrink-0 items-center gap-2 sm:ml-auto sm:gap-6">
-                <div class="hidden rounded-xl bg-slate-50 px-4 py-2.5 text-sm text-[#17345c] ring-1 ring-slate-200/80 md:block">
+                <div class="hidden rounded-lg bg-slate-50 px-3 py-2 text-xs text-[#17345c] ring-1 ring-slate-200/80 md:block">
                     <p class="flex items-center gap-2 font-semibold"><x-heroicon-o-calendar-days class="h-4 w-4 text-blue-600" />{{ now()->format('l, F j, Y') }}</p>
                 </div>
                 <x-leave-notification-bell />

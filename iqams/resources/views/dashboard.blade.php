@@ -117,15 +117,15 @@
         max(items) { return Math.max(1, ...items.map(item => item.value)); },
         points(items) { const max = this.max(items); const width = 560; const height = 120; return items.map((item, index) => `${items.length === 1 ? 0 : index * width / (items.length - 1)},${height - (item.value / max * 105)}`).join(' '); }
     }">
-        <header class="sticky top-0 z-30 min-h-20 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
-            <div class="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
-                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
+        <header class="sticky top-0 z-30 h-20 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
+            <div class="mx-auto flex h-full max-w-none items-center px-4 py-2 sm:px-6 lg:px-8">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
+                    <div class="min-w-0 flex-1">
                         {{-- <p class="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">IQAMS Control Center</p> --}}
-                        <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900">Attendance Dashboard</h1>
+                        <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900 lg:text-[32px] lg:leading-tight">Attendance Dashboard</h1>
                         <p class="mt-1 text-sm text-slate-500">Live college-wide attendance monitoring and analytics</p>
                     </div>
-                    <div class="flex items-center gap-3">
+                    <div class="flex shrink-0 items-center gap-3 lg:absolute lg:right-8">
                         <x-leave-notification-bell />
                         <div
                             class="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-right shadow-sm">
@@ -137,9 +137,9 @@
         </header>
 
         <div class="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
-            <div class="mb-4 flex items-center justify-between">
-                <div class="flex items-center gap-2 text-xs font-medium"
-                    :class="online ? 'text-emerald-700' : 'text-red-600'">
+            <div class="mb-5 flex min-h-8 items-center justify-between gap-4 border-b border-slate-200/80 pb-3">
+                <div class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium"
+                    :class="online ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'">
                     <span class="relative flex h-2.5 w-2.5"><span x-show="online"
                             class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span><span
                             class="relative inline-flex h-2.5 w-2.5 rounded-full"
@@ -151,7 +151,7 @@
             </div>
 
             {{-- Summary cards --}}
-            <section class="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+            <section class="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-9">
                 @php
                     $cards = [
                         ['total_scanned', 'Total scanned', 'bg-blue-50 text-blue-600', 'M7 7h10M7 12h10M7 17h6'],
@@ -187,9 +187,9 @@
                 @endphp
                 @foreach ($cards as [$key, $label, $colorClasses, $path])
                     <article
-                        class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-                        <div class="mb-3 flex items-start justify-between">
-                            <span class="rounded-xl p-2 {{ $colorClasses }}"><svg class="h-5 w-5" fill="none"
+                        class="flex min-h-[118px] flex-col rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-3.5">
+                        <div class="mb-2 flex items-start justify-between">
+                            <span class="flex h-9 w-9 items-center justify-center rounded-xl {{ $colorClasses }}"><svg class="h-5 w-5" fill="none"
                                     stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="{{ $path }}" />
@@ -199,14 +199,14 @@
                                     class="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">TODAY</span>
                             @endif
                         </div>
-                        <p class="text-2xl font-bold tabular-nums text-slate-900"
+                        <p class="text-[28px] font-bold leading-none tabular-nums text-slate-900"
                             x-text="data.stats.{{ $key }}"></p>
-                        <p class="mt-1 text-xs font-medium leading-tight text-slate-500">{{ $label }}</p>
+                        <p class="mt-2 text-sm font-medium leading-tight text-slate-500">{{ $label }}</p>
                     </article>
                 @endforeach
             </section>
 
-            <section class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,.8fr)]">
+            <section class="mt-6 grid grid-cols-1 gap-5">
                 {{-- Live activity --}}
                 <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                     <div class="flex items-center justify-between border-b border-slate-100 px-5 py-4">
@@ -221,10 +221,10 @@
                     <div class="divide-y divide-slate-100">
                         <template x-for="scan in data.scans.slice(0, 8)" :key="scan.id">
                             <div
-                                class="grid gap-3 px-5 py-4 transition hover:bg-slate-50 md:grid-cols-[minmax(230px,1.4fr)_1fr_1fr_auto] md:items-center">
+                                class="grid gap-4 px-5 py-4 transition hover:bg-slate-50 md:grid-cols-[minmax(280px,1.5fr)_minmax(180px,1fr)_minmax(150px,.8fr)_auto] md:items-center">
                                 <div class="flex min-w-0 items-center gap-3">
                                     <div
-                                        class="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100">
+                                        class="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100">
                                         <img x-show="scan.avatar" :src="scan.avatar"
                                             class="h-full w-full object-cover" alt="">
                                         <span x-show="!scan.avatar"
@@ -480,7 +480,7 @@
                                     <td class="px-3 py-3 font-mono font-medium text-slate-700"
                                         x-text="scan.identifier"></td>
                                     <td class="px-3 py-3 font-semibold text-slate-800" x-text="scan.name"></td>
-                                    <td class="px-3 py-3"><span class="rounded-full px-2 py-1 font-medium"
+                                    <td class="px-3 py-3"><span class="inline-flex min-h-7 items-center justify-center whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] leading-none font-medium"
                                             :class="roleColor(scan.role_key)" x-text="scan.role"></span></td>
                                     <td class="px-3 py-3 text-slate-600" x-text="scan.group"></td>
                                     <td class="px-3 py-3 text-slate-600" x-text="scan.subject || '—'"></td>
@@ -488,11 +488,11 @@
                                     <td class="px-3 py-3 font-medium tabular-nums text-slate-700" x-text="scan.time">
                                     </td>
                                     <td class="px-3 py-3"><span
-                                            class="rounded-full px-2 py-1 font-medium ring-1 ring-inset"
+                                            class="inline-flex min-h-7 items-center justify-center whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] leading-none font-medium ring-1 ring-inset"
                                             :class="actionColor(scan.attendance_type)"
                                             x-text="scan.attendance_label"></span></td>
                                     <td class="px-3 py-3"><span
-                                            class="rounded-full px-2 py-1 font-semibold ring-1 ring-inset"
+                                            class="inline-flex min-h-7 items-center justify-center whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] leading-none font-medium ring-1 ring-inset"
                                             :class="statusColor(scan.status)" x-text="scan.status_label"></span></td>
                                     <td class="px-5 py-3 text-right"><a
                                             :href="`{{ url('attendance-logs') }}?search=${encodeURIComponent(scan.identifier)}`"

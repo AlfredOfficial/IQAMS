@@ -2,6 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Compact instructor dashboard presentation; data and interaction hooks remain in Blade/Alpine. */
+.instructor-dashboard .dashboard-card {
+    min-width: 0;
+}
+
+.instructor-dashboard [data-instructor-milestone] {
+    min-height: 2.5rem;
+}
+
+@media (max-width: 639px) {
+    .instructor-dashboard #instructor-qr {
+        padding: 0.375rem;
+    }
+
+    .instructor-dashboard [data-instructor-milestone] {
+        font-size: 0.75rem;
+    }
+}
+
 /* Keep Alpine-controlled elements hidden until Alpine is ready. */
 [x-cloak] {
     display: none !important;

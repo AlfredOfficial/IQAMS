@@ -7,13 +7,13 @@
     </x-slot>
 
     <style>
-        .attendance-document { background: #fff; color: #111827; padding: 2rem; }
-        .report-heading { margin-bottom: 1.25rem; text-align: center; }
-        .report-heading h2 { font-size: 1.1rem; font-weight: 700; letter-spacing: .04em; }
-        .report-heading h3 { margin-top: .2rem; font-size: 1rem; font-weight: 700; }
-        .report-heading p { margin-top: .45rem; font-size: .875rem; }
+        .attendance-document { box-sizing: border-box; background: #fff; color: #111827; padding: 2rem; }
+        .report-heading { margin-bottom: 1.5rem; text-align: center; }
+        .report-heading h2 { font-size: 1.2rem; font-weight: 700; letter-spacing: .04em; }
+        .report-heading h3 { margin-top: .25rem; font-size: 1.05rem; font-weight: 700; }
+        .report-heading p { margin-top: .5rem; font-size: .875rem; }
         .attendance-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: .8rem; }
-        .attendance-table th, .attendance-table td { border: 1px solid #374151; padding: .42rem .5rem; }
+        .attendance-table th, .attendance-table td { border: 1px solid #374151; padding: .55rem .6rem; }
         .attendance-table th { background: #f3f4f6; text-align: center; vertical-align: middle; font-weight: 700; }
         .attendance-table td:not(:first-child) { text-align: center; white-space: nowrap; }
         .attendance-table .name-column { width: 36%; }
@@ -28,12 +28,17 @@
             html, body { height: auto !important; overflow: visible !important; background: #fff !important; }
             body > div, #app-content, main { height: auto !important; min-height: 0 !important; margin: 0 !important; overflow: visible !important; }
             aside, body > div > div.lg\:hidden, #app-content > header, .no-print, [role="status"] { display: none !important; }
-            .report-shell { margin: 0 !important; padding: 0 !important; max-width: none !important; }
-            .attendance-document { padding: 0; box-shadow: none !important; }
-            .attendance-table { font-size: 9pt; }
+            *, *::before, *::after { box-sizing: border-box; }
+            .report-shell { width: 100% !important; margin: 0 !important; padding: 0 !important; max-width: none !important; }
+            .report-shell > .overflow-hidden { overflow: visible !important; border-radius: 0 !important; box-shadow: none !important; }
+            .attendance-document { width: 100%; padding: 0; box-shadow: none !important; }
+            .report-heading { margin-bottom: 6mm; }
+            .attendance-table { width: 100%; font-size: 10pt; }
+            .attendance-table th, .attendance-table td { padding: 3.5mm 2.5mm; }
+            .attendance-table td:not(:first-child) { white-space: nowrap; }
             .attendance-table thead { display: table-header-group; }
             .attendance-table tr { break-inside: avoid; page-break-inside: avoid; }
-            .report-signatures { break-inside: avoid; page-break-inside: avoid; }
+            .report-signatures { margin-top: 8mm; break-inside: avoid; page-break-inside: avoid; }
         }
     </style>
 

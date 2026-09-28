@@ -8,6 +8,7 @@
     'selected' => null,
     'selectedLabel' => null,
     'inline' => false,
+    'expandOptions' => true,
 ])
 
 <div x-data="lookupField({ endpoint: {{ Illuminate\Support\Js::from($endpoint) }}, selected: {{ Illuminate\Support\Js::from($selected) }}, selectedLabel: {{ Illuminate\Support\Js::from($selectedLabel) }} })"
@@ -24,8 +25,8 @@
             x-ref="select"
             x-model="{{ $model }}"
             @focus="load()"
-            x-bind:size="search.trim() !== '' && options.length > 0 && !{{ $model }} ? Math.min(options.length + 1, 6) : 1"
-            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+            x-bind:size="{{ $expandOptions ? 'search.trim() !== \'\' && options.length > 0 && !' . $model . ' ? Math.min(options.length + 1, 6) : 1' : '1' }}"
+            class="{{ $expandOptions ? '' : 'h-10 ' }}w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
         <option value="">{{ $emptyLabel }}</option>
         <template x-for="option in options" :key="option.id">
             <option :value="String(option.id)" x-text="option.label"></option>
