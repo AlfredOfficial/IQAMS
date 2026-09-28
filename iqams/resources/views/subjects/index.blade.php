@@ -1,8 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Subjects
-        </h2>
+        <div><h2 class="text-xl font-semibold leading-tight text-gray-800">Subjects</h2><p class="mt-1 text-sm text-gray-500">Manage subjects, course units, and academic offerings.</p></div>
     </x-slot>
 
     <div class="py-8" x-data="{
@@ -12,31 +10,29 @@
     }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
-            <div class="bg-white shadow-sm rounded-lg">
+            <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                    <span class="text-sm text-gray-500">{{ $subjects->total() }} total</span>
+                    <span class="text-sm font-medium text-gray-500">{{ $subjects->total() }} total</span>
                     <button @click="showCreateModal = true"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
+                        class="inline-flex items-center rounded-md bg-indigo-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
                         + Add Subject
                     </button>
                 </div>
 
-                <table class="w-full text-sm text-left">
-                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+                <div class="overflow-x-auto"><table class="w-full min-w-[680px] table-fixed text-left text-sm">
+                    <colgroup><col class="w-[18%]"><col class="w-[52%]"><col class="w-[12%]"><col class="w-[18%]"></colgroup>
+                    <thead class="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
                         <tr>
-                            <th class="px-6 py-3">Code</th>
-                            <th class="px-6 py-3">Name</th>
-                            <th class="px-6 py-3">Units</th>
-                            <th class="px-6 py-3 text-right">Actions</th>
+                            <th class="px-5 py-3.5">Code</th><th class="px-5 py-3.5">Name</th><th class="px-5 py-3.5">Units</th><th class="px-5 py-3.5 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         @forelse ($subjects as $subject)
-                            <tr>
-                                <td class="px-6 py-3 text-gray-800 font-medium">{{ $subject->subject_code }}</td>
-                                <td class="px-6 py-3 text-gray-600">{{ $subject->subject_name }}</td>
-                                <td class="px-6 py-3 text-gray-600">{{ $subject->units }}</td>
-                                <td class="px-6 py-3 text-right">
+                            <tr class="transition-colors hover:bg-gray-50/80">
+                                <td class="whitespace-nowrap px-5 py-4 font-semibold text-gray-800">{{ $subject->subject_code }}</td>
+                                <td class="px-5 py-4 text-gray-600">{{ $subject->subject_name }}</td>
+                                <td class="whitespace-nowrap px-5 py-4 text-gray-600">{{ $subject->units }}</td>
+                                <td class="px-5 py-4 text-right">
                                     <x-record-action-menu>
                                         <button type="button"
                                             @click="editModal = {{ Illuminate\Support\Js::from(['show' => true, 'id' => $subject->id, 'code' => $subject->subject_code, 'name' => $subject->subject_name, 'units' => (string) $subject->units]) }}"
@@ -51,12 +47,12 @@
                         @empty
                             <tr>
                                 <td colspan="4" class="px-6 py-8 text-center text-gray-400">
-                                    No subjects yet. Add your first one.
+                                    <x-heroicon-o-book-open class="mx-auto h-8 w-8 text-gray-300" aria-hidden="true" /><p class="mt-3 text-sm font-semibold text-gray-700">No subjects found</p><p class="mx-auto mt-1 max-w-md text-sm text-gray-500">Create a subject to organize your academic offerings and schedules.</p>
                                 </td>
                             </tr>
                         @endforelse
                     </tbody>
-                </table>
+                </table></div>
 
                 <div class="px-6 py-4 border-t border-gray-200">
                     {{ $subjects->links() }}

@@ -1,64 +1,13 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="text-xl font-semibold text-gray-800">Leave Request Review</h2>
-    </x-slot>
-    <div class="mx-auto max-w-7xl space-y-4 p-4 sm:p-6">
-        <form class="flex gap-3 rounded-xl bg-white p-4 shadow-sm">
-            <select name="status" class="rounded-md border-gray-300">
-                <option value="">All statuses</option>
-                @foreach (['pending', 'approved', 'rejected', 'cancelled'] as $status)
-                    <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}</option>
-                @endforeach
-            </select>
-            <x-primary-button>Filter</x-primary-button>
-        </form>
-        <div class="overflow-x-auto rounded-xl bg-white shadow-sm">
-            <table class="min-w-full text-sm">
-                <thead class="bg-gray-50 text-left">
-                    <tr>
-                        <th class="p-3">Requester</th>
-                        <th class="p-3">Dates / Type</th>
-                        <th class="p-3">Reason</th>
-                        <th class="p-3">Status</th>
-                        <th class="p-3">Review</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($requests as $item)
-                        <tr class="border-t align-top">
-                            <td class="p-3 font-medium">{{ $item->user->name }}<br><span
-                                    class="text-xs font-normal text-gray-500">{{ ucfirst($item->user->primaryRoleName() ?? '') }}</span>
-                            </td>
-                            <td class="p-3 whitespace-nowrap">{{ $item->start_date->format('M d, Y') }} –
-                                {{ $item->end_date->format('M d, Y') }}<br>{{ $item->type_label }}@if ($item->attachment_path)
-                                    <br><a class="text-indigo-600 hover:underline" target="_blank"
-                                        href="{{ route('admin.leave-requests.attachment', $item) }}">View document</a>
-                                @endif
-                            </td>
-                            <td class="max-w-sm p-3">{{ $item->reason }}</td>
-                            <td class="p-3">{{ ucfirst($item->status) }}</td>
-                            <td class="min-w-64 p-3">
-                                @if ($item->status === 'pending')
-                                    <form method="POST" action="{{ route('admin.leave-requests.update', $item) }}"
-                                        class="space-y-2" data-password-confirmation-required>@csrf @method('PATCH')
-                                        <textarea name="review_notes" rows="2" placeholder="Review notes (optional)"
-                                            class="w-full rounded-md border-gray-300"></textarea>
-                                        <div class="flex gap-2"><button name="status" value="approved"
-                                                class="rounded-md bg-green-600 px-3 py-2 text-white">Approve</button><button
-                                                name="status" value="rejected"
-                                                class="rounded-md bg-red-600 px-3 py-2 text-white">Reject</button></div>
-                                </form>@else<span
-                                        class="text-gray-500">{{ $item->review_notes ?: 'Reviewed' }}</span>
-                                @endif
-                            </td>
-                        </tr>
-                        @empty<tr>
-                                <td colspan="5" class="p-8 text-center text-gray-500">No requests found.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-            {{ $requests->links() }}
-        </div>
-    </x-app-layout>
+    <x-slot name="header"><div><h2 class="text-xl font-semibold text-gray-800">Leave Request Review</h2><p class="mt-1 text-sm text-gray-500">Review and manage submitted leave requests.</p></div></x-slot>
+    <div class="mx-auto max-w-7xl space-y-5 p-4 sm:p-6 lg:p-8">
+        <form class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5"><div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4"><div class="w-full sm:max-w-xs"><label for="status" class="mb-1.5 block text-sm font-medium text-gray-700">Status</label><select id="status" name="status" class="block h-10 w-full rounded-md border-gray-300 px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"><option value="">All statuses</option>@foreach (['pending', 'approved', 'rejected', 'cancelled'] as $status)<option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}</option>@endforeach</select></div><button type="submit" class="inline-flex h-10 items-center justify-center rounded-md bg-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">Filter</button></div></form>
+        <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"><div class="overflow-x-auto"><table class="w-full table-fixed text-sm"><colgroup><col class="w-[19%]"><col class="w-[21%]"><col class="w-[25%]"><col class="w-[13%]"><col class="w-[22%]"></colgroup><thead class="border-b border-gray-200 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500"><tr><th class="px-5 py-3.5">Requester</th><th class="px-5 py-3.5">Dates / Type</th><th class="px-5 py-3.5">Reason</th><th class="px-5 py-3.5">Status</th><th class="px-5 py-3.5">Review</th></tr></thead><tbody>
+        @forelse($requests as $item)
+            <tr class="border-b border-gray-100 align-top last:border-0"><td class="break-words px-5 py-4 font-medium text-gray-900">{{ $item->user->name }}<br><span class="text-xs font-normal text-gray-500">{{ ucfirst($item->user->primaryRoleName() ?? '') }}</span></td><td class="whitespace-nowrap px-5 py-4 text-gray-700"><span class="font-medium">{{ $item->start_date->format('M d, Y') }} – {{ $item->end_date->format('M d, Y') }}</span><br><span class="text-xs text-gray-500">{{ $item->type_label }}</span>@if ($item->attachment_path)<br><a class="text-xs font-medium text-indigo-600 hover:underline" target="_blank" href="{{ route('admin.leave-requests.attachment', $item) }}">View document</a>@endif</td><td class="break-words px-5 py-4 leading-6 text-gray-600">{{ $item->reason }}</td><td class="px-5 py-4"><span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize {{ ['pending' => 'bg-amber-50 text-amber-700', 'recommended' => 'bg-indigo-50 text-indigo-700', 'not recommended' => 'bg-orange-50 text-orange-700', 'approved' => 'bg-emerald-50 text-emerald-700', 'rejected' => 'bg-red-50 text-red-700', 'cancelled' => 'bg-gray-100 text-gray-600'][$item->status] ?? 'bg-gray-100 text-gray-600' }}">{{ str_replace('_', ' ', $item->status) }}</span></td><td class="px-5 py-4">@if ($item->status === 'pending')<form method="POST" action="{{ route('admin.leave-requests.update', $item) }}" class="space-y-2" data-password-confirmation-required>@csrf @method('PATCH')<textarea name="review_notes" rows="2" placeholder="Review notes (optional)" class="w-full rounded-md border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea><div class="flex flex-wrap gap-2"><button name="status" value="approved" class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">Approve</button><button name="status" value="rejected" class="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700">Reject</button></div></form>@else<span class="text-xs text-gray-500">{{ $item->review_notes ?: 'Reviewed' }}</span>@endif</td></tr>
+        @empty
+            <tr><td colspan="5" class="px-5 py-14 text-center"><div class="mx-auto flex max-w-sm flex-col items-center"><span class="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50 text-indigo-500"><x-heroicon-o-document-text class="h-5 w-5" aria-hidden="true" /></span><p class="mt-3 text-sm font-semibold text-gray-800">No leave requests found</p><p class="mt-1 text-sm text-gray-500">Submitted leave requests will appear here for review.</p></div></td></tr>
+        @endforelse
+        </tbody></table></div></div>{{ $requests->links() }}
+    </div>
+</x-app-layout>

@@ -1,8 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Sections
-        </h2>
+        <div><h2 class="text-xl font-semibold leading-tight text-gray-800">Sections</h2><p class="mt-1 text-sm text-gray-500">Manage class sections, courses, and academic terms.</p></div>
     </x-slot>
 
     <div class="py-8" x-data="{
@@ -13,33 +11,30 @@
     }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
-            <div class="bg-white shadow-sm rounded-lg">
+            <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                    <span class="text-sm text-gray-500">{{ $sections->total() }} total</span>
+                    <span class="text-sm font-medium text-gray-500">{{ $sections->total() }} total</span>
                     <button @click="showCreateModal = true"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
+                        class="inline-flex items-center rounded-md bg-indigo-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
                         + Add Section
                     </button>
                 </div>
 
-                <table class="w-full text-sm text-left">
-                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+                <div class="overflow-x-auto"><table class="w-full min-w-[850px] table-fixed text-left text-sm">
+                    <colgroup><col class="w-[22%]"><col class="w-[22%]"><col class="w-[20%]"><col class="w-[18%]"><col class="w-[18%]"></colgroup>
+                    <thead class="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
                         <tr>
-                            <th class="px-6 py-3">Section</th>
-                            <th class="px-6 py-3">Course</th>
-                            <th class="px-6 py-3">School Year</th>
-                            <th class="px-6 py-3">Semester</th>
-                            <th class="px-6 py-3 text-right">Actions</th>
+                            <th class="px-5 py-3.5">Section</th><th class="px-5 py-3.5">Course</th><th class="px-5 py-3.5">School Year</th><th class="px-5 py-3.5">Semester</th><th class="px-5 py-3.5 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         @forelse ($sections as $section)
-                            <tr>
-                                <td class="px-6 py-3 text-gray-800 font-medium">{{ $section->section_name }}</td>
-                                <td class="px-6 py-3 text-gray-600">{{ $section->course->course_code ?? 'â€”' }}</td>
-                                <td class="px-6 py-3 text-gray-600">{{ $section->school_year }}</td>
-                                <td class="px-6 py-3 text-gray-600">{{ ucfirst($section->semester) }}</td>
-                                <td class="px-6 py-3 text-right">
+                            <tr class="transition-colors hover:bg-gray-50/80">
+                                <td class="whitespace-nowrap px-5 py-4 font-semibold text-gray-800">{{ $section->section_name }}</td>
+                                <td class="whitespace-nowrap px-5 py-4 text-gray-600">{{ $section->course->course_code ?? '—' }}</td>
+                                <td class="whitespace-nowrap px-5 py-4 text-gray-600">{{ $section->school_year }}</td>
+                                <td class="whitespace-nowrap px-5 py-4 text-gray-600">{{ ucfirst($section->semester) }}</td>
+                                <td class="px-5 py-4 text-right">
                                     <x-record-action-menu>
                                         <button type="button"
                                             @click="subjectsModal = {
@@ -78,12 +73,12 @@
                         @empty
                             <tr>
                                 <td colspan="5" class="px-6 py-8 text-center text-gray-400">
-                                    No sections yet. Add your first one.
+                                    <x-heroicon-o-rectangle-stack class="mx-auto h-8 w-8 text-gray-300" aria-hidden="true" /><p class="mt-3 text-sm font-semibold text-gray-700">No sections found</p><p class="mx-auto mt-1 max-w-md text-sm text-gray-500">Create a section to organize courses, students, and academic terms.</p>
                                 </td>
                             </tr>
                         @endforelse
                     </tbody>
-                </table>
+                </table></div>
 
                 <div class="px-6 py-4 border-t border-gray-200">
                     {{ $sections->links() }}

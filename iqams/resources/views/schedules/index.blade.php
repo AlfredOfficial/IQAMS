@@ -1,8 +1,9 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Schedules
-        </h2>
+        <div>
+            <h2 class="text-xl font-semibold leading-tight text-gray-800">Schedules</h2>
+            <p class="mt-1 text-sm text-gray-500">Manage class schedules, assigned instructors, rooms, and meeting times.</p>
+        </div>
     </x-slot>
 
     <div class="py-8" x-data="{
@@ -48,43 +49,44 @@
     }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
-            <div class="bg-white shadow-sm rounded-lg">
-                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                    <span class="text-sm text-gray-500">{{ $schedules->total() }} total</span>
+            <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div class="flex items-center justify-between gap-4 border-b border-gray-200 px-5 py-4 sm:px-6">
+                    <span class="text-sm font-medium text-gray-500">{{ $schedules->total() }} total</span>
                     <button @click="showCreateModal = true"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded">
+                        class="inline-flex items-center rounded-md bg-indigo-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
                         + Add Schedule
                     </button>
                 </div>
 
-                <table class="w-full text-sm text-left">
-                    <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+                <div class="overflow-x-auto">
+                <table class="w-full min-w-[850px] table-fixed text-left text-sm">
+                    <thead class="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
                         <tr>
-                            <th class="px-6 py-3">Subject</th>
-                            <th class="px-6 py-3">Instructor</th>
-                            <th class="px-6 py-3">Section</th>
-                            <th class="px-6 py-3">Day</th>
-                            <th class="px-6 py-3">Time</th>
-                            <th class="px-6 py-3">Room</th>
-                            <th class="px-6 py-3 text-right">Actions</th>
+                            <th class="px-5 py-3.5">Subject</th>
+                            <th class="px-5 py-3.5">Instructor</th>
+                            <th class="px-5 py-3.5">Section</th>
+                            <th class="px-5 py-3.5">Day</th>
+                            <th class="px-5 py-3.5">Time</th>
+                            <th class="px-5 py-3.5">Room</th>
+                            <th class="px-5 py-3.5 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         @forelse ($schedules as $schedule)
-                            <tr>
-                                <td class="px-6 py-3 text-gray-800 font-medium">
+                            <tr class="transition-colors hover:bg-gray-50/80 {{ count($schedule->recurring_days) > 1 ? 'bg-indigo-50/20' : '' }}">
+                                <td class="whitespace-nowrap px-5 py-4 font-semibold text-gray-800">
                                     {{ $schedule->subject->subject_code ?? '—' }}</td>
-                                <td class="px-6 py-3 text-gray-600">{{ $schedule->instructor->first_name ?? '' }}
+                                <td class="px-5 py-4 text-gray-600">{{ $schedule->instructor->first_name ?? '' }}
                                     {{ $schedule->instructor->last_name ?? '—' }}</td>
-                                <td class="px-6 py-3 text-gray-600">{{ $schedule->section->section_name ?? '—' }}</td>
-                                <td class="px-6 py-3 text-gray-600">{{ ucfirst($schedule->day) }}</td>
-                                <td class="px-6 py-3 text-gray-600">
+                                <td class="whitespace-nowrap px-5 py-4 text-gray-600">{{ $schedule->section->section_name ?? '—' }}</td>
+                                <td class="whitespace-nowrap px-5 py-4 text-gray-600">{{ ucfirst($schedule->day) }}</td>
+                                <td class="whitespace-nowrap px-5 py-4 text-gray-600">
                                     {{ \Illuminate\Support\Carbon::parse($schedule->start_time)->format('g:i A') }}
                                     -
                                     {{ \Illuminate\Support\Carbon::parse($schedule->end_time)->format('g:i A') }}
                                 </td>
-                                <td class="px-6 py-3 text-gray-600">{{ $schedule->room }}</td>
-                                <td class="px-6 py-3 text-right">
+                                <td class="whitespace-nowrap px-5 py-4 text-gray-600">{{ $schedule->room }}</td>
+                                <td class="px-5 py-4 text-right">
                                     <x-record-action-menu>
                                         <button type="button"
                                             @click="editModal = {{ Illuminate\Support\Js::from([
@@ -116,12 +118,15 @@
                         @empty
                             <tr>
                                 <td colspan="7" class="px-6 py-8 text-center text-gray-400">
-                                    No schedules yet. Add your first one.
+                                    <x-heroicon-o-calendar-days class="mx-auto h-8 w-8 text-gray-300" aria-hidden="true" />
+                                    <p class="mt-3 text-sm font-semibold text-gray-700">No schedules found</p>
+                                    <p class="mx-auto mt-1 max-w-md text-sm text-gray-500">Create a schedule to assign subjects, instructors, sections, rooms, and meeting times.</p>
                                 </td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
+                </div>
 
                 <div class="px-6 py-4 border-t border-gray-200">
                     {{ $schedules->links() }}

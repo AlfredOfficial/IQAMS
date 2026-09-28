@@ -8,8 +8,6 @@
         analyticsEtag: null,
         online: true,
         cursor: {{ Illuminate\Support\Js::from($dashboardData['cursor']) }},
-        confirmation: null,
-        confirmTimer: null,
         timer: null,
         analyticsTimer: null,
         clockTimer: null,
@@ -29,7 +27,6 @@
             this.timer?.stop();
             this.analyticsTimer?.stop();
             clearInterval(this.clockTimer);
-            clearTimeout(this.confirmTimer);
         },
         tick() {
             const now = new Date();
@@ -53,12 +50,6 @@
                     this.cursor = fresh.cursor;
                     this.page = 1;
                     return;
-                }
-                const newest = [...fresh.scans].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
-                if (newest && !this.data.scans.some(scan => scan.id === newest.id)) {
-                    this.confirmation = newest;
-                    clearTimeout(this.confirmTimer);
-                    this.confirmTimer = setTimeout(() => this.confirmation = null, 7000);
                 }
                 const scansById = new Map(this.data.scans.map(scan => [scan.id, scan]));
                 fresh.scans.forEach(scan => scansById.set(scan.id, scan));
@@ -125,7 +116,7 @@
         actionColor(action) { return action === 'time_out' ? 'bg-orange-50 text-orange-700 ring-orange-600/20' : 'bg-blue-50 text-blue-700 ring-blue-600/20'; },
         max(items) { return Math.max(1, ...items.map(item => item.value)); },
         points(items) { const max = this.max(items); const width = 560; const height = 120; return items.map((item, index) => `${items.length === 1 ? 0 : index * width / (items.length - 1)},${height - (item.value / max * 105)}`).join(' '); }
-    }" @keydown.escape.window="confirmation = null">
+    }">
         <header class="sticky top-0 z-30 min-h-20 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
             <div class="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -526,59 +517,5 @@
             </section>
         </div>
 
-        {{-- Real-time scan confirmation --}}
-        <div x-show="confirmation" x-transition.opacity x-cloak
-            class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
-            <div @click.outside="confirmation = null" x-transition
-                class="relative w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl">
-                <div class="bg-gradient-to-r from-emerald-600 to-teal-500 px-6 py-5 text-center text-white">
-                    <div class="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-white/20">
-                        <x-heroicon-o-check class="h-7 w-7" /></div>
-                    <p class="text-xs font-bold tracking-[.2em]">QR SCAN SUCCESSFUL</p>
-                </div>
-                <template x-if="confirmation">
-                    <div class="p-7 text-center">
-                        <div
-                            class="mx-auto h-24 w-24 overflow-hidden rounded-2xl bg-blue-50 ring-4 ring-white shadow-lg">
-                            <img x-show="confirmation.avatar" :src="confirmation.avatar"
-                                class="h-full w-full object-cover" alt=""><span x-show="!confirmation.avatar"
-                                class="flex h-full items-center justify-center text-2xl font-bold text-blue-700"
-                                x-text="confirmation.initials"></span></div>
-                        <h3 class="mt-4 text-xl font-bold text-slate-900" x-text="confirmation.name"></h3>
-                        <p class="font-mono text-sm text-slate-500" x-text="confirmation.identifier"></p><span
-                            class="mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold"
-                            :class="roleColor(confirmation.role_key)" x-text="confirmation.role"></span>
-                        <div class="mt-5 grid grid-cols-2 gap-3 rounded-2xl bg-slate-50 p-4 text-left text-sm">
-                            <div>
-                                <p class="text-xs text-slate-400">Section / Department</p>
-                                <p class="font-semibold text-slate-700" x-text="confirmation.group"></p>
-                            </div>
-                            <div>
-                                <p class="text-xs text-slate-400">Course</p>
-                                <p class="font-semibold text-slate-700" x-text="confirmation.course || '—'"></p>
-                            </div>
-                            <div class="col-span-2">
-                                <p class="text-xs text-slate-400">Subject</p>
-                                <p class="font-semibold text-slate-700"
-                                    x-text="confirmation.subject || 'General attendance'"></p>
-                            </div>
-                        </div>
-                        <div class="mt-5 flex items-center justify-center gap-3">
-                            <div>
-                                <p class="text-xs text-slate-400" x-text="confirmation.date"></p>
-                                <p class="text-2xl font-bold tabular-nums text-slate-900" x-text="confirmation.time">
-                                </p>
-                            </div><span class="rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset"
-                                :class="actionColor(confirmation.attendance_type)"
-                                x-text="confirmation.attendance_label"></span><span
-                                class="rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset"
-                                :class="statusColor(confirmation.status)" x-text="confirmation.status_label"></span>
-                        </div><button type="button" @click="confirmation = null"
-                            class="mt-6 text-xs font-semibold text-slate-400 hover:text-slate-700">Dismiss
-                            confirmation</button>
-                    </div>
-                </template>
-            </div>
-        </div>
     </div>
 </x-app-layout>

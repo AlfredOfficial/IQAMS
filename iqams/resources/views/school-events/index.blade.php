@@ -22,32 +22,32 @@
     'baseUrl' => url('school-events'),
     'storeUrl' => route('school-events.store'),
 ]))" @keydown.escape.window="closeModal()">
-        <div class="mx-auto max-w-7xl space-y-4 px-4 sm:px-6 lg:px-8">
+        <div class="mx-auto max-w-7xl space-y-5 px-4 sm:px-6 lg:px-8">
             @if ($errors->any() && old('form_context') !== 'school_event_modal')
                 <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ $errors->first() }}
                 </div>
             @endif
-            <div class="flex items-center justify-between">
-                <p class="text-sm text-gray-500">Dated exceptions for holidays, meetings, and required events.</p>
-                <button type="button" @click="openCreate()"
-                    class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">New
-                    event</button>
-            </div>
-            <div class="overflow-hidden rounded-lg bg-white shadow-sm">
+            <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div class="flex flex-col gap-3 border-b border-gray-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <p class="text-sm leading-6 text-gray-500">Dated exceptions for holidays, meetings, and required events.</p>
+                    <button type="button" @click="openCreate()"
+                        class="inline-flex shrink-0 items-center justify-center rounded-md bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">New event</button>
+                </div>
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 text-sm">
-                        <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500">
+                    <table class="min-w-[760px] w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                             <tr>
-                                <th class="px-5 py-3">Event</th>
-                                <th class="px-5 py-3">When</th>
-                                <th class="px-5 py-3">Mode / scope</th>
-                                <th class="px-5 py-3">Status</th>
-                                <th class="px-5 py-3 text-right">Actions</th>
+                                <th class="w-[30%] px-5 py-3.5">Event</th>
+                                <th class="w-[25%] px-5 py-3.5">When</th>
+                                <th class="w-[20%] px-5 py-3.5">Mode / scope</th>
+                                <th class="w-[12%] px-5 py-3.5">Status</th>
+                                <th class="w-[13%] px-5 py-3.5 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
                             @forelse($events as $event)
-                                @php$eventForm = [
+                                @php
+                                    $eventForm = [
                                         'id' => $event->id,
                                         'title' => $event->title,
                                         'description' => $event->description ?? '',
@@ -67,52 +67,61 @@
                                             ->map(fn($id) => (string) $id)
                                             ->values(),
                                 ]; @endphp
-                                <tr>
-                                    <td class="px-5 py-4">
+                                <tr class="transition-colors hover:bg-gray-50">
+                                    <td class="px-5 py-4 align-top">
                                         <p class="font-semibold text-gray-900">{{ $event->title }}</p>
                                         <p class="text-xs text-gray-500">{{ $event->location ?: 'No location' }}</p>
                                     </td>
-                                    <td class="whitespace-nowrap px-5 py-4 text-gray-600">
+                                    <td class="whitespace-nowrap px-5 py-4 align-top text-gray-600">
                                         {{ $event->starts_at->format('M d, Y g:i A') }}<br><span class="text-xs">to
                                             {{ $event->ends_at->format('M d, Y g:i A') }}</span></td>
-                                    <td class="px-5 py-4"><span
+                                    <td class="px-5 py-4 align-top"><span
                                             class="capitalize">{{ str_replace('_', ' ', $event->attendance_mode) }}</span><br><span
                                             class="text-xs capitalize text-gray-500">{{ $event->target_scope }}</span>
                                     </td>
-                                    <td class="px-5 py-4"><span
+                                    <td class="px-5 py-4 align-top"><span
                                             class="rounded-full px-2.5 py-1 text-xs font-semibold {{ $event->status === 'published' ? 'bg-green-100 text-green-700' : ($event->status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700') }}">{{ ucfirst($event->status) }}</span>
                                     </td>
-                                    <td class="px-5 py-4">
-                                        <div class="flex justify-end gap-2">
+                                    <td class="px-5 py-4 align-top">
+                                        <div class="flex justify-end">
+                                            @if ($event->status === 'draft' || ($event->status === 'published' && now()->lt($event->starts_at)) || !$event->attendance_logs_count)
+                                            <x-record-action-menu>
                                             @if ($event->status === 'draft' || ($event->status === 'published' && now()->lt($event->starts_at)))
                                                 <button type="button" @click="openEdit(@js($eventForm))"
-                                                    class="text-indigo-600 hover:underline">Edit</button>
+                                                    class="block w-full px-4 py-2.5 text-left text-indigo-600 hover:bg-indigo-50">Edit</button>
                                             @endif
                                             @if ($event->status === 'draft')
                                                 <form method="POST"
                                                     action="{{ route('school-events.publish', $event) }}"
                                                     data-password-confirmation-required>@csrf @method('PATCH')<button
-                                                        class="text-green-700 hover:underline">Publish</button></form>
+                                                        class="block w-full px-4 py-2.5 text-left text-green-700 hover:bg-green-50">Publish</button></form>
                                             @endif
                                             @if ($event->status === 'published' && now()->lt($event->starts_at))
                                                 <form method="POST"
                                                     action="{{ route('school-events.cancel', $event) }}"
                                                     data-password-confirmation-required>@csrf @method('PATCH')<button
-                                                        class="text-amber-700 hover:underline">Cancel</button></form>
+                                                        class="block w-full px-4 py-2.5 text-left text-amber-700 hover:bg-amber-50">Cancel</button></form>
                                             @endif
                                             @if (!$event->attendance_logs_count)
                                                 <form method="POST"
                                                     action="{{ route('school-events.destroy', $event) }}"
                                                     onsubmit="return confirm('Delete this event?')"
                                                     data-password-confirmation-required>@csrf @method('DELETE')<button
-                                                        class="text-red-600 hover:underline">Delete</button></form>
+                                                        class="block w-full px-4 py-2.5 text-left text-red-600 hover:bg-red-50">Delete</button></form>
+                                            @endif
+                                            </x-record-action-menu>
                                             @endif
                                         </div>
                                     </td>
                                 </tr>
                             @empty<tr>
-                                    <td colspan="5" class="px-5 py-12 text-center text-gray-500">No school events
-                                        have been created.</td>
+                                    <td colspan="5" class="px-5 py-12 text-center">
+                                        <div class="flex min-h-36 flex-col items-center justify-center">
+                                            <x-heroicon-o-calendar-days class="mb-3 h-7 w-7 text-gray-400" aria-hidden="true" />
+                                            <p class="text-sm font-semibold text-gray-900">No school events yet</p>
+                                            <p class="mt-1 max-w-md text-sm text-gray-500">Create a school event to manage holidays, meetings, and other dated exceptions.</p>
+                                        </div>
+                                    </td>
                                 </tr>
                             @endforelse
                         </tbody>
