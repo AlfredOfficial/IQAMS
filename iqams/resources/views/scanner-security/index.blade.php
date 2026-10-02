@@ -193,8 +193,8 @@
                                 </td>
                                 <td class="{{ $securityFlagCellClass }}">{{ $flag->evidence }}</td>
                                 <td class="{{ $securityFlagCellClass }}">
-                                    <form method="POST" action="{{ route('scanner-security.flags.update', $flag) }}">
-                                        @csrf @method('PATCH')<select name="status" onchange="this.form.submit()" class="rounded-full border-0 bg-rose-50 py-1 pl-3 pr-8 text-xs font-semibold text-rose-600 shadow-none focus:ring-2 focus:ring-rose-200">
+                                    <form method="POST" action="{{ route('scanner-security.flags.update', $flag) }}" data-password-confirmation-required>
+                                        @csrf @method('PATCH')<select name="status" onchange="this.form.requestSubmit()" class="rounded-full border-0 bg-rose-50 py-1 pl-3 pr-8 text-xs font-semibold text-rose-600 shadow-none focus:ring-2 focus:ring-rose-200">
                                             @foreach (['open', 'reviewed', 'confirmed', 'dismissed'] as $s)
                                                 <option @selected($flag->status === $s)>{{ $s }}</option>
                                             @endforeach

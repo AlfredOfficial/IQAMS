@@ -800,12 +800,27 @@ document.querySelectorAll('.app-sidebar-nav, .app-main-scroll').forEach((scrollA
 const sidebarScrollKey = 'iqams.sidebar.scrollTop';
 const sidebarNav = document.querySelector('[data-sidebar-nav].app-sidebar-nav');
 
+const focusActiveSidebarLink = (nav) => {
+    const activeLink = nav?.querySelector('a[aria-current="page"]');
+    if (!nav || !activeLink) return;
+
+    const linkTop = activeLink.offsetTop;
+    const linkBottom = linkTop + activeLink.offsetHeight;
+    const visibleTop = nav.scrollTop;
+    const visibleBottom = visibleTop + nav.clientHeight;
+
+    if (linkTop < visibleTop || linkBottom > visibleBottom) {
+        nav.scrollTop = Math.max(0, linkTop - ((nav.clientHeight - activeLink.offsetHeight) / 2));
+    }
+};
+
 if (sidebarNav) {
     try {
         const savedScrollTop = Number(sessionStorage.getItem(sidebarScrollKey));
         if (Number.isFinite(savedScrollTop) && savedScrollTop > 0) {
             sidebarNav.scrollTop = savedScrollTop;
         }
+        window.requestAnimationFrame(() => focusActiveSidebarLink(sidebarNav));
 
         window.addEventListener('pagehide', () => {
             sessionStorage.setItem(sidebarScrollKey, String(sidebarNav.scrollTop));
@@ -963,6 +978,7 @@ if (document.body.hasAttribute('data-admin-shell')) {
             nextNav.scrollTop = sidebarScrollTop;
             Alpine.initTree(nextNav);
             Alpine.initTree(nextContent);
+            window.requestAnimationFrame(() => focusActiveSidebarLink(nextNav));
 
             if (parsed.title) document.title = parsed.title;
             if (addHistory) window.history.pushState({}, '', destination.href);
