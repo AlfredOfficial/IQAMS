@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="space-y-1 py-1">
-            <h2 class="text-xl font-bold tracking-tight text-slate-900">Audit activity</h2>
+            <h2 class="text-xl font-bold tracking-tight text-slate-900">Audit Logs</h2>
             <p class="text-sm text-slate-500">Review who performed each action and what record was affected.</p>
         </div>
     </x-slot>
