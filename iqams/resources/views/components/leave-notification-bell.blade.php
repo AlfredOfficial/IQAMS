@@ -52,7 +52,7 @@
         </button>
 
         <div x-show="open" x-cloak x-transition.origin.top.right @click.outside="open=false"
-            class="absolute right-0 z-[80] mt-2 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-xl">
+            class="fixed inset-x-3 top-24 z-[80] overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-96">
             <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
                 <div>
                     <p class="text-sm font-semibold text-slate-900">Leave notifications</p>
@@ -63,7 +63,7 @@
                         class="text-xs font-semibold text-blue-600 hover:text-blue-800">View all</a>
                 @endif
             </div>
-            <div class="max-h-96 overflow-y-auto divide-y divide-slate-100">
+            <div class="max-h-[calc(100dvh-7rem)] overflow-y-auto divide-y divide-slate-100 sm:max-h-96">
                 @forelse($leaveNotifications as $notification)
                     @php
                         $data = $notification->data;
