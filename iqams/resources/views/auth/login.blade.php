@@ -1,7 +1,7 @@
 <x-guest-layout>
     <div class="rounded-[22px] border border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] sm:p-8">
     <div class="mb-8">
-        <p class="text-sm font-semibold text-slate-600">WELCOME BACK</p>
+        <p class="text-sm font-bold tracking-[0.12em] text-teal-700">WELCOME BACK</p>
         <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-900">Sign in to your account</h2>
         <p class="mt-2 text-sm leading-6 text-slate-500">Enter your credentials to access your attendance dashboard.</p>
     </div>
@@ -53,7 +53,7 @@
             </label>
 
             @if (Route::has('password.request'))
-                <a class="rounded text-sm font-semibold text-slate-600 transition hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+                <a class="rounded text-sm font-semibold text-teal-700 transition hover:text-teal-900 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
                     href="{{ route('password.request') }}">Forgot password?</a>
             @endif
         </div>
