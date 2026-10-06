@@ -7,7 +7,7 @@
     </x-slot>
 
     <div class="py-8" x-data="{
-        showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
+        showCreateModal: {{ ($errors->any() || session('keep_create_modal_open')) ? 'true' : 'false' }},
         editModal: { show: false, id: null, office_unit_id: '', employee_no: '', name_prefix: '', first_name: '', middle_name: '', last_name: '', name_suffix: '', email: '', avatar_url: '' },
         deleteModal: { show: false, id: null, name: '' },
         statusModal: { show: false, userId: null, name: '', status: '' },

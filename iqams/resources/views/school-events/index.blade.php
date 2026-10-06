@@ -21,7 +21,7 @@
             : null,
     'baseUrl' => url('school-events'),
     'storeUrl' => route('school-events.store'),
-]))" @keydown.escape.window="closeModal()">
+]))" @keydown.escape.window="closeModal(); closeDeleteModal()">
         <div class="mx-auto max-w-7xl space-y-5 px-4 sm:px-6 lg:px-8">
             @if ($errors->any() && old('form_context') !== 'school_event_modal')
                 <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ $errors->first() }}
@@ -103,11 +103,9 @@
                                                         class="block w-full px-4 py-2.5 text-left text-amber-700 hover:bg-amber-50">Cancel</button></form>
                                             @endif
                                             @if (!$event->attendance_logs_count)
-                                                <form method="POST"
-                                                    action="{{ route('school-events.destroy', $event) }}"
-                                                    onsubmit="return confirm('Delete this event?')"
-                                                    data-password-confirmation-required>@csrf @method('DELETE')<button
-                                                        class="block w-full px-4 py-2.5 text-left text-red-600 hover:bg-red-50">Delete</button></form>
+                                                <button type="button"
+                                                    @click="openDelete(@js(['id' => $event->id, 'title' => $event->title]))"
+                                                    class="block w-full px-4 py-2.5 text-left !text-red-600 hover:bg-red-50">Delete</button>
                                             @endif
                                             </x-record-action-menu>
                                             @endif
@@ -144,6 +142,33 @@
                         aria-label="Close modal"><x-heroicon-o-x-mark class="h-5 w-5" /></button>
                 </div>
                 @include('school-events.form')
+            </section>
+        </div>
+
+        <div x-show="showDeleteModal" x-cloak
+            class="fixed inset-y-0 right-0 left-0 z-[60] flex items-center justify-center bg-black/40 p-4 lg:left-[260px]"
+            :class="sidebarCollapsed ? 'lg:!left-[80px]' : 'lg:!left-[260px]'" @click.self="closeDeleteModal()">
+            <section role="dialog" aria-modal="true" aria-labelledby="delete-school-event-modal-title"
+                class="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 id="delete-school-event-modal-title" class="text-lg font-semibold text-gray-900">Delete School Event</h3>
+                        <p class="mt-2 text-sm text-gray-600">Are you sure you want to delete <span class="font-medium text-gray-800" x-text="deleteEvent.title"></span>? This action cannot be undone.</p>
+                    </div>
+                    <button type="button" @click="closeDeleteModal()"
+                        class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                        aria-label="Close modal"><x-heroicon-o-x-mark class="h-5 w-5" /></button>
+                </div>
+
+                <form method="POST" :action="'{{ url('school-events') }}/' + deleteEvent.id"
+                    data-password-confirmation-required class="mt-6 flex items-center justify-end gap-3">
+                    @csrf
+                    @method('DELETE')
+                    <button type="button" @click="closeDeleteModal()"
+                        class="rounded px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700">Cancel</button>
+                    <button type="submit"
+                        class="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Delete Event</button>
+                </form>
             </section>
         </div>
     </div>

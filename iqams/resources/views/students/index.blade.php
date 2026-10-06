@@ -7,7 +7,7 @@
     </x-slot>
 
     <div class="py-8" x-data="{
-        showCreateModal: {{ $errors->any() ? 'true' : 'false' }},
+        showCreateModal: {{ ($errors->any() || session('keep_create_modal_open')) ? 'true' : 'false' }},
         createEnrollmentType: '{{ old('enrollment_type', 'regular') }}',
         editModal: { show: false, id: null, course_id: '', section_id: '', enrollment_type: 'regular', enrollment_group_ids: [], student_no: '', email: '', first_name: '', last_name: '', middle_name: '', status: '', avatar_url: '' },
         deleteModal: { show: false, id: null, name: '' },
@@ -288,12 +288,12 @@
 
         {{-- Edit Student Modal --}}
         <div x-show="editModal.show" x-cloak
-            class="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto px-4 py-6"
+            class="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto px-4 py-2"
             style="background: rgba(0,0,0,0.4);">
             <div @click.outside="editModal.show = false"
-                class="w-full max-w-xl rounded-lg bg-white p-5 shadow-xl sm:p-6">
+                class="w-full max-w-2xl rounded-lg bg-white p-3 shadow-xl sm:p-4">
 
-                <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center justify-between mb-2">
                     <h3 class="text-lg font-semibold text-gray-800">Edit Student</h3>
                     <button type="button" @click="editModal.show = false" class="text-gray-400 hover:text-gray-600">
                         <x-heroicon-o-x-mark class="w-5 h-5" />
@@ -304,15 +304,15 @@
                     data-password-confirmation-required>
                     @csrf
                     @method('PUT')
-                    <div class="mb-4 flex items-center gap-4"><img :src="editModal.avatar_url"
+                    <div class="mb-1 flex items-center gap-4"><img :src="editModal.avatar_url"
                             alt="Current profile photo" class="h-14 w-14 rounded-full object-cover">
                         <div><label class="mb-1 block text-sm font-medium text-gray-700">Replace Profile
                                 Photo</label><input type="file" name="avatar" accept="image/jpeg,image/png"
                                 class="block w-full text-sm text-gray-600"></div>
                     </div>
 
-                    <div class="mb-4 grid grid-cols-1 gap-x-5 gap-y-3 sm:grid-cols-2">
-                        <div class="order-4">
+                    <div class="mb-2 grid grid-cols-1 gap-x-5 gap-y-3 sm:grid-cols-2">
+                        <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
                             <select name="course_id" x-model="editModal.course_id"
                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -324,7 +324,7 @@
                             </select>
                         </div>
 
-                        <div class="order-5">
+                        <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Section</label>
                             <select name="section_id" x-model="editModal.section_id"
                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -336,17 +336,28 @@
                             </select>
                         </div>
 
-                        <div class="order-6">
+                        <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Student No.</label>
                             <input type="text" x-model="editModal.student_no" disabled
                                 class="w-full rounded-md border-gray-200 bg-gray-50 text-gray-500 shadow-sm">
                         </div>
-                        <div class="order-7">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                            <select name="status" x-model="editModal.status"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="graduated">Graduated</option>
+                                <option value="dropped">Dropped</option>
+                            </select>
+                        </div>
+
+                        <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                             <input type="text" name="first_name" x-model="editModal.first_name"
                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         </div>
-                        <div class="order-8">
+                        <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
                             <input type="text" name="middle_name" x-model="editModal.middle_name"
                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -363,19 +374,9 @@
                             <input type="email" x-model="editModal.email" disabled
                                 class="w-full rounded-md border-gray-200 bg-gray-50 text-gray-500 shadow-sm">
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                            <select name="status" x-model="editModal.status"
-                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                                <option value="graduated">Graduated</option>
-                                <option value="dropped">Dropped</option>
-                            </select>
-                        </div>
                     </div>
 
-                    <div class="mb-4">
+                    <div class="mb-2">
                         <label class="mb-1 block text-sm font-medium text-gray-700">Enrollment type</label>
                         <select name="enrollment_type" x-model="editModal.enrollment_type"
                             class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -384,7 +385,7 @@
                         </select>
                     </div>
                     <div x-show="editModal.enrollment_type === 'irregular'" x-cloak
-                        class="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                        class="mb-2 rounded-md border border-amber-200 bg-amber-50 p-3">
                         <p class="mb-2 text-sm font-medium text-amber-900">Class offerings</p>
                         <div class="max-h-40 space-y-2 overflow-y-auto">
                             @foreach ($offerings as $offering)
@@ -396,9 +397,9 @@
                         </div>
                     </div>
 
-                    <p class="text-xs text-gray-400 mb-4">Email and login credentials can't be changed here yet.</p>
+                    <p class="text-xs text-gray-400 mb-1">Email and login credentials can't be changed here yet.</p>
 
-                    <div class="mt-4 flex items-center justify-end gap-3 border-t border-gray-100 pt-3">
+                    <div class="flex items-center justify-end gap-3 border-t border-gray-100 pt-2">
                         <button type="button" @click="editModal.show = false"
                             class="rounded px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700">
                             Cancel

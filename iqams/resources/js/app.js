@@ -36,6 +36,8 @@ Alpine.data('schoolEventsModal', (initialState = {}) => {
 
     return {
         showModal: initialState.showModal ?? false,
+        showDeleteModal: false,
+        deleteEvent: { id: '', title: '' },
         form: initialState.form ?? emptyForm(),
 
         get editing() {
@@ -62,6 +64,16 @@ Alpine.data('schoolEventsModal', (initialState = {}) => {
 
         closeModal() {
             this.showModal = false;
+        },
+
+        openDelete(event) {
+            this.deleteEvent = event;
+            this.showDeleteModal = true;
+        },
+
+        closeDeleteModal() {
+            this.showDeleteModal = false;
+            this.deleteEvent = { id: '', title: '' };
         },
 
         focusTitle() {

@@ -135,6 +135,7 @@ class StudentController extends Controller
 
         return redirect()->route('students.index')
             ->with('success', 'Account created successfully.')
+            ->with('keep_create_modal_open', true)
             ->with('generated_password', $temporaryPassword);
     }
 
