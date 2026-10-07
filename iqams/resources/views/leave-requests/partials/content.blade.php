@@ -32,7 +32,7 @@
         <div class="sm:col-span-2"><x-input-label for="reason" value="Reason" />
             <textarea id="reason" name="reason" rows="4" class="mt-1 w-full rounded-xl border-slate-300" required>{{ old('reason') }}</textarea><x-input-error :messages="$errors->get('reason')" class="mt-2" />
         </div>
-        <div class="sm:col-span-2"><button
+        <div class="flex justify-end sm:col-span-2"><button
                 class="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700">Submit
                 request</button></div>
     </form>

@@ -939,6 +939,26 @@ document.addEventListener('submit', (event) => {
 
     if (requiresPasswordConfirmation(form)) {
         event.preventDefault();
+
+        // Calling form.submit() after the password modal bypasses the browser's
+        // submitter handling. Preserve the clicked button's name/value (such as
+        // status=approved or status=rejected for leave requests) so the server
+        // receives the intended action after confirmation.
+        const submitter = event.submitter;
+        let preservedSubmitter = form.querySelector('input[data-password-confirmation-submitter]');
+        if (submitter?.name) {
+            if (!preservedSubmitter) {
+                preservedSubmitter = document.createElement('input');
+                preservedSubmitter.type = 'hidden';
+                preservedSubmitter.dataset.passwordConfirmationSubmitter = '';
+                form.appendChild(preservedSubmitter);
+            }
+            preservedSubmitter.name = submitter.name;
+            preservedSubmitter.value = submitter.value;
+        } else {
+            preservedSubmitter?.remove();
+        }
+
         window.dispatchEvent(new CustomEvent('password-confirmation-required', { detail: { form } }));
         return;
     }

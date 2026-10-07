@@ -4,13 +4,25 @@
         $notificationKey = 'iqams.leave-notifications.' . Auth::id();
         $notificationData = request()->attributes->get($notificationKey);
         if ($notificationData === null) {
+            $leaveNotifications = Auth::user()->notifications()->where('type', $notificationType)->latest()->take(8)->get();
+            $leaveStatuses = \App\Models\LeaveRequest::query()
+                ->whereKey($leaveNotifications->pluck('data.leave_request_id')->filter()->unique())
+                ->pluck('status', 'id')
+                ->all();
+
             $notificationData = [
-                Auth::user()->notifications()->where('type', $notificationType)->latest()->take(8)->get(),
-                Auth::user()->unreadNotifications()->where('type', $notificationType)->count(),
+                $leaveNotifications,
+                // An administrator's badge represents requests that still require a
+                // decision.  Do not clear it merely because the notification menu
+                // was opened; it clears when the associated leave is acted on.
+                Auth::user()->isAdmin()
+                    ? \App\Models\LeaveRequest::query()->where('status', 'pending')->count()
+                    : Auth::user()->unreadNotifications()->where('type', $notificationType)->count(),
+                $leaveStatuses,
             ];
             request()->attributes->set($notificationKey, $notificationData);
         }
-        [$leaveNotifications, $unreadCount] = $notificationData;
+        [$leaveNotifications, $unreadCount, $leaveStatuses] = $notificationData;
     @endphp
     @php
         $leaveIndexRoute = match (true) {
@@ -22,28 +34,9 @@
 
     <div {{ $attributes->class('relative') }} x-data="{
         open: false,
-        unread: {{ $unreadCount }},
-        async toggle() {
-            this.open = !this.open;
-            if (!this.open || !this.unread) return;
-            try {
-                const response = await fetch(@js(route('leave-notifications.read')), {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                if (response.ok) window.dispatchEvent(new CustomEvent('leave-notifications-read'));
-            } catch (error) {
-                // Retain the badge when read state could not be saved.
-            }
-        }
-    }" @keydown.escape.window="open=false"
-        @leave-notifications-read.window="unread=0">
-        <button type="button" @click="toggle"
+        unread: {{ $unreadCount }}
+    }" @keydown.escape.window="open=false">
+        <button type="button" @click="open = !open"
             class="relative rounded-lg border border-slate-200 bg-white p-2.5 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
             aria-label="Leave notifications" :aria-expanded="open">
             <x-heroicon-o-bell class="h-5 w-5" aria-hidden="true" />
@@ -68,7 +61,10 @@
                     @php
                         $data = $notification->data;
                         $event = $data['event'] ?? 'updated';
-                        $status = $data['status'] ?? 'pending';
+                        // The notification records the status at submission time.
+                        // Prefer the current request state so a reviewed request
+                        // never continues to appear as pending in the bell.
+                        $status = $leaveStatuses[$data['leave_request_id'] ?? null] ?? ($data['status'] ?? 'pending');
                         $statusClass = match ($status) {
                             'approved' => 'bg-emerald-100 text-emerald-700',
                             'rejected' => 'bg-red-100 text-red-700',

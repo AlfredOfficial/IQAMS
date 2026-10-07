@@ -1,7 +1,7 @@
 <x-staff-layout title="Monthly Summary">
     <div class="space-y-5">
-        <h2 class="text-xl font-semibold">Monthly Attendance Summary</h2>
-        <form class="flex flex-wrap gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70">
+        <form class="flex flex-wrap items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70">
+            <h2 class="mr-auto text-xl font-semibold">Monthly Attendance Summary</h2>
             <select name="month" class="rounded-xl border-slate-300">
                 @foreach (range(1, 12) as $value)
                     <option value="{{ $value }}" @selected($month === $value)>

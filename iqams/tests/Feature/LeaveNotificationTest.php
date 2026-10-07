@@ -85,6 +85,34 @@ class LeaveNotificationTest extends TestCase
         $this->assertSame(1, $second->unreadNotifications()->count());
     }
 
+    public function test_admin_badge_tracks_pending_leave_requests_until_each_is_reviewed(): void
+    {
+        $admin = $this->user('admin');
+        $owner = $this->user('instructor');
+        $first = $this->leave($owner, '2026-09-10');
+        $second = $this->leave($owner, '2026-09-11');
+
+        $this->actingAs($admin)->get(route('admin.leave-requests.index'))
+            ->assertOk()
+            ->assertSee('unread: 2', false);
+
+        $this->withSession(['auth.password_confirmed_at' => time()])
+            ->patch(route('admin.leave-requests.update', $first), ['status' => 'approved'])
+            ->assertRedirect();
+
+        $this->get(route('admin.leave-requests.index'))
+            ->assertOk()
+            ->assertSee('unread: 1', false);
+
+        $this->withSession(['auth.password_confirmed_at' => time()])
+            ->patch(route('admin.leave-requests.update', $second), ['status' => 'rejected'])
+            ->assertRedirect();
+
+        $this->get(route('admin.leave-requests.index'))
+            ->assertOk()
+            ->assertSee('unread: 0', false);
+    }
+
     public function test_bell_shows_unread_count_and_only_eight_newest_items(): void
     {
         $owner = $this->user('instructor');
@@ -102,6 +130,18 @@ class LeaveNotificationTest extends TestCase
             ->assertSee('Notification 10')->assertSee('Notification 3')
             ->assertDontSee('Note: Notification 2</p>', false)
             ->assertDontSee('Note: Notification 1</p>', false);
+    }
+
+    public function test_bell_uses_the_current_status_after_a_leave_request_is_reviewed(): void
+    {
+        $owner = $this->user('instructor');
+        $leave = $this->leave($owner);
+        $owner->notify(new LeaveRequestNotification($leave, 'submitted'));
+        $leave->update(['status' => 'approved']);
+
+        $this->actingAs($owner)->get(route('leave-requests.index'))
+            ->assertOk()
+            ->assertSee('>approved<', false);
     }
 
     private function user(string $role): User
