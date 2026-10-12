@@ -45,15 +45,15 @@
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 
-        <div class="flex items-center justify-between gap-4">
-            <label for="remember_me" class="inline-flex cursor-pointer items-center gap-2.5 text-sm text-slate-600">
+        <div class="flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-2 sm:flex-nowrap sm:items-center">
+            <label for="remember_me" class="flex min-w-0 cursor-pointer items-center gap-2.5 text-sm text-slate-600">
                 <input id="remember_me" type="checkbox"
-                    class="rounded border-slate-300 text-teal-600 shadow-sm focus:ring-teal-500" name="remember">
+                    class="shrink-0 rounded border-slate-300 text-teal-600 shadow-sm focus:ring-teal-500" name="remember">
                 <span>Remember me for 30 days</span>
             </label>
 
             @if (Route::has('password.request'))
-                <a class="rounded text-sm font-semibold text-teal-700 transition hover:text-teal-900 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+                <a class="ml-auto mt-0.5 shrink-0 rounded text-sm font-semibold text-teal-700 transition hover:text-teal-900 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 sm:ml-0 sm:mt-0"
                     href="{{ route('password.request') }}">Forgot password?</a>
             @endif
         </div>

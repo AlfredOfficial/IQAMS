@@ -39,7 +39,7 @@
 
     <div class="overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/70">
         <table class="min-w-full text-sm">
-            <thead class="bg-slate-50 text-left text-slate-500">
+            <thead class="bg-slate-50 text-left text-slate-500 max-sm:hidden">
                 <tr>
                     <th class="p-4">Dates</th>
                     <th class="p-4">Type</th>
@@ -48,17 +48,28 @@
                     <th class="p-4"></th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody class="max-sm:block max-sm:space-y-3 max-sm:p-3">
                 @forelse($requests as $item)
-                    <tr class="border-t border-slate-100">
-                        <td class="p-4">{{ $item->start_date->format('M d, Y') }} &ndash;
-                            {{ $item->end_date->format('M d, Y') }}</td>
-                        <td class="p-4">{{ $item->type_label }}</td>
-                        <td class="p-4"><span
+                    <tr class="border-t border-slate-100 max-sm:block max-sm:rounded-xl max-sm:border max-sm:border-slate-200">
+                        <td class="p-4 max-sm:flex max-sm:items-start max-sm:justify-between max-sm:gap-4 max-sm:border-b max-sm:border-slate-100 max-sm:px-4 max-sm:py-3">
+                            <span class="font-medium text-slate-500 sm:hidden">Dates</span>
+                            <span class="text-right sm:text-left">{{ $item->start_date->format('M d, Y') }} &ndash;
+                                {{ $item->end_date->format('M d, Y') }}</span>
+                        </td>
+                        <td class="p-4 max-sm:flex max-sm:items-start max-sm:justify-between max-sm:gap-4 max-sm:border-b max-sm:border-slate-100 max-sm:px-4 max-sm:py-3">
+                            <span class="font-medium text-slate-500 sm:hidden">Type</span>
+                            <span class="text-right sm:text-left">{{ $item->type_label }}</span>
+                        </td>
+                        <td class="p-4 max-sm:flex max-sm:items-center max-sm:justify-between max-sm:gap-4 max-sm:border-b max-sm:border-slate-100 max-sm:px-4 max-sm:py-3">
+                            <span class="font-medium text-slate-500 sm:hidden">Status</span>
+                            <span
                                 class="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-700">{{ ucfirst($item->status) }}</span>
                         </td>
-                        <td class="p-4">{{ $item->review_notes ?: '—' }}</td>
-                        <td class="p-4">
+                        <td class="p-4 max-sm:flex max-sm:items-start max-sm:justify-between max-sm:gap-4 max-sm:border-b max-sm:border-slate-100 max-sm:px-4 max-sm:py-3">
+                            <span class="shrink-0 font-medium text-slate-500 sm:hidden">Review notes</span>
+                            <span class="text-right sm:text-left">{{ $item->review_notes ?: '—' }}</span>
+                        </td>
+                        <td class="p-4 max-sm:flex max-sm:justify-end max-sm:px-4 max-sm:py-3">
                             @if ($item->status === 'pending')
                                 <form method="POST"
                                     action="{{ route($cancelRoute ?? 'leave-requests.cancel', $item) }}">@csrf
@@ -66,8 +77,8 @@
                                         class="font-semibold text-red-600 hover:underline">Cancel</button></form>
                             @endif
                         </td>
-                </tr>@empty<tr>
-                        <td colspan="5" class="p-8 text-center text-slate-500">No leave requests yet.</td>
+                </tr>@empty<tr class="max-sm:block">
+                        <td colspan="5" class="p-8 text-center text-slate-500 max-sm:block">No leave requests yet.</td>
                     </tr>
                 @endforelse
             </tbody>
