@@ -36,7 +36,7 @@
                     <p class="mt-7 text-sm font-bold uppercase tracking-[.24em] text-[#1b5b91]">IQAMS Attendance Terminal
                     </p>
                     <h1 class="mt-3 text-4xl font-bold">Waiting for QR card</h1>
-                    <p class="mt-3 text-lg text-slate-500">Scan a school ID to record attendance.</p>
+                    <p class="mt-3 text-lg text-slate-500">Scan your ID to record attendance.</p>
                     <p class="mt-10 text-sm text-slate-400">{{ $terminal->name }} · {{ $terminal->location }}</p>
                 </div>
             </section>
@@ -49,11 +49,11 @@
                 </div>
             </section>
 
-            <section x-show="state === 'result'" x-cloak class="min-h-screen bg-white">
+            <section x-show="state === 'result'" x-cloak class="min-h-[100dvh] bg-white">
                 <template x-if="result.person">
-                    <div class="grid min-h-screen grid-cols-1 lg:grid-cols-12">
+                    <div class="grid min-h-[100dvh] grid-cols-1 lg:h-[100dvh] lg:grid-cols-12 lg:overflow-hidden">
                         <div
-                            class="col-span-1 flex min-h-0 flex-col bg-[#eef3f7] p-3 sm:p-5 lg:col-span-7 lg:min-h-screen lg:p-8">
+                            class="col-span-1 flex min-h-0 min-w-0 flex-col bg-[#eef3f7] p-3 sm:p-5 lg:col-span-7 lg:p-8">
                             <header class="mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
                                 <div class="flex min-w-0 items-center gap-2 sm:gap-3"><img src="{{ asset('favicon.svg') }}"
                                         alt="IQAMS" class="h-9 w-9 shrink-0 sm:h-12 sm:w-12">
@@ -68,7 +68,7 @@
                                     {{ $terminal->name }}<br>{{ $terminal->location }}</p>
                             </header>
                             <div
-                                class="h-[clamp(13rem,36vh,24rem)] overflow-hidden rounded-xl bg-slate-200 shadow-sm sm:h-[clamp(16rem,42vh,30rem)] lg:h-[clamp(20rem,55vh,36rem)]">
+                                class="h-[clamp(13rem,36vh,24rem)] overflow-hidden rounded-xl bg-slate-200 shadow-sm sm:h-[clamp(16rem,42vh,30rem)] lg:min-h-0 lg:flex-1 lg:h-auto">
                                 <img x-show="result.person.avatar" :src="result.person.avatar"
                                     class="h-full w-full object-cover object-center" :alt="result.person.name">
                                 <div x-show="!result.person.avatar"
@@ -78,7 +78,7 @@
                         </div>
 
                         <div
-                            class="col-span-1 flex min-h-0 flex-col px-4 py-5 sm:px-8 sm:py-7 lg:col-span-5 lg:min-h-screen lg:px-12 lg:py-10">
+                            class="col-span-1 flex min-h-0 min-w-0 flex-col px-4 py-5 sm:px-8 sm:py-7 lg:col-span-5 lg:overflow-y-auto lg:px-12 lg:py-10">
                             <div class="flex items-center justify-between gap-3 border-b border-slate-200 pb-4 sm:pb-5">
                                 <p class="text-[10px] font-bold uppercase tracking-[.2em] text-slate-400 sm:text-xs">
                                     Verified identity</p><span
