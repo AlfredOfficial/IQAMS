@@ -273,47 +273,39 @@ class QrAttendanceService
             );
         }
 
-        if ($role === 'instructor') {
-            // Instructor scans represent the period whose window is open now. Walking
-            // the stages in reverse makes a shared boundary (for example 12:30 PM)
-            // belong to the later period.
-            $period = collect($stages)
-                ->reverse()
-                ->search(fn (array $candidate) => $this->personnelClassifier->isWithinWindow($candidate, $scannedAt));
-            $period = $period === false ? null : $period;
-            $stage = $period ? $stages[$period] : null;
+        // Personnel scans represent the period whose window is open now. Walking
+        // the stages in reverse makes a shared boundary (for example 12:30 PM)
+        // belong to the later period, and lets staff record a later period even
+        // when an earlier scan was missed.
+        $period = collect($stages)
+            ->reverse()
+            ->search(fn (array $candidate) => $this->personnelClassifier->isWithinWindow($candidate, $scannedAt));
+        $period = $period === false ? null : $period;
+        $stage = $period ? $stages[$period] : null;
 
-            if ($period && $todayLogs->contains('attendance_period', $period)) {
-                $existing = $todayLogs->firstWhere('attendance_period', $period);
-                throw AttendanceAlreadyRecordedException::forLog(
-                    $existing->load('user.roles'),
-                    "{$stage['label']} has already been recorded.",
-                );
-            }
-        } else {
-            $period = $stageNames[$todayLogs->count()] ?? null;
-            $stage = $period ? $stages[$period] : null;
+        if ($period && $todayLogs->contains('attendance_period', $period)) {
+            $existing = $todayLogs->firstWhere('attendance_period', $period);
+            throw AttendanceAlreadyRecordedException::forLog(
+                $existing->load('user.roles'),
+                "{$stage['label']} has already been recorded.",
+            );
         }
 
         if (! $stage || ! $this->personnelClassifier->isWithinWindow($stage, $scannedAt)) {
             if (! $stage) {
-                if ($role === 'instructor') {
-                    $upcomingStage = collect($stages)->first(function (array $candidate) use ($scannedAt) {
-                        $startsAt = $scannedAt->copy()->startOfDay()->setTimeFromTimeString($candidate['start']);
+                $upcomingStage = collect($stages)->first(function (array $candidate) use ($scannedAt) {
+                    $startsAt = $scannedAt->copy()->startOfDay()->setTimeFromTimeString($candidate['start']);
 
-                        return $scannedAt->lessThan($startsAt);
-                    });
+                    return $scannedAt->lessThan($startsAt);
+                });
 
-                    if ($upcomingStage) {
-                        $startLabel = Carbon::parse($upcomingStage['start'])->format('g:i A');
-                        $endLabel = Carbon::parse($upcomingStage['end'])->format('g:i A');
-                        $this->deny("{$upcomingStage['label']} is only allowed from {$startLabel} to {$endLabel}.");
-                    }
-
-                    $this->deny('Instructor attendance cannot be recorded because no attendance window is open at this time.');
+                if ($upcomingStage) {
+                    $startLabel = Carbon::parse($upcomingStage['start'])->format('g:i A');
+                    $endLabel = Carbon::parse($upcomingStage['end'])->format('g:i A');
+                    $this->deny("{$upcomingStage['label']} is only allowed from {$startLabel} to {$endLabel}.");
                 }
 
-                $this->deny('Personnel attendance windows are not configured correctly. Contact the administrator.');
+                $this->deny('Personnel attendance cannot be recorded because no attendance window is open at this time.');
             }
 
             $startLabel = Carbon::parse($stage['start'])->format('g:i A');

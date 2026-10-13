@@ -430,6 +430,18 @@ class QrAttendanceScannerTest extends TestCase
         $this->assertSame('time_out', $final->attendance_type);
     }
 
+    public function test_staff_can_record_final_out_after_missing_earlier_periods(): void
+    {
+        $this->createPersonnel('staff', 'STAFF-MISSED-PERIODS');
+
+        $final = app(QrAttendanceService::class)->record(
+            'STAFF-MISSED-PERIODS', null, Carbon::parse('2026-08-10 17:00:00', 'Asia/Manila'),
+        );
+
+        $this->assertSame('final_out', $final->attendance_period);
+        $this->assertSame('time_out', $final->attendance_type);
+    }
+
     public function test_instructor_shared_window_boundary_prefers_the_later_period(): void
     {
         $this->createPersonnel('instructor', 'INS-BOUNDARY');
