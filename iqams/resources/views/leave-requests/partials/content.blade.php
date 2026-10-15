@@ -50,22 +50,27 @@
             </thead>
             <tbody class="max-sm:block max-sm:space-y-3 max-sm:p-3">
                 @forelse($requests as $item)
-                    <tr class="border-t border-slate-100 max-sm:block max-sm:rounded-xl max-sm:border max-sm:border-slate-200">
-                        <td class="p-4 max-sm:flex max-sm:items-start max-sm:justify-between max-sm:gap-4 max-sm:border-b max-sm:border-slate-100 max-sm:px-4 max-sm:py-3">
+                    <tr
+                        class="border-t border-slate-100 max-sm:block max-sm:rounded-xl max-sm:border max-sm:border-slate-200">
+                        <td
+                            class="p-4 max-sm:flex max-sm:items-start max-sm:justify-between max-sm:gap-4 max-sm:border-b max-sm:border-slate-100 max-sm:px-4 max-sm:py-3">
                             <span class="font-medium text-slate-500 sm:hidden">Dates</span>
                             <span class="text-right sm:text-left">{{ $item->start_date->format('M d, Y') }} &ndash;
                                 {{ $item->end_date->format('M d, Y') }}</span>
                         </td>
-                        <td class="p-4 max-sm:flex max-sm:items-start max-sm:justify-between max-sm:gap-4 max-sm:border-b max-sm:border-slate-100 max-sm:px-4 max-sm:py-3">
+                        <td
+                            class="p-4 max-sm:flex max-sm:items-start max-sm:justify-between max-sm:gap-4 max-sm:border-b max-sm:border-slate-100 max-sm:px-4 max-sm:py-3">
                             <span class="font-medium text-slate-500 sm:hidden">Type</span>
                             <span class="text-right sm:text-left">{{ $item->type_label }}</span>
                         </td>
-                        <td class="p-4 max-sm:flex max-sm:items-center max-sm:justify-between max-sm:gap-4 max-sm:border-b max-sm:border-slate-100 max-sm:px-4 max-sm:py-3">
+                        <td
+                            class="p-4 max-sm:flex max-sm:items-center max-sm:justify-between max-sm:gap-4 max-sm:border-b max-sm:border-slate-100 max-sm:px-4 max-sm:py-3">
                             <span class="font-medium text-slate-500 sm:hidden">Status</span>
                             <span
                                 class="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-700">{{ ucfirst($item->status) }}</span>
                         </td>
-                        <td class="p-4 max-sm:flex max-sm:items-start max-sm:justify-between max-sm:gap-4 max-sm:border-b max-sm:border-slate-100 max-sm:px-4 max-sm:py-3">
+                        <td
+                            class="p-4 max-sm:flex max-sm:items-start max-sm:justify-between max-sm:gap-4 max-sm:border-b max-sm:border-slate-100 max-sm:px-4 max-sm:py-3">
                             <span class="shrink-0 font-medium text-slate-500 sm:hidden">Review notes</span>
                             <span class="text-right sm:text-left">{{ $item->review_notes ?: '—' }}</span>
                         </td>
@@ -78,7 +83,8 @@
                             @endif
                         </td>
                 </tr>@empty<tr class="max-sm:block">
-                        <td colspan="5" class="p-8 text-center text-slate-500 max-sm:block">No leave requests yet.</td>
+                        <td colspan="5" class="p-8 text-center text-slate-500 max-sm:block">No leave requests yet.
+                        </td>
                     </tr>
                 @endforelse
             </tbody>

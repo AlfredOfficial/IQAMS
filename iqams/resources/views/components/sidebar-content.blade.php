@@ -73,7 +73,7 @@
     @endif
 
     @if ($roleName === 'admin')
-        <x-sidebar-link :href="route('attendance-scanner.index')" :active="request()->routeIs('attendance-scanner.*')" :collapsible="$collapsible" target="_self" label="QR Scanner">
+        <x-sidebar-link :href="route('attendance-scanner.index')" :active="request()->routeIs('attendance-scanner.*')" :collapsible="$collapsible" target="_blank" rel="noopener" label="QR Scanner">
             <x-slot name="icon">
                 <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                     aria-hidden="true">
