@@ -220,74 +220,14 @@ Alpine.data('lookupField', (initialState = {}) => ({
 Alpine.data('instructorWorkspace', () => ({
     refreshTimer: null,
     poller: null,
-    downloadingIdCard: false,
-    qrCode: null,
 
     init() {
         this.poller = createPollingTask((signal) => this.refresh(signal));
         this.poller.start();
-
-        window.ensureIqamsQrCode().then(() => this.renderQrCode()).catch(() => {});
-        this.loadQrCode();
     },
 
     destroy() {
         this.poller?.stop();
-    },
-
-    renderQrCode() {
-        const qr = this.$root.querySelector('#instructor-qr');
-        const value = this.qrCode;
-
-        if (!qr) return;
-
-        if (!value) {
-            qr.textContent = 'No QR code assigned';
-            return;
-        }
-
-        if (!window.QRCode) return;
-
-        qr.replaceChildren();
-        new window.QRCode(qr, {
-            text: value,
-            width: 104,
-            height: 104,
-            colorDark: '#0f172a',
-            colorLight: '#ffffff',
-        });
-    },
-
-    async loadQrCode() {
-        const endpoint = this.$root.dataset.idCardUrl;
-        if (!endpoint) return;
-
-        try {
-            const response = await fetch(endpoint, {
-                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                credentials: 'same-origin',
-                cache: 'no-store',
-            });
-            if (!response.ok) return;
-            this.qrCode = (await response.json()).qr_code || null;
-            this.renderQrCode();
-        } catch {
-            // Keep the placeholder when the private ID-card endpoint is unavailable.
-        }
-    },
-
-    async downloadIdCard() {
-        if (this.downloadingIdCard) return;
-        this.downloadingIdCard = true;
-
-        try {
-            await window.ensureIqamsQrCode();
-            await window.downloadIqamsIdCard(this.$root.dataset.idCardUrl);
-        } catch (error) {
-            window.alert(error.message || 'The ID card could not be downloaded.');
-        } finally {
-            this.downloadingIdCard = false;
-        }
     },
 
     async refresh(signal) {
@@ -352,6 +292,69 @@ Alpine.data('instructorWorkspace', () => ({
             });
         } catch {
             // Keep the last rendered server state when polling is unavailable.
+        }
+    },
+}));
+
+Alpine.data('instructorIdCard', () => ({
+    downloading: false,
+    qrCode: null,
+
+    init() {
+        window.ensureIqamsQrCode().then(() => this.renderQrCode()).catch(() => {});
+        this.loadQrCode();
+    },
+
+    renderQrCode() {
+        const target = this.$root.querySelector('[data-instructor-id-card-qr]');
+        if (!target) return;
+
+        if (!this.qrCode) {
+            target.textContent = 'No QR code assigned';
+            return;
+        }
+
+        if (!window.QRCode) return;
+
+        target.replaceChildren();
+        new window.QRCode(target, {
+            text: this.qrCode,
+            width: 160,
+            height: 160,
+            colorDark: '#0f172a',
+            colorLight: '#ffffff',
+        });
+    },
+
+    async loadQrCode() {
+        const endpoint = this.$root.dataset.idCardUrl;
+        if (!endpoint) return;
+
+        try {
+            const response = await fetch(endpoint, {
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                cache: 'no-store',
+            });
+            if (!response.ok) return;
+            this.qrCode = (await response.json()).qr_code || null;
+            this.renderQrCode();
+        } catch {
+            // Leave the unavailable-code message visible when the endpoint cannot be reached.
+        }
+    },
+
+    async downloadIdCard() {
+        if (this.downloading) return;
+        this.downloading = true;
+
+        try {
+            await window.ensureIqamsQrCode();
+            await window.downloadIqamsIdCard(this.$root.dataset.idCardUrl);
+        } catch (error) {
+            window.alert(error.message || 'The ID card could not be downloaded.');
+        } finally {
+            this.downloading = false;
         }
     },
 }));

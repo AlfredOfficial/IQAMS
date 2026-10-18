@@ -8,7 +8,6 @@
         ['route'=>'instructor.dashboard','label'=>'Dashboard','icon'=>'M4 5a2 2 0 012-2h3a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm9 0a2 2 0 012-2h3a2 2 0 012 2v7a2 2 0 01-2 2h-3a2 2 0 01-2-2V5zM4 16a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H6a2 2 0 01-2-2v-3zm9 1a2 2 0 012-2h3a2 2 0 012 2v2a2 2 0 01-2 2h-3a2 2 0 01-2-2v-2z'],
         ['route'=>'instructor.attendance','label'=>'My Attendance','icon'=>'M9 12l2 2 4-4m5-4v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2m4-1h4a1 1 0 011 1v2H9V4a1 1 0 011-1h2z'],
         ['route'=>'instructor.schedule','label'=>'My Teaching Schedule','icon'=>'M8 7V3m8 4V3M5 11h14M5 5h14v16H5z'],
-        ['route'=>'instructor.history','label'=>'Attendance History','icon'=>'M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z'],
         ['route'=>'instructor.summary','label'=>'Monthly Summary','icon'=>'M4 19h16M7 16V9m5 7V5m5 11v-4'],
         ['route'=>'instructor.issues','label'=>'Attendance Issues','icon'=>'M12 9v4m0 4h.01M10.3 3.6L2.6 17a2 2 0 001.7 3h15.4a2 2 0 001.7-3L13.7 3.6a2 2 0 00-3.4 0z'],
         ['route'=>'leave-requests.index','label'=>'Leave Requests','icon'=>'M7 3h10a2 2 0 012 2v16l-7-3-7 3V5a2 2 0 012-2z'],

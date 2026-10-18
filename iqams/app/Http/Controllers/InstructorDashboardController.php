@@ -58,10 +58,8 @@ class InstructorDashboardController extends Controller
             $nextSchedule->setAttribute('start_time', $nextScheduleOccurrence->startsAt->format('H:i:s'));
             $nextSchedule->setAttribute('end_time', $nextScheduleOccurrence->endsAt->format('H:i:s'));
         }
-        $issues = $monthDays->filter(fn ($day) => $day['status'] === 'Absent' || $day['isIncomplete'] || $day['late'] || $day['early'])
-            ->reverse()->take(3)->values();
         $studentWarnings = $studentWarnings->forInstructor($instructor);
-        return view('instructor.dashboard', compact('instructor', 'today', 'totals', 'monthDays', 'todaySchedules', 'nextSchedule', 'nextScheduleOccurrence', 'issues', 'studentWarnings'));
+        return view('instructor.dashboard', compact('instructor', 'today', 'totals', 'monthDays', 'todaySchedules', 'nextSchedule', 'nextScheduleOccurrence', 'studentWarnings'));
     }
 
     public function realtime(Request $request, PersonnelAttendanceSummary $summary)

@@ -1,7 +1,7 @@
-<x-instructor-layout title="Attendance History">
+<x-instructor-layout title="My Attendance">
     <div class="space-y-5">
         <div>
-            <h2 class="text-xl font-semibold">Attendance History</h2>
+            <h2 class="text-xl font-semibold">My Attendance</h2>
             <p class="text-sm text-gray-500">Your workday attendance records are read-only.</p>
         </div>
         <form class="bg-white rounded-xl shadow-sm p-4 grid md:grid-cols-5 gap-3"><input

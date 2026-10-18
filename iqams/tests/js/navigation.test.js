@@ -29,7 +29,7 @@ test('sidebar clicks leave the destination and history under native browser cont
     const { click, counts, win } = setup();
     win.fetch = () => assert.fail('Navigation must not fetch a duplicate document');
     win.history = { pushState: () => assert.fail('Navigation must not push stale URLs') };
-    assert.equal(click('/instructor/history').defaultPrevented, false);
+    assert.equal(click('/instructor/attendance').defaultPrevented, false);
     assert.equal(click('/instructor/summary').defaultPrevented, false);
     assert.equal(counts.starts, 2);
     win.dispatchEvent(new Event('popstate'));

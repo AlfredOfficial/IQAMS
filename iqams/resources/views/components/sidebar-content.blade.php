@@ -57,7 +57,6 @@
         @foreach ([
         'instructor.attendance' => 'My Attendance',
         'instructor.schedule' => 'My Teaching Schedule',
-        'instructor.history' => 'Attendance History',
         'instructor.summary' => 'Monthly Summary',
         'instructor.issues' => 'Attendance Issues',
         'my-profile.edit' => 'Profile',

@@ -163,7 +163,6 @@ Route::middleware(['auth', 'active', 'password.changed', 'role:instructor'])->pr
     Route::get('dashboard', [InstructorDashboardController::class, 'index'])->name('dashboard');
     Route::get('dashboard/realtime', [InstructorDashboardController::class, 'realtime'])->name('dashboard.realtime');
     Route::get('attendance', [InstructorAttendanceController::class, 'history'])->name('attendance');
-    Route::get('history', [InstructorAttendanceController::class, 'history'])->name('history');
     Route::get('summary', [InstructorAttendanceController::class, 'summary'])->name('summary');
     Route::get('issues', [InstructorAttendanceController::class, 'issues'])->name('issues');
     Route::get('schedule', [InstructorAttendanceController::class, 'schedule'])->name('schedule');

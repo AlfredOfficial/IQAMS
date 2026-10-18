@@ -3,6 +3,45 @@
         <h2 class="text-xl font-semibold">My Profile</h2>
         <p class="text-sm text-slate-500">Manage your profile photo and account security.</p>
     </div>
+    <section x-data="instructorIdCard" data-id-card-url="{{ route('id-card.show') }}"
+        class="mb-6 flex flex-col items-center">
+        <div class="relative w-full max-w-xs overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg shadow-slate-900/10">
+            <div class="h-2 bg-[#10294b]"></div>
+            <div aria-hidden="true"
+                class="pointer-events-none absolute inset-0 grid place-items-center overflow-hidden text-[78px] font-black tracking-tighter text-[#10294b]/[0.045]">
+                IQAMS
+            </div>
+            <div class="relative px-6 pb-6 pt-5 text-center">
+                <div class="flex items-center justify-center gap-2 text-[#10294b]">
+                    <span class="grid h-7 w-7 place-items-center rounded-lg bg-[#10294b] text-xs font-black text-white">I</span>
+                    <span class="text-sm font-extrabold tracking-[0.18em]">IQAMS</span>
+                </div>
+                <p class="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Instructor ID Card</p>
+
+                <div class="mx-auto mt-5 h-24 w-24 overflow-hidden rounded-full border-4 border-white bg-blue-100 text-blue-800 shadow-md ring-1 ring-slate-200">
+                    @if ($user->avatar_thumbnail_url)
+                        <img loading="lazy" width="96" height="96" src="{{ $user->avatar_thumbnail_url }}"
+                            class="h-full w-full object-cover" alt="{{ $user->instructor?->fullName() ?? $user->name }}">
+                    @else
+                        <span class="grid h-full place-items-center text-2xl font-bold">{{ strtoupper(substr($user->name, 0, 1)) }}</span>
+                    @endif
+                </div>
+
+                <h3 class="mt-3 truncate text-lg font-extrabold text-[#10294b]">{{ $user->instructor?->fullName() ?? $user->name }}</h3>
+                <p class="mt-1 text-xs font-semibold text-slate-600">Employee ID: {{ $user->instructor?->employee_no ?? 'N/A' }}</p>
+                <p class="mt-1 truncate text-xs text-slate-500">{{ $user->instructor?->department?->department_name ?? 'Department not assigned' }}</p>
+
+                <div data-instructor-id-card-qr
+                    class="mx-auto mt-5 grid min-h-40 w-fit place-items-center rounded-xl border border-slate-200 bg-white p-2 text-sm text-slate-500 shadow-sm"></div>
+                <p class="mt-3 text-[10px] font-extrabold tracking-[0.16em] text-[#10294b]">SCAN FOR ATTENDANCE</p>
+            </div>
+        </div>
+        <button type="button" @click="downloadIdCard" :disabled="downloading"
+            class="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#10294b] px-4 py-2 text-sm font-semibold text-white hover:bg-[#173d6d] disabled:cursor-not-allowed disabled:opacity-60">
+            <x-heroicon-o-arrow-down-tray class="h-4 w-4" />
+            <span x-text="downloading ? 'Preparing ID Card...' : 'Download ID Card'"></span>
+        </button>
+    </section>
     <form method="POST" action="{{ route('my-profile.update') }}" enctype="multipart/form-data"
         class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/70">@csrf @method('PATCH')
         <div class="h-2 bg-gradient-to-r from-indigo-600 to-violet-600"></div>

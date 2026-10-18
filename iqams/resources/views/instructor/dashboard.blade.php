@@ -22,15 +22,6 @@
     ];
     $workStart = config('attendance.personnel_windows.instructor.morning_in.window_start', '08:00');
     $workEnd = config('attendance.personnel_windows.instructor.final_out.window_end', '17:00');
-    $icons = [
-        'attendance' =>
-            'M9 12l2 2 4-4m5-4v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2m4-1h4a1 1 0 011 1v2H9V4a1 1 0 011-1h2z',
-        'history' => 'M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z',
-        'summary' => 'M4 19h16M7 16V9m5 7V5m5 11v-4',
-        'schedule' => 'M8 7V3m8 4V3M5 11h14M5 5h14v16H5z',
-        'issues' => 'M12 9v4m0 4h.01M10.3 3.6L2.6 17a2 2 0 001.7 3h15.4a2 2 0 001.7-3L13.7 3.6a2 2 0 00-3.4 0z',
-        'profile' => 'M5.1 17.8a9 9 0 1113.8 0M15 11a3 3 0 11-6 0 3 3 0 016 0z',
-    ];
     $chartWidth = 760;
     $chartHeight = 230;
     $chartTop = 16;
@@ -92,7 +83,7 @@
 @endphp
 <x-instructor-layout title="Dashboard">
     <div x-data="instructorWorkspace" data-realtime-url="{{ route('instructor.dashboard.realtime') }}"
-        data-id-card-url="{{ route('id-card.show') }}" class="instructor-dashboard mx-auto w-full min-w-0 max-w-[1500px] space-y-3">
+        class="instructor-dashboard mx-auto w-full min-w-0 max-w-[1500px] space-y-3">
         @unless (Auth::user()->isAccountActive())
             <div class="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-800">
                 <div class="flex items-center gap-3"><span
@@ -102,30 +93,8 @@
                 </div>
             </div>
         @endunless
-        <section class="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label="Attendance summary">
-            <div class="dashboard-card rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm">
-                <p class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Attendance rate</p>
-                <p data-stat="percentage" class="mt-1 text-xl font-extrabold text-blue-700">{{ $totals['percentage'] }}%</p>
-                <p class="mt-0.5 text-[10px] text-slate-500">This month</p>
-            </div>
-            <div class="dashboard-card rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm">
-                <p class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Present days</p>
-                <p data-stat="present" class="mt-1 text-xl font-extrabold text-emerald-700">{{ $totals['presentDays'] }}</p>
-                <p class="mt-0.5 text-[10px] text-slate-500">This month</p>
-            </div>
-            <div class="dashboard-card rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm">
-                <p class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Late count</p>
-                <p data-stat="late" class="mt-1 text-xl font-extrabold text-orange-600">{{ $totals['lateCount'] }}</p>
-                <p class="mt-0.5 text-[10px] text-slate-500">Recorded late arrivals</p>
-            </div>
-            <div class="dashboard-card rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm">
-                <p class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Open issues</p>
-                <p class="mt-1 text-xl font-extrabold text-amber-700">{{ $issues->count() }}</p>
-                <p class="mt-0.5 text-[10px] text-slate-500">Needs review</p>
-            </div>
-        </section>
         <div class="grid min-w-0 gap-3 xl:grid-cols-12">
-            <div class="min-w-0 space-y-3 xl:col-span-8">
+            <div class="min-w-0 xl:col-span-12">
                 <section class="dashboard-card rounded-xl border border-gray-200 bg-white px-4 py-3 sm:px-4">
                     <div class="mb-3">
                         <h2 class="text-lg font-semibold text-gray-900">Today's attendance</h2>
@@ -166,6 +135,9 @@
                     </p>
                 </section>
 
+            </div>
+
+            <div class="min-w-0 space-y-3 xl:col-span-8">
                 <div class="grid gap-3 lg:grid-cols-[.85fr_1.15fr]">
                     <section class="dashboard-card rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
                         <h2 class="text-xs font-extrabold uppercase text-[#10294b]">Punctuality Today</h2>
@@ -287,39 +259,6 @@
 
             <aside class="min-w-0 space-y-3 xl:col-span-4">
                 <section class="dashboard-card rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
-                    <h2 class="text-sm font-extrabold uppercase text-[#10294b]">My Profile</h2>
-                    <div class="mt-3 flex min-w-0 items-center gap-3 sm:gap-4">
-                        <div class="h-20 w-20 shrink-0 overflow-hidden rounded-full bg-blue-100 text-blue-800">
-                            @if (auth()->user()->avatar_thumbnail_url)
-                                <img loading="lazy" width="80" height="80"
-                                    src="{{ auth()->user()->avatar_thumbnail_url }}"
-                                class="h-full w-full object-cover" alt="{{ $instructor->fullName() }}">@else<div
-                                    class="grid h-full place-items-center text-xl font-bold">
-                                    {{ strtoupper(substr($instructor->first_name, 0, 1) . substr($instructor->last_name, 0, 1)) }}
-                                </div>
-                            @endif
-                        </div>
-                        <div class="min-w-0 flex-1 text-sm leading-6">
-                            <p class="truncate text-base font-extrabold text-slate-950">{{ $instructor->fullName() }}
-                            </p>
-                            <p class="text-slate-600">Instructor ID: {{ $instructor->employee_no }}</p>
-                            <p class="text-slate-600">Department:
-                                {{ $instructor->department?->department_code ?? ($instructor->department?->department_name ?? 'N/A') }}
-                            </p>
-                            <p class="text-slate-600">Position: Instructor</p>
-                        </div>
-                    </div>
-                    <div class="mt-3 text-center">
-                        <p class="text-xs font-bold text-slate-800">My QR Code</p>
-                        <div id="instructor-qr"
-                            class="mx-auto mt-2 w-fit rounded-lg border border-slate-200 bg-white p-2"></div>
-                        <p class="mx-auto mt-2 max-w-[240px] text-[11px] leading-4 text-slate-500">Present this QR code
-                            to the dedicated scanner for attendance.</p><button type="button" @click="downloadIdCard"
-                            class="mx-auto mt-3 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700"><x-heroicon-o-arrow-down-tray
-                                class="h-4 w-4" />Download ID Card</button>
-                    </div>
-                </section>
-                <section class="dashboard-card rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
                     <h2 class="text-xs font-extrabold uppercase text-[#10294b]">Next Teaching Schedule</h2>
                     @if ($nextSchedule)
                         <div class="mt-3 border-t border-slate-100 pt-3">
@@ -335,6 +274,7 @@
                             upcoming teaching schedule today.</p>
                     @endif
                 </section>
+                {{--
                 <section class="dashboard-card rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
                     <div class="flex items-center justify-between">
                         <h2 class="text-xs font-extrabold uppercase text-[#10294b]">Attendance Issues</h2><a
@@ -358,22 +298,9 @@
                         @endforelse
                     </div>
                 </section>
+                --}}
             </aside>
         </div>
 
-        {{-- <section class="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
-            <h2 class="text-xs font-extrabold uppercase text-[#10294b]">Quick Access</h2>
-            <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-                @foreach ([['attendance', 'My Attendance'], ['history', 'Attendance History'], ['summary', 'Monthly Summary'], ['schedule', 'My Teaching Schedule'], ['issues', 'Attendance Issues'], ['profile', 'Profile']] as [$route, $label])
-                    <a href="{{ $route === 'profile' ? route('my-profile.edit') : route('instructor.' . $route) }}"
-                        class="flex min-h-14 items-center justify-center gap-3 rounded-xl border border-slate-100 px-3 py-2 text-center text-[11px] font-semibold text-[#10294b] transition hover:border-blue-200 hover:bg-blue-50"><svg
-                            class="h-6 w-6 shrink-0 text-blue-600" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
-                                d="{{ $icons[$route] }}" />
-                        </svg>{{ $label }}</a>
-                @endforeach
-            </div>
-        </section> --}}
     </div>
 </x-instructor-layout>
