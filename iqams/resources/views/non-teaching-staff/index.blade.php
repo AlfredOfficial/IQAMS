@@ -19,7 +19,7 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
 
-            <div class="bg-white shadow-sm rounded-lg">
+            <div data-repeatable-list class="bg-white shadow-sm rounded-lg">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                     <span class="text-sm text-gray-500">{{ $staffMembers->total() }} total</span>
                     <div class="flex items-center gap-2"><button type="button"
@@ -138,7 +138,7 @@
                     </button>
                 </div>
 
-                <form method="POST" action="{{ route('non-teaching-staff.store') }}" enctype="multipart/form-data">
+                <form method="POST" action="{{ route('non-teaching-staff.store') }}" enctype="multipart/form-data" data-repeatable-create>
                     @csrf
                     <div class="mb-3"><label class="mb-1 block text-sm font-medium text-gray-700">Profile
                             Photo</label><input type="file" name="avatar" accept="image/jpeg,image/png" required

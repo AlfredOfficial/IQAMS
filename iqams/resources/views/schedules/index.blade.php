@@ -46,10 +46,10 @@
                 [...this.editModal.recurring_days] :
                 [this.editModal.original_day];
         }
-    }">
+    }" @repeatable-form-reset.window="createDays = []; createSubjectId = ''; createInstructorId = ''; createSectionId = ''">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
-            <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div data-repeatable-list class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div class="flex items-center justify-between gap-4 border-b border-gray-200 px-5 py-4 sm:px-6">
                     <span class="text-sm font-medium text-gray-500">{{ $schedules->total() }} total</span>
                     <button @click="showCreateModal = true"
@@ -136,8 +136,7 @@
 
         {{-- Create Schedule Modal --}}
         <div x-show="showCreateModal" x-cloak
-            class="fixed inset-y-0 right-0 left-0 z-50 flex items-center justify-center p-4 lg:left-[260px]"
-            :class="sidebarCollapsed ? 'lg:!left-[80px]' : 'lg:!left-[260px]'" style="background: rgba(0,0,0,0.4);">
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background: rgba(0,0,0,0.4);">
             <div @click.outside="showCreateModal = false"
                 class="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
 
@@ -148,7 +147,7 @@
                     </button>
                 </div>
 
-                <form method="POST" action="{{ route('schedules.store') }}"
+                <form method="POST" action="{{ route('schedules.store') }}" data-repeatable-create
                     class="grid min-h-0 gap-x-4 overflow-y-auto px-6 py-5 md:grid-cols-2">
                     @csrf
                     <input type="hidden" name="_form" value="create">
@@ -262,8 +261,7 @@
 
         {{-- Edit Schedule Modal --}}
         <div x-show="editModal.show" x-cloak
-            class="fixed inset-y-0 right-0 left-0 z-50 overflow-y-auto px-4 py-4 sm:px-6 lg:left-[260px]"
-            :class="sidebarCollapsed ? 'lg:!left-[80px]' : 'lg:!left-[260px]'" style="background: rgba(0,0,0,0.4);">
+            class="fixed inset-0 z-50 overflow-y-auto px-4 py-4 sm:px-6 backdrop-blur-sm" style="background: rgba(0,0,0,0.4);">
             <div class="flex min-h-full items-center justify-center">
                 <div @click.outside="editModal.show = false"
                     class="w-full max-w-2xl rounded-lg bg-white p-4 shadow-xl sm:p-5">
@@ -451,7 +449,7 @@
         </div>
 
         {{-- Delete Confirmation Modal --}}
-        <div x-show="deleteModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4"
+        <div x-show="deleteModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4 backdrop-blur-sm"
             style="background: rgba(0,0,0,0.4);">
             <div @click.outside="deleteModal.show = false" class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
 

@@ -16,11 +16,11 @@
         selectedIds: [],
         allIds: @js($studentUserIds),
         toggleAll() { this.selectedIds = this.selectedIds.length === this.allIds.length ? [] : [...this.allIds]; }
-    }">
+    }" @repeatable-form-reset.window="createEnrollmentType = 'regular'">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
 
-            <div class="bg-white shadow-sm rounded-lg">
+            <div data-repeatable-list class="bg-white shadow-sm rounded-lg">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                     <span class="text-sm text-gray-500">{{ $students->total() }} total</span>
                     <div class="flex items-center gap-2"><button type="button"
@@ -145,7 +145,7 @@
                         </button>
                     </div>
 
-                    <form method="POST" action="{{ route('students.store') }}" enctype="multipart/form-data"
+                    <form method="POST" action="{{ route('students.store') }}" enctype="multipart/form-data" data-repeatable-create
                         class="grid gap-x-4 gap-y-3 sm:grid-cols-2">
                         @csrf
                         <div class="mb-4 sm:col-span-2">

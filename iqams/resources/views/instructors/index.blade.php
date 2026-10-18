@@ -18,7 +18,7 @@
     }"
         @keydown.escape.window="showCreateModal = false; editModal.show = false; deleteModal.show = false; statusModal.show = false; qrModal.show = false">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="overflow-hidden rounded-lg bg-white shadow-sm">
+            <div data-repeatable-list class="overflow-hidden rounded-lg bg-white shadow-sm">
                 <div
                     class="flex flex-col gap-3 border-b border-gray-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <span class="text-sm text-gray-500">{{ $instructors->total() }} total</span>
@@ -138,7 +138,7 @@
                         </button>
                     </div>
 
-                    <form method="POST" action="{{ route('instructors.store') }}" enctype="multipart/form-data">
+                    <form method="POST" action="{{ route('instructors.store') }}" enctype="multipart/form-data" data-repeatable-create>
                         @csrf
                         <div class="grid grid-cols-1 gap-x-5 gap-y-3 md:grid-cols-2">
                             <div class="md:col-span-2">

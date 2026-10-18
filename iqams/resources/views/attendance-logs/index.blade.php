@@ -15,7 +15,7 @@
         createScheduleId: @js((string) old('schedule_id', '')),
         editModal: { show: false, id: null, user_id: '', schedule_id: '', attendance_type: '', scan_time: '', status_override: '', scanner_location: '', remarks: '' },
         deleteModal: { show: false, id: null, name: '' }
-    }">
+    }" @repeatable-form-reset.window="createUserId = ''; createScheduleId = ''">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
             {{-- Filters --}}
@@ -56,7 +56,7 @@
                 </div>
             </form>
 
-            <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div data-repeatable-list class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div class="flex items-center justify-between border-b border-gray-200 px-5 py-3.5 sm:px-6">
                     <div class="flex items-baseline gap-2">
                         <span class="text-sm font-semibold text-gray-800">{{ $logs->total() }}</span>
@@ -146,8 +146,7 @@
 
         {{-- Create Log Modal --}}
         <div x-show="showCreateModal" x-cloak
-            class="fixed inset-y-0 right-0 left-0 z-50 flex items-center justify-center p-4 lg:left-[260px]"
-            :class="sidebarCollapsed ? 'lg:!left-[80px]' : 'lg:!left-[260px]'" style="background: rgba(0,0,0,0.4);">
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background: rgba(0,0,0,0.4);">
             <div @click.outside="showCreateModal = false"
                 class="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
 
@@ -158,7 +157,7 @@
                     </button>
                 </div>
 
-                <form method="POST" action="{{ route('attendance-logs.store') }}"
+                <form method="POST" action="{{ route('attendance-logs.store') }}" data-repeatable-create
                     class="grid min-h-0 gap-x-4 overflow-y-auto px-6 py-5 md:grid-cols-2">
                     @csrf
 
@@ -259,8 +258,7 @@
 
         {{-- Edit Log Modal --}}
         <div x-show="editModal.show" x-cloak
-            class="fixed inset-y-0 right-0 left-0 z-50 flex items-center justify-center p-4 lg:left-[260px]"
-            :class="sidebarCollapsed ? 'lg:!left-[80px]' : 'lg:!left-[260px]'" style="background: rgba(0,0,0,0.4);">
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background: rgba(0,0,0,0.4);">
             <div @click.outside="editModal.show = false"
                 class="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
 
@@ -347,7 +345,7 @@
         </div>
 
         {{-- Delete Confirmation Modal --}}
-        <div x-show="deleteModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4"
+        <div x-show="deleteModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4 backdrop-blur-sm"
             style="background: rgba(0,0,0,0.4);">
             <div @click.outside="deleteModal.show = false" class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
 

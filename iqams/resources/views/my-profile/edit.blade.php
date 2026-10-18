@@ -33,12 +33,18 @@
             <title>My Profile - {{ config('app.name', 'IQAMS') }}</title>
             <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
 
+            <!-- Fonts -->
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+            <link rel="preconnect" href="https://fonts.bunny.net">
+            <link href="https://fonts.bunny.net/css?family=poppins:300,400,500,600,700" rel="stylesheet" />
 
             @vite(['resources/css/app.css', 'resources/js/app.js'])
         </head>
 
         <body class="font-sans antialiased bg-gray-50 min-h-screen">
-
+            <x-toast-notifications />
             <header class="bg-white border-b border-gray-200">
                 <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                     <a href="{{ route($backRoute) }}"

@@ -87,6 +87,8 @@ Alpine.data('schoolEventSelect', (options = []) => ({
     open: false,
     direction: 'down',
     menuStyle: '',
+    resizeHandler: null,
+    scrollHandler: null,
 
     toggle() {
         this.open = !this.open;
@@ -114,8 +116,15 @@ Alpine.data('schoolEventSelect', (options = []) => ({
         this.$watch('open', (open) => {
             if (open) this.$nextTick(() => this.positionMenu());
         });
-        window.addEventListener('resize', () => this.open && this.positionMenu());
-        window.addEventListener('scroll', () => this.open && this.positionMenu(), true);
+        this.resizeHandler = () => this.open && this.positionMenu();
+        this.scrollHandler = () => this.open && this.positionMenu();
+        window.addEventListener('resize', this.resizeHandler);
+        window.addEventListener('scroll', this.scrollHandler, true);
+    },
+
+    destroy() {
+        window.removeEventListener('resize', this.resizeHandler);
+        window.removeEventListener('scroll', this.scrollHandler, true);
     },
 }));
 
@@ -132,9 +141,13 @@ Alpine.data('toastNotifications', (initialNotifications = []) => ({
 
         if (!message) return;
 
+        const type = notification?.type || 'success';
+        const defaultTitle = { success: 'Success', error: 'Error', warning: 'Warning', info: 'Information' }[type] || 'Success';
+
         const toast = {
             id: this.nextId++,
-            title: notification?.title || 'Success',
+            type,
+            title: notification?.title || defaultTitle,
             message,
             visible: true,
         };
@@ -153,6 +166,7 @@ Alpine.data('toastNotifications', (initialNotifications = []) => ({
         }, 300);
     },
 }));
+
 
 Alpine.data('lookupField', (initialState = {}) => ({
     endpoint: initialState.endpoint,
@@ -977,80 +991,6 @@ document.addEventListener('submit', (event) => {
 
 installNavigationFeedback(window, document, pageLoader);
 
-// Keep the admin shell mounted while navigating between admin pages. The
-// server-rendered response is still used, but only its shell content is swapped
-// so the sidebar does not visibly reset on every click.
-if (document.body.hasAttribute('data-admin-shell')) {
-    const navigateAdmin = async (url, addHistory = true) => {
-        const destination = new URL(url, window.location.href);
-        if (destination.origin !== window.location.origin) return false;
-
-        const currentContent = document.querySelector('#app-content');
-        const currentNav = document.querySelector('[data-sidebar-nav].app-sidebar-nav');
-        if (!currentContent || !currentNav) return false;
-
-        pageLoader.start();
-        window.dispatchEvent(new Event('iqams:navigating'));
-
-        try {
-            const response = await fetch(destination.href, {
-                credentials: 'same-origin',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            });
-            if (!response.ok) throw new Error(`Navigation failed: ${response.status}`);
-
-            const html = await response.text();
-            const parsed = new DOMParser().parseFromString(html, 'text/html');
-            const nextContent = parsed.querySelector('#app-content');
-            const nextNav = parsed.querySelector('[data-sidebar-nav].app-sidebar-nav');
-            if (!nextContent || !nextNav) throw new Error('Navigation response has no admin shell');
-
-            const sidebarScrollTop = currentNav.scrollTop;
-            Alpine.destroyTree(currentContent);
-            Alpine.destroyTree(currentNav);
-            currentContent.replaceWith(nextContent);
-            currentNav.replaceWith(nextNav);
-            nextNav.scrollTop = sidebarScrollTop;
-            Alpine.initTree(nextNav);
-            Alpine.initTree(nextContent);
-            window.requestAnimationFrame(() => focusActiveSidebarLink(nextNav));
-
-            if (parsed.title) document.title = parsed.title;
-            if (addHistory) window.history.pushState({}, '', destination.href);
-            window.scrollTo(0, 0);
-            pageLoader.stop();
-            window.dispatchEvent(new Event('iqams:navigation-complete'));
-            return true;
-        } catch {
-            pageLoader.stop();
-            return false;
-        }
-    };
-
-    document.addEventListener('click', (event) => {
-        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey
-            || event.shiftKey || event.altKey) return;
-        const link = event.target.closest?.('a[data-sidebar-link][href]');
-        if (!link || (link.target && link.target.toLowerCase() !== '_self') || link.hasAttribute('download')) return;
-
-        const destination = new URL(link.href, window.location.href);
-        const current = new URL(window.location.href);
-        if (destination.origin !== current.origin || destination.hash
-            || destination.href === current.href) return;
-
-        event.preventDefault();
-        navigateAdmin(destination.href).then((handled) => {
-            if (!handled) window.location.assign(destination.href);
-        });
-    });
-
-    window.addEventListener('popstate', () => {
-        navigateAdmin(window.location.href, false).then((handled) => {
-            if (!handled) window.location.reload();
-        });
-    });
-}
-
 // Shared lightweight feedback for login and admin CRUD submit actions.
 const setFormSubmitLoading = (form) => {
     const button = form?.querySelector('button[type="submit"]:not([disabled])');
@@ -1062,6 +1002,129 @@ const setFormSubmitLoading = (form) => {
 };
 
 window.setIqamsFormSubmitLoading = setFormSubmitLoading;
+
+// Opt-in create forms that support consecutive data entry. The normal CRUD
+// redirect remains the source of truth; this only prevents that redirect from
+// replacing the open modal after a successful request.
+const clearRepeatableFormErrors = (form) => {
+    form.querySelectorAll('[data-repeatable-error]').forEach((element) => element.remove());
+    form.querySelector('[data-repeatable-feedback]')?.remove();
+};
+
+const showRepeatableFormFeedback = (form, message, type = 'success') => {
+    const feedback = document.createElement('p');
+    feedback.dataset.repeatableFeedback = '';
+    feedback.className = type === 'success'
+        ? 'mb-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700'
+        : 'mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700';
+    feedback.setAttribute('role', type === 'success' ? 'status' : 'alert');
+    feedback.textContent = message;
+    form.prepend(feedback);
+};
+
+const showRepeatableFormErrors = (form, errors = {}) => {
+    const messages = Object.values(errors).flat().filter(Boolean);
+    showRepeatableFormFeedback(form, messages[0] || 'Unable to save this record. Please review the form.', 'error');
+
+    Object.entries(errors).forEach(([name, fieldMessages]) => {
+        const field = form.querySelector(`[name="${CSS.escape(name)}"]`);
+        if (!field || !fieldMessages?.[0]) return;
+        const error = document.createElement('p');
+        error.dataset.repeatableError = '';
+        error.className = 'mt-1 text-sm text-red-600';
+        error.textContent = fieldMessages[0];
+        field.insertAdjacentElement('afterend', error);
+    });
+};
+
+const refreshRepeatableList = (html) => {
+    const currentList = document.querySelector('[data-repeatable-list]');
+    if (!currentList || !html) return;
+
+    const documentFragment = new DOMParser().parseFromString(html, 'text/html');
+    const nextList = documentFragment.querySelector('[data-repeatable-list]');
+    if (!nextList) return;
+
+    Alpine.destroyTree(currentList);
+    currentList.replaceWith(nextList);
+    Alpine.initTree(nextList);
+};
+
+const showResponseToasts = (html) => {
+    const toastSource = new DOMParser().parseFromString(html, 'text/html')
+        .querySelector('[data-toast-notifications]');
+    if (!toastSource) {
+        window.dispatchEvent(new CustomEvent('toast', {
+            detail: { type: 'success', title: 'Success', message: 'Saved successfully.' },
+        }));
+        return;
+    }
+
+    try {
+        const notifications = JSON.parse(toastSource.dataset.toastNotifications || '[]');
+        if (notifications.length === 0) {
+            window.dispatchEvent(new CustomEvent('toast', {
+                detail: { type: 'success', title: 'Success', message: 'Saved successfully.' },
+            }));
+            return;
+        }
+
+        notifications.forEach((notification) => window.dispatchEvent(new CustomEvent('toast', { detail: notification })));
+    } catch {
+        window.dispatchEvent(new CustomEvent('toast', {
+            detail: { type: 'success', title: 'Success', message: 'Saved successfully.' },
+        }));
+    }
+};
+
+document.addEventListener('submit', async (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || !form.matches('[data-repeatable-create]')) return;
+
+    event.preventDefault();
+    if (form.dataset.submitting === 'true') return;
+
+    const button = event.submitter || form.querySelector('button[type="submit"]');
+    form.dataset.submitting = 'true';
+    clearRepeatableFormErrors(form);
+    button && setFormSubmitLoading({ querySelector: () => button });
+
+    try {
+        const response = await fetch(form.action, {
+            method: (form.method || 'POST').toUpperCase(),
+            body: new FormData(form),
+            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin',
+        });
+
+        if (response.status === 422) {
+            showRepeatableFormErrors(form, (await response.json()).errors);
+            return;
+        }
+        if (!response.ok) {
+            let message = 'Unable to save this record. Please try again.';
+            try { message = (await response.json()).message || message; } catch { /* HTML error response */ }
+            showRepeatableFormFeedback(form, message, 'error');
+            return;
+        }
+
+        const responseHtml = await response.text();
+        form.reset();
+        form.dispatchEvent(new CustomEvent('repeatable-form-reset', { bubbles: true }));
+        clearRepeatableFormErrors(form);
+        refreshRepeatableList(responseHtml);
+        showResponseToasts(responseHtml);
+    } catch {
+        showRepeatableFormFeedback(form, 'Unable to save this record. Please check your connection and try again.', 'error');
+    } finally {
+        form.dataset.submitting = 'false';
+        if (button) {
+            button.disabled = false;
+            button.classList.remove('crud-submit-loading');
+            button.removeAttribute('aria-busy');
+        }
+    }
+}, true);
 
 document.addEventListener('submit', (event) => {
     const form = event.target;

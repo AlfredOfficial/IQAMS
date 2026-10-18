@@ -10,7 +10,7 @@
     }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
-            <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div data-repeatable-list class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                     <span class="text-sm font-medium text-gray-500">{{ $subjects->total() }} total</span>
                     <button @click="showCreateModal = true"
@@ -61,8 +61,7 @@
         </div>
 
         {{-- Create Subject Modal --}}
-        <div x-show="showCreateModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4"
-            style="background: rgba(0,0,0,0.4);">
+        <div x-show="showCreateModal" x-cloak x-transition.opacity class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
             <div @click.outside="showCreateModal = false" class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
 
                 <div class="flex items-center justify-between mb-4">
@@ -72,7 +71,7 @@
                     </button>
                 </div>
 
-                <form method="POST" action="{{ route('subjects.store') }}">
+                <form method="POST" action="{{ route('subjects.store') }}" data-repeatable-create>
                     @csrf
 
                     <div class="mb-4">
@@ -121,8 +120,7 @@
         </div>
 
         {{-- Edit Subject Modal --}}
-        <div x-show="editModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4"
-            style="background: rgba(0,0,0,0.4);">
+        <div x-show="editModal.show" x-cloak x-transition.opacity class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
             <div @click.outside="editModal.show = false" class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
 
                 <div class="flex items-center justify-between mb-4">
@@ -171,8 +169,7 @@
         </div>
 
         {{-- Delete Confirmation Modal --}}
-        <div x-show="deleteModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4"
-            style="background: rgba(0,0,0,0.4);">
+        <div x-show="deleteModal.show" x-cloak x-transition.opacity class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
             <div @click.outside="deleteModal.show = false" class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
 
                 <h3 class="text-lg font-semibold text-gray-800 mb-2">Delete Subject</h3>
