@@ -129,8 +129,7 @@
             </div>
         </div>
 
-        <div x-show="showModal" x-cloak
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" @click.self="closeModal()">
+        <x-admin-modal show="showModal" close="closeModal()" z-index="z-50">
             <section role="dialog" aria-modal="true" aria-labelledby="school-event-modal-title"
                 class="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-visible rounded-xl bg-white shadow-2xl">
                 <div class="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
@@ -142,10 +141,9 @@
                 </div>
                 @include('school-events.form')
             </section>
-        </div>
+        </x-admin-modal>
 
-        <div x-show="showDeleteModal" x-cloak
-            class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" @click.self="closeDeleteModal()">
+        <x-admin-modal show="showDeleteModal" close="closeDeleteModal()" z-index="z-[60]">
             <section role="dialog" aria-modal="true" aria-labelledby="delete-school-event-modal-title"
                 class="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
                 <div class="flex items-start justify-between gap-4">
@@ -168,7 +166,7 @@
                         class="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Delete Event</button>
                 </form>
             </section>
-        </div>
+        </x-admin-modal>
     </div>
 
 </x-app-layout>

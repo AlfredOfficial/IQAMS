@@ -135,8 +135,7 @@
         </div>
 
         {{-- Create Schedule Modal --}}
-        <div x-show="showCreateModal" x-cloak
-            class="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm" style="background: rgba(0,0,0,0.4);">
+        <x-admin-modal show="showCreateModal" close="showCreateModal = false" z-index="z-50">
             <div @click.outside="showCreateModal = false"
                 class="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
 
@@ -257,11 +256,10 @@
                     </div>
                 </form>
             </div>
-        </div>
+        </x-admin-modal>
 
         {{-- Edit Schedule Modal --}}
-        <div x-show="editModal.show" x-cloak
-            class="fixed inset-0 z-50 overflow-y-auto px-4 py-4 sm:px-6 backdrop-blur-sm" style="background: rgba(0,0,0,0.4);">
+        <x-admin-modal show="editModal.show" close="editModal.show = false" z-index="z-50" scrollable>
             <div class="flex min-h-full items-center justify-center">
                 <div @click.outside="editModal.show = false"
                     class="w-full max-w-2xl rounded-lg bg-white p-4 shadow-xl sm:p-5">
@@ -446,11 +444,10 @@
                     </form>
                 </div>
             </div>
-        </div>
+        </x-admin-modal>
 
         {{-- Delete Confirmation Modal --}}
-        <div x-show="deleteModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center px-4 backdrop-blur-sm"
-            style="background: rgba(0,0,0,0.4);">
+        <x-admin-modal show="deleteModal.show" close="deleteModal.show = false" z-index="z-50">
             <div @click.outside="deleteModal.show = false" class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
 
                 <h3 class="text-lg font-semibold text-gray-800 mb-2">Delete Schedule</h3>
@@ -477,6 +474,6 @@
                     </div>
                 </form>
             </div>
-        </div>
+        </x-admin-modal>
     </div>
 </x-app-layout>

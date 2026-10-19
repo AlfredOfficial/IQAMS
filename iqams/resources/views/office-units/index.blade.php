@@ -51,7 +51,7 @@
             </div>
         </div>
 
-        <div x-show="create" x-cloak x-transition.opacity class="fixed inset-0 z-[90] grid place-items-center bg-slate-900/50 backdrop-blur-sm p-4">
+        <x-admin-modal show="create" close="create = false">
             <div @click.outside="create=false" class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
                 <h2 class="mb-4 text-lg font-semibold text-gray-800">Add Office/Unit</h2>
                 <form method="POST" action="{{ route('office-units.store') }}" class="space-y-4" data-repeatable-create>
@@ -77,8 +77,8 @@
                     </div>
                 </form>
             </div>
-        </div>
-        <div x-show="edit.show" x-cloak x-transition.opacity class="fixed inset-0 z-[90] grid place-items-center bg-slate-900/50 backdrop-blur-sm p-4">
+        </x-admin-modal>
+        <x-admin-modal show="edit.show" close="edit.show = false">
             <div @click.outside="edit.show=false" class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
                 <h2 class="mb-4 text-lg font-semibold text-gray-800">Edit Office/Unit</h2>
                 <form method="POST" :action="'{{ url('office-units') }}/' + edit.id" class="space-y-4"
@@ -107,10 +107,10 @@
                     </div>
                 </form>
             </div>
-        </div>
+        </x-admin-modal>
 
         {{-- Deactivate Confirmation Modal --}}
-        <div x-show="deactivateModal.show" x-cloak x-transition.opacity class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
+        <x-admin-modal show="deactivateModal.show" close="deactivateModal.show = false">
             <div @click.outside="deactivateModal.show = false" class="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
                 <h3 class="mb-2 text-lg font-semibold text-gray-800">Deactivate Office/Unit</h3>
                 <p class="mb-6 text-sm text-gray-500">Are you sure you want to deactivate <span
@@ -127,6 +127,6 @@
                     </div>
                 </form>
             </div>
-        </div>
+        </x-admin-modal>
     </div>
 </x-app-layout>

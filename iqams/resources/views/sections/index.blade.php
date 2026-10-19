@@ -87,7 +87,7 @@
         </div>
 
         {{-- Create Section Modal --}}
-        <div x-show="showCreateModal" x-cloak x-transition.opacity class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
+        <x-admin-modal show="showCreateModal" close="showCreateModal = false">
             <div @click.outside="showCreateModal = false" class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
 
                 <div class="flex items-center justify-between mb-4">
@@ -162,10 +162,10 @@
                     </div>
                 </form>
             </div>
-        </div>
+        </x-admin-modal>
 
         {{-- Edit Section Modal --}}
-        <div x-show="editModal.show" x-cloak x-transition.opacity class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
+        <x-admin-modal show="editModal.show" close="editModal.show = false">
             <div @click.outside="editModal.show = false" class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
 
                 <div class="flex items-center justify-between mb-4">
@@ -226,10 +226,10 @@
                     </div>
                 </form>
             </div>
-        </div>
+        </x-admin-modal>
 
         {{-- Delete Confirmation Modal --}}
-        <div x-show="deleteModal.show" x-cloak x-transition.opacity class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
+        <x-admin-modal show="deleteModal.show" close="deleteModal.show = false">
             <div @click.outside="deleteModal.show = false" class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
 
                 <h3 class="text-lg font-semibold text-gray-800 mb-2">Delete Section</h3>
@@ -256,10 +256,10 @@
                     </div>
                 </form>
             </div>
-        </div>
+        </x-admin-modal>
 
         {{-- Subjects Modal (via this section's schedules) --}}
-        <div x-show="subjectsModal.show" x-cloak x-transition.opacity class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
+        <x-admin-modal show="subjectsModal.show" close="subjectsModal.show = false">
             <div @click.outside="subjectsModal.show = false"
                 class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 max-h-[85vh] overflow-y-auto scrollbar-autohide"
                 x-data="{ scrollTimer: null }"
@@ -293,6 +293,6 @@
                     </template>
                 </div>
             </div>
-        </div>
+        </x-admin-modal>
     </div>
 </x-app-layout>
